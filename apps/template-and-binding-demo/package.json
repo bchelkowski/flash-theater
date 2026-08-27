@@ -1,0 +1,17 @@
+{
+  "name": "template-and-binding-demo",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Roku showcase for flash-theater's template surface — static vs dynamic attributes and automatic id-based node-ref caching, {#if}/{#if:destroy} conditional rendering, {#each} keyed list rendering, and bind: — the dedicated, router-mounted chapter app for the template-and-binding doc-nav topic (see findings/demo-app-conventions.md).",
+  "scripts": {
+    "compile": "flash-theater compile",
+    "zip": "flash-theater zip",
+    "build:roku": "npm run compile && npm run zip",
+    "sideload": "kopytko-roku installer install --zip dist/template-and-binding-demo.zip"
+  },
+  "devDependencies": {
+    "flash-theater-compiler": "*",
+    "kopytko-roku-device": "^1.5.1"
+  }
+}

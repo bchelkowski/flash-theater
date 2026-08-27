@@ -1,0 +1,104 @@
+<script>
+' Chapter 2/4 — {#if} (toggle mode) vs {#if:destroy} (construct/destroy mode), side by side so the
+' real difference is directly comparable, not just asserted. Toggle mode's Group wrapper is always
+' present in the compiled XML with `visible` reactively bound — the subtree (and the StepCounter
+' child inside it) is constructed exactly once and stays alive for the component's whole lifetime;
+' hiding it never destroys or resets anything. Destroy mode genuinely constructs/tears down the
+' subtree at runtime on every flip — a fresh StepCounter instance (count back at 0) every time it
+' reappears. Press OK inside each counter a few times, toggle its panel off then back on, and
+' compare: the LEFT (toggle) counter keeps its count, the RIGHT (destroy) one resets to 0 — see
+' GRAMMAR.md's "Conditional rendering" section ("a block's internal state never survives a
+' destroy/recreate cycle").
+'
+' `navigate()`'s own hidden-candidate skip (GRAMMAR.md's "{#if} (toggle)" entry: "navigate()
+' itself now skips any candidate that isn't genuinely visible... before scoring it") already means
+' neither panel's hidden content can win a directional search or steal a keypress while hidden —
+' both a toggled-off {#if} and a torn-down {#if:destroy} correctly hand LRUD through to
+' "belowButton". Toggle mode's remaining, structural difference from destroy mode is registry
+' PERSISTENCE (the node/registration entry itself never goes away — GRAMMAR.md: "a toggle-mode
+' block containing focusable content stays registered while hidden") and, as demonstrated here,
+' internal state survival.
+'
+' Entering the counter once its panel is VISIBLE needs an explicit `focus(<id>)` call, though —
+' live-device-caught: a plain directional Down from toggleButton/destroyButton never reaches the
+' counter, because `navigate()`'s same-owner candidate pass runs BEFORE the cross-owner one and
+' unconditionally wins when it finds a match, regardless of distance — "belowButton" (same owner as
+' the toggle button) always beats the counter (a genuinely different owner, since StepCounter is
+' its own component instance) even when the counter sits geometrically much closer. See
+' findings/focus-runtime-bugs.md's new entry and findings/template-and-binding-demo-app.md's
+' device-pass writeup. `toggleLeft()`/`toggleRight()` below call `focus("toggleCounter")`/
+' `focus("destroyCounter")` the moment their own panel becomes visible — the documented pattern for
+' "a nested custom component's own root," which lands on its remembered last-focused element or,
+' the first time, its first registered focusable one (GRAMMAR.md's "Focus" section).
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+scale state noteTranslation: object = [40, 130]
+
+scale field toggleButtonWidth: integer = 300
+scale field toggleButtonHeight: integer = 50
+scale field leftColumnX: integer = 40
+scale field rightColumnX: integer = 700
+scale field toggleButtonY: integer = 220
+scale field panelY: integer = 290
+scale state labelInset: object = [16, 12]
+scale state leftLabelTranslation: object = [40, 190]
+scale state rightLabelTranslation: object = [700, 190]
+
+scale state belowLabelTranslation: object = [40, 420]
+scale field belowWidth: integer = 400
+scale field belowHeight: integer = 50
+scale field belowY: integer = 460
+
+state showToggle: boolean = false
+state showDestroy: boolean = false
+
+private function toggleLeft(key: string, press: boolean) {
+  if (press) {
+    state showToggle = not showToggle
+    if (showToggle) {
+      focus("toggleCounter")
+    }
+  }
+}
+
+private function toggleRight(key: string, press: boolean) {
+  if (press) {
+    state showDestroy = not showDestroy
+    if (showDestroy) {
+      focus("destroyCounter")
+    }
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="2/4 — {#if} toggle mode vs {#if:destroy} construct/destroy mode" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="Left: {#if} — subtree built once, visible toggled. Right: {#if:destroy} — subtree really built/torn down." color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+  <Label id="note" text="OK inside a counter increments it. Toggle a panel off then on: left keeps its count, right resets to 0." color="0x888888FF" translation="{noteTranslation}" />
+
+  <Label id="leftLabel" text="{#if} (toggle)" color="0xFFCC66FF" translation="{leftLabelTranslation}" />
+  <Rectangle id="toggleButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{toggleButtonWidth}" height="{toggleButtonHeight}" translation="{[leftColumnX, toggleButtonY]}" on:key[OK]="{toggleLeft()}">
+    <Label id="toggleButtonLabel" text="Toggle left panel" color="0xFFFFFFFF" translation="{labelInset}" />
+  </Rectangle>
+  {#if showToggle}
+  <StepCounter id="toggleCounter" translation="{[leftColumnX, panelY]}" />
+  {/if}
+
+  <Label id="rightLabel" text="{#if:destroy} (construct/destroy)" color="0xFFCC66FF" translation="{rightLabelTranslation}" />
+  <Rectangle id="destroyButton" focusable="true" color="0x2A2A2AFF" width="{toggleButtonWidth}" height="{toggleButtonHeight}" translation="{[rightColumnX, toggleButtonY]}" on:key[OK]="{toggleRight()}">
+    <Label id="destroyButtonLabel" text="Toggle right panel" color="0xFFFFFFFF" translation="{labelInset}" />
+  </Rectangle>
+  {#if:destroy showDestroy}
+  <StepCounter id="destroyCounter" translation="{[rightColumnX, panelY]}" />
+  {/if}
+
+  <Label id="belowLabel" text="Below both — always reachable once a panel above is hidden" color="0x888888FF" translation="{belowLabelTranslation}" />
+  <Rectangle id="belowButton" focusable="true" color="0x2A2A2AFF" width="{belowWidth}" height="{belowHeight}" translation="{[leftColumnX, belowY]}">
+    <Label id="belowButtonLabel" text="(just a focus target)" color="0xFFFFFFFF" translation="{labelInset}" />
+  </Rectangle>
+
+</Rectangle>
+</component>

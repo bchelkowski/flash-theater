@@ -1,0 +1,7 @@
+Placeholder asset that only ever ships in the "prod" environment build — see
+apps/environments-demo/environments/prod.config.json's "include" and the base
+flash-theater.config.json's "exclude" for how this file is kept out of the "dev"
+build. A plain text placeholder (not a real image) is enough to prove the
+include/exclude mechanics, since this file isn't referenced from any .thr
+template or the manifest. See findings/environments.md and
+findings/environments-demo-app.md.

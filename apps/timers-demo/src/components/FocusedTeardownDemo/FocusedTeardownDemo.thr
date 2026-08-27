@@ -1,0 +1,78 @@
+<script>
+' Chapter 3/3 — closes findings/component-unmount-hook.md's gap 1 (ordering between focus-recovery
+' and the ft_unmount cascade) for the SYNCHRONOUS (non-animated) destroy-mode shape — see
+' apps/animation-demo's DestroyCustomDemo.thr for the companion ANIMATED (`out:`) case.
+'
+' `widget` is a plain, DIRECTLY-focusable Rectangle (not a nested custom component) so this
+' block's own generated destroy sub actually emits real unregister/recoverFocusFor lines — a
+' focusable id hidden behind a SEPARATE .thr component boundary is invisible to the enclosing
+' component's own template analysis (see findings/focus-router-free-and-nested-gaps.md's "opaque
+' nested custom component" gap, a different, already-documented issue this fixture deliberately
+' avoids reproducing). `widgetTicker` (TickReadout.thr, non-focusable) nested inside it supplies
+' the real Timer content the ft_unmount cascade reaches — same shape as apps/animation-demo's
+' `card`/`cardTicker` pair.
+'
+' `on:key[backspace]` (not `info` — confirmed live on a real device/firmware that Roku's ECP "Info"
+' keypress never reaches onKeyEvent as "info" at all, even with focus directly on this same
+' component's own `fallback`, no cross-component bubbling involved — apparently intercepted at the
+' OS/firmware level before app delivery) removes `widget` WHILE it currently holds focus, in the
+' SAME synchronous destroy sub that also cascades ft_unmount to `widgetTicker` — proving, in one
+' live pass with both kinds of evidence together (tick-count AND queryAppUi focus location), that
+' the timer genuinely stops AND focus correctly recovers to `fallback`, not just "navigation kept
+' working" as every prior pass only observed. See findings/timers-demo-app.md for what's actually
+' been re-verified for THIS router-mounted shape vs. what's still only confirmed from the pre-router
+' apps/async-demo fixture this was migrated from.
+'
+' `widget` now declares its OWN `default-focus="true"` — this screen is router-mounted, so the
+' router itself proposes+claims this chapter's own default-focus target the moment it's mounted
+' (GRAMMAR.md's "Router" section, the vacuum rule), no explicit `claimFocusIfVacant` call needed
+' anywhere in this file, unlike the old apps/async-demo shape where MainScene's own
+' `claimActiveDemoFocus()` claimed whichever child was first-registered by registration order.
+state showWidget: boolean = true
+
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale state titleTranslation: object = [40, 40]
+scale state hintTranslation: object = [40, 90]
+scale state widgetTranslation: object = [40, 170]
+scale field widgetWidth: integer = 400
+scale field widgetHeight: integer = 140
+scale state widgetLabelTranslation: object = [16, 16]
+scale state widgetTickerTranslation: object = [16, 60]
+scale state fallbackTranslation: object = [40, 350]
+scale state fallbackLabelTranslation: object = [16, 16]
+scale field fallbackWidth: integer = 360
+scale field fallbackHeight: integer = 60
+
+' `public function setup()`, NOT `startDemo()` — this screen is now router-mounted, so it gets an
+' automatic `setup()` call the moment the router mounts it, same conversion as chapters 1/2 (see
+' findings/timers-demo-app.md). `widgetTicker` already exists by the time this runs (`showWidget`
+' defaults true, so the {#if:destroy} create sub is part of this component's own synchronous
+' init()). `widgetTicker` itself is NOT router-mounted — it's a plain nested child, so it still
+' needs this explicit `callFunc("startDemo")` forwarding.
+public function setup() {
+  m.widgetTicker.callFunc("startDemo")
+}
+
+private function removeWidget(key: string, press: boolean) {
+  if (press) {
+    state showWidget = false
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}" on:key[backspace]="{removeWidget()}">
+  <Label id="title" text="3/3 — focus-recovery vs. ft_unmount ordering (synchronous destroy)" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="Widget ticks automatically — Backspace removes it while focused" color="0x888888FF" translation="{hintTranslation}" />
+  {#if:destroy showWidget}
+  <Rectangle id="widget" focusable="true" default-focus="true" color="0x2A2A4AFF" width="{widgetWidth}" height="{widgetHeight}" translation="{widgetTranslation}">
+    <Label id="widgetLabel" text="Widget" color="0xFFFFFFFF" translation="{widgetLabelTranslation}" />
+    <TickReadout id="widgetTicker" translation="{widgetTickerTranslation}" />
+  </Rectangle>
+  {/if}
+  <Rectangle id="fallback" focusable="true" color="0x2A2A2AFF" width="{fallbackWidth}" height="{fallbackHeight}" translation="{fallbackTranslation}">
+    <Label id="fallbackLabel" text="Fallback focus target" color="0xFFFFFFFF" translation="{fallbackLabelTranslation}" />
+  </Rectangle>
+</Rectangle>
+</component>

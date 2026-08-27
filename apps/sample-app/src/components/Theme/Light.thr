@@ -1,0 +1,7 @@
+<theme name="light">
+colors: {
+  background: string = "0xF5F5F5FF"
+  highlight: string = "0x0057FFFF"
+  text: string = "0x1A1A1AFF"
+}
+</theme>

@@ -1,0 +1,146 @@
+<script>
+' Chapter 1/4 — taskManager.run(node, [priority]) + taskManager.cancel(taskId) + priority-tier
+' queueing (high/normal/low, FIFO within each tier). Migrated from apps/async-demo's own
+' PriorityQueueDemo.thr into this app's router-mounted chapter framing — see
+' findings/task-manager-demo-app.md for the conversion notes and
+' findings/demo-app-conventions.md for why every chapter app now uses router+scale instead of the
+' old {#if:destroy} flat-screen switching apps/async-demo still uses.
+'
+' Default example: "Run burst (maxConcurrent=1)" creates 5 SlowTask instances in ONE press, in this
+' exact order — Low, Normal, High, Normal, Low — with `taskManager.setMaxConcurrent(1)` in effect.
+' Only the FIRST of the five (Low-1) starts immediately — nothing else is running yet, so it wins
+' regardless of its own low priority — the remaining four all queue, and the manager always drains
+' the whole high tier before normal before low (FIFO within a tier — see
+' runtime-assets/TaskManager/FlashTheaterTaskManager.brs's own `dequeueNext()`). The log should
+' therefore read Low-1 (started immediately), then High-1, then Normal-1, then Normal-2 (arrival
+' order preserved within the normal tier) — Low-2 only starts last, or gets cancelled first via
+' "Cancel most recent" before it ever starts.
+'
+' Customized example (the addition this chapter makes beyond the migrated default): "Same burst at
+' maxConcurrent=3" runs the EXACT SAME 5-task burst but raises `taskManager.setMaxConcurrent(3)`
+' first — confirmed against `runTask(...)`'s own logic (`if m.active.Count() < m.maxConcurrent`,
+' checked synchronously per call, in submission order): the first THREE tasks submitted (Low-1,
+' Normal-1, High-1) all start immediately regardless of priority, since nothing about an immediate
+' start consults priority at all — only the remaining two (Normal-2, Low-2) ever actually queue,
+' and drain normal before low when a slot frees. This is the direct, observable contrast the
+' default example doesn't show on its own: priority ONLY governs queue order, never which tasks get
+' an immediate slot.
+'
+' `task.functionName = "doWork"` (right after CreateObject, on every SlowTask instantiation in this
+' app) is NOT optional sugar — see SlowTask.thr's own top comment: this compiler has no Task-specific
+' codegen at all, so Roku's own Task lifecycle only ever spawns whichever sub the caller names here.
+' Omitting it (a real bug this chapter shipped with, live-device-caught: see
+' findings/task-manager-demo-app.md) doesn't error — `control = "RUN"` on a Task with no
+' `functionName` just transitions straight to a terminal state with `doWork()` never invoked at all,
+' so `Sleep(durationSeconds * 1000)` never runs and every started/stopped pair in the log lands
+' within single-digit milliseconds of each other instead of ~2 real seconds apart.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 420
+scale field buttonHeight: integer = 50
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state maxConcurrentTranslation: object = [40, 100]
+scale state burstButtonTranslation: object = [40, 140]
+scale state burst3ButtonTranslation: object = [40, 200]
+scale state cancelButtonTranslation: object = [40, 260]
+scale state runningReadoutTranslation: object = [40, 330]
+scale state queuedReadoutTranslation: object = [40, 360]
+scale state logTranslation: object = [40, 400]
+scale state buttonLabelInset: object = [16, 12]
+
+state runningCount: integer = 0
+state queuedCount: integer = 0
+state maxConcurrent: integer = 1
+state log: string = "(no tasks started yet)"
+state taskIds: array = []
+
+derived runningLabel: string = "Running: " + runningCount.ToStr()
+derived queuedLabel: string = "Queued: " + queuedCount.ToStr()
+derived maxConcurrentLabel: string = "taskManager.setMaxConcurrent(" + maxConcurrent.ToStr() + ") is in effect"
+
+' Router-mounted, so `setup()` is called automatically by FlashTheaterRouterOutlet — unlike
+' apps/async-demo's own PriorityQueueDemo.thr, which had to use a manually-`callFunc`'d
+' `startDemo()` instead, since a plain {#if:destroy}-toggled child never gets an automatic setup()
+' call (see that file's own top comment for the render-thread-hang bug this distinction caught).
+public function setup() {
+  taskManager.setMaxConcurrent(1)
+  m.pollTimer = setInterval(function() {
+    state runningCount = taskManager.runningCount
+    state queuedCount = taskManager.queuedCount
+  }, 300)
+}
+
+private function startLabeled(label: string, priority: string) {
+  task = CreateObject("roSGNode", "SlowTask")
+  task.functionName = "doWork"
+  task.label = label
+  task.durationSeconds = 2
+  task.ObserveFieldScoped("state", "onTaskStateChange")
+  id = taskManager.run(task, priority)
+  taskIds.Push(id)
+}
+
+private function runBurst(key: string, press: boolean) {
+  if (press) {
+    state maxConcurrent = 1
+    taskManager.setMaxConcurrent(1)
+    state log = ""
+    startLabeled("Low-1", "low")
+    startLabeled("Normal-1", "normal")
+    startLabeled("High-1", "high")
+    startLabeled("Normal-2", "normal")
+    startLabeled("Low-2", "low")
+  }
+}
+
+private function runBurstWiderConcurrency(key: string, press: boolean) {
+  if (press) {
+    state maxConcurrent = 3
+    taskManager.setMaxConcurrent(3)
+    state log = ""
+    startLabeled("Low-1", "low")
+    startLabeled("Normal-1", "normal")
+    startLabeled("High-1", "high")
+    startLabeled("Normal-2", "normal")
+    startLabeled("Low-2", "low")
+  }
+}
+
+public function onTaskStateChange(event: dynamic) {
+  node = event.GetRoSGNode()
+  if (event.GetData() = "run") {
+    state log = log + "started: " + node.label + Chr(10)
+  }
+}
+
+private function cancelMostRecent(key: string, press: boolean) {
+  if (press) {
+    if (taskIds.Count() > 0) {
+      lastId = taskIds.Pop()
+      taskManager.cancel(lastId)
+      state log = log + "cancelled: " + lastId + Chr(10)
+    }
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="1/4 — taskManager.run/cancel + priority queueing" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="UP/DOWN between buttons, OK to run — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Label id="maxConcurrentReadout" text="{maxConcurrentLabel}" color="0xAAAAAAFF" translation="{maxConcurrentTranslation}" />
+  <Rectangle id="burstButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{burstButtonTranslation}" on:key[OK]="{runBurst()}">
+    <Label id="burstButtonLabel" text="Run burst: Low, Normal, High, Normal, Low (maxConcurrent=1)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="burst3Button" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{burst3ButtonTranslation}" on:key[OK]="{runBurstWiderConcurrency()}">
+    <Label id="burst3ButtonLabel" text="Same burst, but at maxConcurrent=3" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="cancelButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{cancelButtonTranslation}" on:key[OK]="{cancelMostRecent()}">
+    <Label id="cancelButtonLabel" text="Cancel most recent" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="runningReadout" text="{runningLabel}" color="0x66FF99FF" translation="{runningReadoutTranslation}" />
+  <Label id="queuedReadout" text="{queuedLabel}" color="0xFFCC66FF" translation="{queuedReadoutTranslation}" />
+  <Label id="logReadout" text="{log}" color="0x66CCFFFF" translation="{logTranslation}" />
+</Rectangle>
+</component>

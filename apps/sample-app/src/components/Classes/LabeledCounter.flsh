@@ -1,0 +1,15 @@
+import Counter from "./Counter.flsh"
+
+class LabeledCounter extends Counter {
+  override constructor(start: integer, label: string) {
+    super(start)
+    private label: string = label
+  }
+
+  override public function describe(): string {
+    if (m.get() == 0) {
+      return m.label + ": none yet"
+    }
+    return m.label + ": " + str(m.get())
+  }
+}

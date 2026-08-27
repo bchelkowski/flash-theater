@@ -1,0 +1,123 @@
+---
+import DocsLayout from '../../components/DocsLayout.astro';
+import DocsHero from '../../components/DocsHero.astro';
+import CodePanel from '../../components/CodePanel.astro';
+import NotSupported from '../../components/NotSupported.astro';
+import DocsFooterLinks from '../../components/DocsFooterLinks.astro';
+
+const counter = `class Counter {
+  constructor(start: integer) {
+    private count: integer = start
+  }
+
+  public function get(): integer {
+    return m.count
+  }
+
+  public function isZero(): boolean {
+    return m.count == 0
+  }
+
+  public function describe(): string {
+    return str(m.count)
+  }
+}`;
+
+const extendsExample = `import Counter from "./Counter.flsh"
+
+class LabeledCounter extends Counter {
+  override constructor(start: integer, label: string) {
+    super(start)
+    private label: string = label
+  }
+
+  override public function describe(): string {
+    if (m.get() == 0) {
+      return m.label + ": none yet"
+    }
+    return m.label + ": " + str(m.get())
+  }
+}`;
+
+const usage = `${'<' + 'script>'}
+import LabeledCounter from "components/Classes/LabeledCounter.flsh"
+
+derived milestoneLabel: string = LabeledCounter(favoriteCount, "Favorites so far").describe()
+${'<' + '/script>'}`;
+
+const globals = `' Inside any class method — router/theme/taskManager all work exactly like in a .thr component:
+public function goHome() {
+  router.navigate("/home")
+}`;
+---
+<DocsLayout title="Classes (.flsh)" slug="classes">
+  <DocsHero icon="🏛️">
+    Classes (.flsh)
+    <br />
+    <span class="text-base text-slate-500 font-normal">Reusable BrightScript-only logic: extends, override, super.</span>
+  </DocsHero>
+
+  <p class="text-slate-300 leading-relaxed mb-6">
+    A <code class="text-amber-300">.flsh</code> file is BrightScript-only reusable logic, entirely separate from a
+    <code class="text-amber-300">.thr</code> component — no <code class="text-amber-300">&lt;script&gt;</code>
+    wrapper, no template, no XML output at all, just a class compiled straight to a plain <code class="text-amber-300">.brs</code> function.
+    The file's own base name must match the declared class name.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Fields, constructor, methods</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Three visibility levels — <code class="text-amber-300">public</code>/<code class="text-amber-300">private</code>/<code class="text-amber-300">protected</code> —
+    on both fields and methods. A field can be declared top-level or, more commonly, straight inside the constructor
+    as the "assign a parameter to a field" shorthand:
+  </p>
+  <CodePanel code={counter} lang="xml" filename="Counter.flsh" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3"><code>extends</code> / <code>override</code> / <code>super</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    An overriding constructor's first statement must be exactly one <code class="text-amber-300">super(...)</code> call.
+    An overriding method must be marked <code class="text-amber-300">override</code> — an unmarked shadow of a base
+    member is a compile error, on the theory that it's far more likely a missing keyword than an intentional new
+    member.
+  </p>
+  <CodePanel code={extendsExample} lang="xml" filename="LabeledCounter.flsh" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Using a class from a <code>.thr</code> component</h2>
+  <CodePanel code={usage} lang="xml" filename="FavoriteCounter.thr (excerpt)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Reaching global singletons from a class method</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">theme</code>/<code class="text-amber-300">router</code>/<code class="text-amber-300">taskManager</code> all
+    work from inside a class method exactly like they do from a <code class="text-amber-300">.thr</code> component's
+    own script — no special syntax needed on the author's side.
+  </p>
+  <CodePanel code={globals} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Reference implementation — <code>apps/classes-demo</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-8">
+    Every mechanism on this page has a router-mounted, <code class="text-amber-300">scale</code>d
+    chapter in <code class="text-amber-300">apps/classes-demo</code> — 3 chapters
+    (<code class="text-amber-300">/fields-and-methods</code> through
+    <code class="text-amber-300">/global-singletons-from-class</code>), reachable with REWIND/
+    FAST-FORWARD once compiled and sideloaded. Each chapter shows a default, no-customization
+    example alongside a deliberately different, customized one — e.g.
+    <code class="text-amber-300">FieldsAndMethodsDemo.thr</code>'s <code class="text-amber-300">BankAccount</code>
+    (top-level AND constructor-shorthand fields, all three visibility levels) contrasts a
+    successful withdrawal against one deliberately exceeding the private-field-backed overdraft
+    limit, and <code class="text-amber-300">ExtendsOverrideSuperDemo.thr</code> constructs the base
+    and derived class side by side so <code class="text-amber-300">override</code>'s actual effect
+    is visible by direct comparison. This is the live, compiling reference for the whole page — see
+    <code class="text-amber-300">findings/classes-demo-app.md</code> for what each chapter covers
+    and <code class="text-amber-300">findings/demo-app-conventions.md</code> for the app-structure
+    convention it follows.
+  </p>
+
+  <NotSupported items={[
+    '<code class="text-amber-300">store</code>/<code class="text-amber-300">state</code>/<code class="text-amber-300">focus(...)</code> — entirely unreachable from a class body; a class has no reactive lifecycle at all.',
+    '<code class="text-amber-300">taskManager.onAlertChanged</code>/<code class="text-amber-300">onResult</code>/<code class="text-amber-300">onRequestSent</code>/<code class="text-amber-300">onResponseReceived</code> — not supported from a class body (needs a real node identity these don\'t have).',
+    'Lint-enforced visibility — <code class="text-amber-300">protected</code> parses but compiles identically to <code class="text-amber-300">public</code>; BrightScript has no real access boundary to enforce.',
+    'Multiple constructors, or a field declared more than once (or as both a field and a method).',
+    'No <code class="text-amber-300">.flsh</code> class-body <a href="animation/" class="prose-link">animation</a> form — same root cause as the reactive-lifecycle gap above: animations are tied to a template\'s element ids, which a class has none of.',
+  ]} />
+
+  <DocsFooterLinks grammarAnchor="#classes-flsh-files" />
+</DocsLayout>

@@ -1,0 +1,150 @@
+<script>
+' Chapter 3/4 — {#each <collectionExpr> as <itemAlias> (<keyExpr>)} keyed add/remove/reposition.
+' Default: a plain array-backed list of labeled rows (mirrors ScheduleList.thr's own
+' array-of-AA/renumbered() shape). Customized: "Reverse order" and "Rotate order" both re-trigger
+' the {#each} against the SAME backing items, only reordered — each row keeps its OWN color
+' (assigned once, by the item's own identity, never recomputed from position) across the reorder,
+' proving the keyed diff REPOSITIONS existing nodes rather than destroying and rebuilding them: if
+' identity weren't preserved, the colors would appear to shuffle randomly or reset instead of
+' travelling with their own row.
+'
+' The {#each} below lives inside {#if:destroy loaded} — not for a construct/destroy toggle demo,
+' but because {#each}'s own initial reconcile runs unconditionally during the generated init(),
+' before any explicit setup()/load() function has ever run — the exact same reason
+' ScrollFocusDemo.thr's own {#each tiles...} is wrapped the same way (see that file's own comment
+' and findings/focus-system.md). Setting `rows` before `loaded` guarantees the {#if:destroy}
+' construction (triggered by `loaded` turning true) always sees an already-valid collection.
+'
+' A collection may also be a SceneGraph node, iterated over its own children (`getChildren(-1,
+' 0)`), instead of a plain array — see GRAMMAR.md's "Keyed list rendering" section ("<collectionExpr>
+' is any BrightScript expression, evaluated at runtime as either an array-like value... or a
+' SceneGraph node"). Not demonstrated live here: every other chapter in this app already needs a
+' plain-array {#each} to prove keyed reordering cleanly, and mixing in a node-children variant on
+' the same screen would only dilute that, not add a genuinely different lesson.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+
+scale field buttonWidth: integer = 260
+scale field buttonHeight: integer = 50
+scale state reverseButtonTranslation: object = [40, 140]
+scale state shuffleButtonTranslation: object = [320, 140]
+scale state buttonLabelInset: object = [16, 12]
+
+scale field rowWidth: integer = 700
+scale field rowHeight: integer = 60
+scale field rowX: integer = 40
+' Raw (unscaled) design-space constants — scaled once, together, inside renumbered()'s own
+' `scale y = ...` statement below. Declaring these as `scale field` instead would double-scale
+' them (the field's own default already scaled once, then scaled AGAIN by the statement form) —
+' see GRAMMAR.md's "scale" section, "Scaling only ever fires where `scale` is explicitly written".
+field rowsTopY: integer = 220
+field rowStep: integer = 70
+scale state rowLabelInset: object = [16, 16]
+
+scale state selectedTranslation: object = [40, 610]
+
+state loaded: boolean = false
+state rows: object = invalid
+state selectedText: string = "Focus a row and press OK to select it"
+
+private function colorForIndex(i: integer): string {
+  if (i = 0) {
+    return "0x3A6EA5FF"
+  } else if (i = 1) {
+    return "0xE0A030FF"
+  } else if (i = 2) {
+    return "0x5AA469FF"
+  } else if (i = 3) {
+    return "0xB05AA4FF"
+  }
+  return "0xA45A5AFF"
+}
+
+private function makeRow(idNum: integer, label: string): object {
+  row = {}
+  row.id = "row" + idNum.ToStr()
+  row.label = label
+  row.color = colorForIndex(idNum)
+  row.y = 0
+  return row
+}
+
+' Recomputes each row's own on-screen y from its CURRENT position in the array — the row's `color`
+' (assigned once in makeRow, by the row's own identity) is left untouched, so a reorder moves colors
+' along with their own row instead of recalculating them from the new position.
+private function renumbered(items: object): object {
+  updated = []
+  for (i = 0 to items.Count() - 1) {
+    row = items[i]
+    scale y = rowsTopY + i * rowStep
+    row.y = y
+    updated.Push(row)
+  }
+  return updated
+}
+
+public function setup() {
+  state rows = renumbered([
+    makeRow(0, "Row A"), makeRow(1, "Row B"), makeRow(2, "Row C"),
+    makeRow(3, "Row D"), makeRow(4, "Row E")
+  ])
+  state loaded = true
+}
+
+private function reverseRows(key: string, press: boolean) {
+  if (press and loaded) {
+    current = rows
+    updated = []
+    for (i = current.Count() - 1 to 0 step -1) {
+      updated.Push(current[i])
+    }
+    state rows = renumbered(updated)
+  }
+}
+
+private function shuffleRows(key: string, press: boolean) {
+  if (press and loaded) {
+    current = rows
+    if (current.Count() > 1) {
+      updated = []
+      updated.Push(current[current.Count() - 1])
+      for (i = 0 to current.Count() - 2) {
+        updated.Push(current[i])
+      }
+      state rows = renumbered(updated)
+    }
+  }
+}
+
+private function selectRow(key: string, press: boolean, row: object) {
+  if (press) {
+    state selectedText = "Selected: " + row.label + " (id=" + row.id + ") — its color travels with it across reorders"
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="3/4 — {#each} keyed add/remove/reposition" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="Each row keeps its OWN color across a reorder — proving node identity survives, not destroy+rebuild" color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+
+  <Rectangle id="reverseButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{reverseButtonTranslation}" on:key[OK]="{reverseRows()}">
+    <Label id="reverseButtonLabel" text="Reverse order" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="shuffleButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{shuffleButtonTranslation}" on:key[OK]="{shuffleRows()}">
+    <Label id="shuffleButtonLabel" text="Rotate order" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+
+  {#if:destroy loaded}
+  {#each rows as row (row.id)}
+  <Rectangle id="rowCard" width="{rowWidth}" height="{rowHeight}" color="{row.color}" translation="{[rowX, row.y]}" focusable="true" on:key[OK]="{selectRow(row)}">
+    <Label id="rowCardLabel" text="{row.label}" color="0xFFFFFFFF" translation="{rowLabelInset}" />
+  </Rectangle>
+  {/each}
+  {/if}
+
+  <Label id="selectedReadout" text="{selectedText}" color="0x66CCFFFF" translation="{selectedTranslation}" />
+</Rectangle>
+</component>

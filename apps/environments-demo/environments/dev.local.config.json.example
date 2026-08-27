@@ -1,0 +1,5 @@
+{
+  "variables": {
+    "apiBaseUrl": { "value": "http://localhost:9999" }
+  }
+}

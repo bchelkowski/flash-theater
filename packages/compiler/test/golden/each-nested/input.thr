@@ -1,0 +1,17 @@
+<script>
+state schedule: object = invalid
+</script>
+
+<component>
+<Rectangle id="root">
+  {#each schedule as day (day.id)}
+    <Label id="row" text="{day.title}" />
+    {#if:destroy day.isToday}
+      <Label id="badge" text="Today!" />
+    {/if}
+    {#each day.events as event (event.id)}
+      <Label id="eventLabel" text="{event.name}" />
+    {/each}
+  {/each}
+</Rectangle>
+</component>

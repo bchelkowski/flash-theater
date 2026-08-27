@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="ConditionalDestroyFixture" extends="Group">
+  <interface>
+    <field id="ft_routeReady" type="boolean" value="false" />
+    <function name="toggleDetails" />
+    <function name="ft_unmount" />
+  </interface>
+  <children>
+    <Rectangle id="root">
+      <Label id="summary" text="summary" />
+    </Rectangle>
+  </children>
+  <script type="text/brightscript" uri="ConditionalDestroyFixture.brs" />
+</component>

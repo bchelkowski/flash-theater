@@ -1,0 +1,40 @@
+class Subscriber {
+  constructor() {
+    private received: string = "none yet"
+  }
+
+  ' Subscribes to another class instance's own `stream` field entirely from class code — the
+  ' component that owns both instances never sees the value flow through it.
+  '
+  ' `.subscribe(m.onPublisherChanged)` — a bare bound-method-reference argument, no call parens —
+  ' is DSL sugar the compiler lowers to `.subscribe({ target: m, action: "onPublisherChanged" })`
+  ' (see `analysis/class-identifier-rewrite.ts`'s `rewriteClassStreamSubscribeBoundReferences`).
+  ' Never write the inline-anonymous-function form here (`.subscribe(function (v) { m.x = v })`) —
+  ' confirmed live (real Roku device) that a Function value's own `m` binding does NOT reliably
+  ' survive being stored and invoked later once detached from a real SceneGraph node: both an inline
+  ' anonymous function and a HAND-WRITTEN bound method reference (before this sugar existed) lost
+  ' their `m` by the time `ft_createStream()`'s `.emit` invoked them, silently writing to the wrong
+  ' object instead of crashing (AA field assignment never fails). `ft_createStream()`'s own doc
+  ' comment (runtime-assets/Stream/FlashTheaterStream.brs) and `findings/streams.md` have the full
+  ' writeup — the lowered descriptor carries only ordinary DATA (an object reference and a
+  ' method-name string), which persists across the store/invoke boundary with no binding to lose,
+  ' dispatched back to a real `target.action(value)` call at invocation time. The sugar works
+  ' identically for any bound-reference target, not just `m` — `otherInstance.methodName` (a local
+  ' variable holding a different class instance) lowers the same way.
+  '
+  ' `publisher: object`, not `publisher: Publisher` — a `.flsh` class name is NOT a valid
+  ' BrightScript `as` type for a function/sub parameter either (confirmed live — `Install
+  ' Failure: Compilation Failed`), even though this DSL's own type annotations are otherwise
+  ' unrestricted/unenforced.
+  public function subscribeTo(publisher: object) {
+    publisher.onChanged.subscribe(m.onPublisherChanged)
+  }
+
+  public function onPublisherChanged(value: string) {
+    m.received = value
+  }
+
+  public function lastReceived(): string {
+    return m.received
+  }
+}

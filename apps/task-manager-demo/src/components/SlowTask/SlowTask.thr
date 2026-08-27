@@ -1,0 +1,50 @@
+<script>
+' A trivial background Task exercising the global taskManager — see RunCancelDemo.thr,
+' AlertingChapterDemo.thr, OnResultDemo.thr, GRAMMAR.md's "Task manager" section, and
+' findings/task-manager-core.md. Adapted from apps/async-demo's own SlowTask.thr (same
+' functionName/label/durationSeconds shape — copied verbatim) with two new fields
+' (`result`/`error`) and a `shouldFail` switch added for THIS app's own OnResultDemo chapter,
+' which apps/async-demo's version never needed since it never demonstrated
+' `taskManager.onResult(...)`. This compiler has no Task-specific grammar/codegen of its own
+' (`<component extends="Task">` is handled exactly like any other extends value) — Roku's own Task
+' lifecycle mechanism does the rest: setting a Task node's `functionName` field to the literal name
+' of one of its own top-level subs/functions, then `control = "RUN"` (which `taskManager.run(...)`
+' does), spawns that sub on the Task's own background thread.
+'
+' `label`/`durationSeconds` are ordinary caller-set input fields (set BEFORE
+' `taskManager.run(...)`, same "set input fields, then control=RUN" convention every Task in this
+' codebase already relies on) — `label` exists purely so a calling screen can identify WHICH task
+' instance a later `state`-field observer callback fired for.
+'
+' `shouldFail` (new): the caller sets this to `true` before `run(...)` to exercise
+' `taskManager.onResult(...)`'s `onError` callback — see OnResultDemo.thr's "customized" example.
+' `result`/`error` (new): written by `doWork()` itself at the end of its run, exactly the same
+' contract `taskManager.onResult(...)` expects from a `request Http {}`-generated Task (see
+' GRAMMAR.md's "Task manager" section) — this is a plain hand-authored Task, not a `request Http {}`
+' one, proving `onResult(...)` works against ANY Task that writes its own `result`/`error` fields,
+' not just the request-generated kind.
+field label: string = ""
+field durationSeconds: integer = 3
+field shouldFail: boolean = false
+field result: assocarray = {}
+field error: assocarray = {}
+
+' `functionName` must stay exactly "doWork" (a `public function` keeps its literal DSL name, unlike
+' `private function`, which gets a `private_` prefix — using `private` here would silently break
+' the functionName match) — see findings/requests-runtime.md's identical gotcha for
+' observeFieldScoped's own bare-string callback targets.
+public function doWork() {
+  ' Runs on this Task's own background thread, not the render thread — Sleep() here only blocks
+  ' this one task. Simulates slow work so the demo chapters can visibly demonstrate taskManager's
+  ' queueing/priority/alerting/onResult behavior without needing real network I/O.
+  Sleep(durationSeconds * 1000)
+  if (shouldFail) {
+    m.top.error = { label: label, message: "SlowTask " + label + " simulated failure" }
+  } else {
+    m.top.result = { label: label, durationSeconds: durationSeconds }
+  }
+}
+</script>
+
+<component extends="Task">
+</component>

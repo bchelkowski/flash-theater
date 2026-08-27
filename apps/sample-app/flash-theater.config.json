@@ -1,0 +1,4 @@
+{
+  "designResolution": "hd",
+  "exclude": ["components/EnvDemo/**", "images/staging-only/**", "images/production-only/**"]
+}

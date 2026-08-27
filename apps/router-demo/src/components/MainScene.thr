@@ -1,0 +1,95 @@
+<script>
+' This app's root Scene, compiled from .thr (like every other chapter app's — see
+' apps/animation-demo/src/components/MainScene.thr for the router/scale/chapter-navigation skeleton
+' this copies byte-for-byte: router.setRouting([...]) (one entry per chapter),
+' <FlashTheaterRouterOutlet>, and REWIND/FAST-FORWARD chapter advance via router.navigate()). See
+' findings/demo-app-conventions.md for why every demo app now uses router+scale in the first place.
+'
+' What's DIFFERENT about this one app, and why (see findings/router-demo-app.md for the full
+' writeup): every OTHER chapter app treats the router as invisible plumbing for its own
+' chapter-to-chapter navigation — none of them showcase the router's OWN deep option surface as
+' their actual subject matter. HERE the router's own mechanics (navigate/params/backJourneyData,
+' directional focus, outlet transitions, the loading gate) ARE the subject, one chapter at a time —
+' apps/sample-app already demonstrates real router usage, but as one broad app, not a focused
+' deep-dive with every option shown.
+'
+' Chapter-advance keys unchanged from every other chapter app — on:key[rewind]/on:key[fastforward],
+' both calling router.navigate() (never router.back()), so BOTH directions play this outlet's own
+' navigate-out:/navigate-in: pair below. Physical Back is the ONLY thing in this whole app that ever
+' plays back-out:/back-in: (the automatic router back-key fallthrough, walking real chapter history)
+' — see chapter 3 (OutletTransitionsChapterDemo) for the narrated explanation of exactly this
+' contrast, and findings/router-demo-app.md for why REWIND deliberately stays a navigate() call
+' instead of a router.back() call (keeping this app's own chapter-index bookkeeping simple and
+' collision-free with chapter 1's own nested back-journey round trip).
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale state hintTranslation: object = [40, 660]
+
+' The outlet itself carries the transition — see chapter 3 (outlet-transitions) for the narrated
+' version of what's already happening on every single chapter switch below. Same value grammar as
+' Layer 2's own transition:/in:/out: (GRAMMAR.md's "Router-outlet transitions"): a script-declared
+' `animation` name, always targeting the OUTLET, never the chapter screen itself (a routed screen has
+' no compile-time id an animation could reference).
+animation slideOutLeft     { target: outlet, duration: 0.25, translation: { key: [0, 1], keyValue: [[0, 0], [-1280, 0]], scaled: true } }
+animation slideInFromRight { target: outlet, duration: 0.25, translation: { key: [0, 1], keyValue: [[1280, 0], [0, 0]], scaled: true } }
+animation slideOutRight    { target: outlet, duration: 0.25, translation: { key: [0, 1], keyValue: [[0, 0], [1280, 0]], scaled: true } }
+animation slideInFromLeft  { target: outlet, duration: 0.25, translation: { key: [0, 1], keyValue: [[-1280, 0], [0, 0]], scaled: true } }
+
+field chapterPaths: array = [
+  "navigate-and-params", "directional-focus", "outlet-transitions", "loading-gate"
+]
+state activeChapterIndex: integer = 0
+
+derived hintText: string = "Chapter " + (activeChapterIndex + 1).ToStr() + "/4 — REWIND / FAST-FORWARD to switch, BACK to return"
+
+private function nextChapter(key: string, press: boolean) {
+  if (press and activeChapterIndex < chapterPaths.Count() - 1) {
+    state activeChapterIndex = activeChapterIndex + 1
+    router.navigate("/" + chapterPaths[activeChapterIndex])
+  }
+}
+
+private function prevChapter(key: string, press: boolean) {
+  if (press and activeChapterIndex > 0) {
+    state activeChapterIndex = activeChapterIndex - 1
+    router.navigate("/" + chapterPaths[activeChapterIndex])
+  }
+}
+
+' loadingComponent lives HERE, on this top-level outlet — chapter 4 (LoadingGateDemo) is a single
+' flat screen (no nested outlet of its own, unlike chapter 1), so its loading-gate demo has to be
+' gated by this SAME outlet every other chapter also mounts through. Every other chapter's own
+' setup() calls router.markReady() synchronously (see each chapter's own top comment) specifically
+' so this never shows a spinner for THEM — GRAMMAR.md's "Router" section: calling markReady()
+' synchronously from setup() reveals immediately, before the gate ever arms a wait.
+public function setup() {
+  router.setRouting([
+    {
+      path: "navigate-and-params",
+      component: "NavigateAndParamsDemo",
+      children: [
+        { path: "", component: "ParamsListScreen" },
+        { path: "detail", component: "ParamsDetailScreen" }
+      ]
+    },
+    { path: "directional-focus", component: "DirectionalFocusChapterDemo" },
+    { path: "directional-focus-detail", component: "DirectionalFocusChapterDemoDetail" },
+    { path: "outlet-transitions", component: "OutletTransitionsChapterDemo" },
+    { path: "loading-gate", component: "LoadingGateDemo" }
+  ])
+  router.navigate("/" + chapterPaths[0])
+}
+</script>
+
+<component extends="Scene" on:key[fastforward]="{nextChapter()}" on:key[rewind]="{prevChapter()}">
+<Rectangle id="root" color="0x101010FF" width="{rootWidth}" height="{rootHeight}">
+  <FlashTheaterRouterOutlet
+    id="outlet"
+    width="{rootWidth}" height="{rootHeight}"
+    navigate-out:slideOutLeft navigate-in:slideInFromRight
+    back-out:slideOutRight back-in:slideInFromLeft
+    loadingComponent="RouterDemoLoadingSpinner" loadingMinDuration="0.3" loadingTimeout="4"
+  />
+  <Label id="hint" text="{hintText}" color="0x888888FF" translation="{hintTranslation}" />
+</Rectangle>
+</component>

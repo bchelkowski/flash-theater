@@ -1,0 +1,16 @@
+<script>
+' Chapter 2 (/caching)'s "forced TTL" button — GRAMMAR.md's "Requests" → "HTTP response caching":
+' `cache: { ttlSeconds: 300 }` FORCES this exact cache lifetime, bypassing Cache-Control entirely
+' (including an explicit no-store/no-cache) — a second press within 300 seconds is expected to be
+' a cache hit (`response.fromCache = true`) purely because of this forced TTL, independent of
+' whatever the server itself sends. Own URL (posts/3), distinct from CacheDefaultRequest.thr's/
+' CacheDisabledRequest.thr's, so its cache entry never collides with theirs.
+request Http { method: "GET", url: "https://jsonplaceholder.typicode.com/posts/3", cache: { ttlSeconds: 300 } }
+
+private function parseResponse(response: object): object {
+  return { title: response.data.title, fromCache: response.fromCache }
+}
+</script>
+
+<component extends="Task">
+</component>

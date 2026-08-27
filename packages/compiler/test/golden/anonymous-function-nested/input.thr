@@ -1,0 +1,41 @@
+<script>
+state items: object = invalid
+field threshold: integer = 0
+state matchCount: integer = 0
+
+private function filterList(list: object, predicate: Function): object {
+  updated = []
+  for (i = 0 to list.Count() - 1) {
+    if (predicate(list[i])) {
+      updated.Push(list[i])
+    }
+  }
+  return updated
+}
+
+private function eachItem(list: object, action: Function) {
+  for (i = 0 to list.Count() - 1) {
+    action(list[i])
+  }
+}
+
+public function filterItems() {
+  state items = filterList(items, function (item: object): boolean {
+    if (item.value > threshold) {
+      state matchCount = matchCount + 1
+      return true
+    }
+    return false
+  })
+}
+
+private function logItems() {
+  eachItem(items, function (item: object) {
+    print item.value
+  })
+}
+</script>
+
+<component>
+<LayoutGroup id="root" />
+</component>

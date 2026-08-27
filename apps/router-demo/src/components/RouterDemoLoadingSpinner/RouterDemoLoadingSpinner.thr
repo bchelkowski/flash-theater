@@ -1,0 +1,13 @@
+<script>
+' loadingComponent for MainScene.thr's own top-level outlet — see GRAMMAR.md's "Router" section
+' ("Router-outlet transitions" -> loadingComponent) and chapter 4 (LoadingGateDemo) for the actual
+' demonstration. Copied from apps/sample-app's RouterLoadingSpinner.thr: FlashTheaterRouterOutlet.brs
+' centers whatever loadingComponent names on the outlet's own translation point ([width/2, height/2]),
+' so this root offsets itself by half its own box size so the visible box actually lands centered ON
+' that point, rather than with its own top-left corner there.
+</script>
+<component>
+<Rectangle id="root" color="0x2A2A2AFF" width="240" height="64" translation="[-120, -32]">
+  <Label id="label" text="Loading..." color="0xFFFFFFFF" horizAlign="center" vertAlign="center" width="240" height="64" />
+</Rectangle>
+</component>

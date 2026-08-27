@@ -1,0 +1,48 @@
+' Chapter 1/3 (/fields-and-methods) — fields (both declaration shapes) + all three visibility
+' levels + methods. See GRAMMAR.md's "Classes" section and FieldsAndMethodsDemo.thr for the
+' `.thr` component that constructs and drives this instance.
+'
+' Two field-declaration shapes, deliberately both used so this one class demonstrates both:
+'  - `accountType`/`overdraftLimit` — TOP-LEVEL fields, literal defaults, evaluated once before
+'    the constructor runs.
+'  - `owner`/`balance` — the "assign a constructor parameter straight to a field" shorthand,
+'    entirely inside `constructor(...)`.
+'
+' All three visibility levels appear: `public` (accountType, owner), `protected` (overdraftLimit
+' — compiles identically to `public`, no real access boundary), `private` (balance).
+'
+' `balance` has NO direct public getter — `summary()` is the only way to observe it from outside
+' this class. This is the real, if narrow, thing `private` actually buys here: the generated field
+' is literally named `private_balance`, not `balance`, so code outside this class that doesn't go
+' through `deposit()`/`withdraw()`/`summary()` has no path to it at all (BrightScript has no true
+' access-control check, but nothing outside this file even knows the mangled name to try).
+class BankAccount {
+  public accountType: string = "Checking"
+  protected overdraftLimit: integer = 100
+
+  constructor(owner: string, startingBalance: integer) {
+    public owner: string = owner
+    private balance: integer = startingBalance
+  }
+
+  public function deposit(amount: integer) {
+    m.balance = m.balance + amount
+  }
+
+  ' Returns false (and leaves the balance untouched) instead of ever allowing `balance` to drop
+  ' more than `overdraftLimit` below zero — reads AND writes the private field from a public
+  ' method, the "why the three levels matter" contrast this chapter exists to show. Class field
+  ' default literals are a single token (no unary minus), so `overdraftLimit` is stored as a
+  ' positive "how far below zero" allowance rather than the negative floor itself.
+  public function withdraw(amount: integer): boolean {
+    if (m.balance - amount < 0 - m.overdraftLimit) {
+      return false
+    }
+    m.balance = m.balance - amount
+    return true
+  }
+
+  public function summary(): string {
+    return m.owner + "'s " + m.accountType + ": $" + str(m.balance) + " (overdraft limit $" + str(m.overdraftLimit) + ")"
+  }
+}

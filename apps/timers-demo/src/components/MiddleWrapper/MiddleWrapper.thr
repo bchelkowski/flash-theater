@@ -1,0 +1,29 @@
+<script>
+' A plain pass-through wrapper around one TimerLeafWidget — its only purpose is to sit BETWEEN
+' NestedAndListTimerDemo's own `{#if:destroy}` and the Timer-owning leaf, so tearing it down
+' exercises a genuinely two-component-level-deep `ft_unmount` cascade (outer destroy sub calls
+' `middle.callFunc("ft_unmount")`, whose OWN generated `ft_unmount()` in turn calls
+' `leaf.callFunc("ft_unmount")`) instead of the one-level-deep cascade chapter 1 already exercises.
+' See findings/component-unmount-hook.md.
+'
+' Kept as `public function startDemo()`, NOT renamed to `setup()` — unlike NestedAndListTimerDemo
+' (the top-level, router-mounted chapter), this component is a plain nested child two component-
+' levels below the router's own mount point. The router's automatic `setup()` call only ever
+' reaches the ONE component it directly mounts; a nested child like this one still needs its
+' parent's own explicit `callFunc("startDemo")` forwarding to reach it — same convention as before
+' this app's own router conversion, just no longer reaching all the way up to a router-free
+' MainScene. See findings/timers-demo-app.md.
+scale field wrapperWidth: integer = 400
+scale field wrapperHeight: integer = 110
+scale state leafTranslation: object = [20, 20]
+
+public function startDemo() {
+  m.leaf.callFunc("startDemo")
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x1A1A1AFF" width="{wrapperWidth}" height="{wrapperHeight}">
+  <TimerLeafWidget id="leaf" translation="{leafTranslation}" />
+</Rectangle>
+</component>

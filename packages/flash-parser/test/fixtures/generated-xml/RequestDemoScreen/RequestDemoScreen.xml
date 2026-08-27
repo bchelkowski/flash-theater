@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- flash-theater:generated — do not edit by hand, source: RequestDemoScreen.thr -->
+<component name="RequestDemoScreen" extends="Group">
+  <interface>
+    <field id="rootWidth" type="integer" value="880" onChange="on_rootWidthChange" />
+    <field id="rootHeight" type="integer" value="720" onChange="on_rootHeightChange" />
+    <field id="buttonWidth" type="integer" value="300" onChange="on_buttonWidthChange" />
+    <field id="buttonHeight" type="integer" value="60" onChange="on_buttonHeightChange" />
+    <function name="onPostsLoaded" />
+    <function name="onPostsFailed" />
+    <function name="onPostLoaded" />
+    <function name="onPostFailed" />
+  </interface>
+  <children>
+    <Rectangle id="root" color="0x151515FF">
+      <Label id="title" text="Request demo — request Http {} + taskManager.run(task)" color="0xFFFFFFFF" />
+      <Label id="resultReadout" color="0x66FF99FF" />
+      <Label id="errorReadout" color="0xFF6666FF" />
+      <Label id="onResultResultReadout" color="0x66FF99FF" />
+      <Label id="onResultErrorReadout" color="0xFF6666FF" />
+      <Label id="cachedResultReadout" color="0x66FF99FF" />
+      <Label id="cachedErrorReadout" color="0xFF6666FF" />
+      <Rectangle id="onResultButton" focusable="true" color="0x2A2A2AFF">
+        <Label id="onResultButtonLabel" text="Load posts (onResult)" color="0xFFFFFFFF" />
+      </Rectangle>
+      <Rectangle id="loadCachedPostButton" focusable="true" color="0x2A2A2AFF">
+        <Label id="loadCachedPostButtonLabel" text="Load post (cached)" color="0xFFFFFFFF" />
+      </Rectangle>
+      <Rectangle id="loadButton" focusable="true" color="0x2A2A2AFF">
+        <Label id="loadButtonLabel" text="Load posts" color="0xFFFFFFFF" />
+      </Rectangle>
+    </Rectangle>
+  </children>
+  <script type="text/brightscript" uri="RequestDemoScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/FlashTheater/Scale/FlashTheaterScale.brs" />
+</component>

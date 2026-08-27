@@ -1,0 +1,17 @@
+<script>
+' Chapter 2 (/caching)'s "cache disabled" button — GRAMMAR.md's "Requests" → "HTTP response
+' caching": `cache: false` forces caching OFF entirely for this endpoint, regardless of what the
+' server's own Cache-Control header says — the cache is never consulted nor written, so
+' `response.fromCache` should be `false` on every single press, no matter how many times this is
+' sent. Different URL from CacheDefaultRequest.thr/CacheTtlRequest.thr on purpose — the cache key
+' is the resolved URL, so each of this chapter's three buttons gets its own independent cache
+' entry, never colliding with the other two configs.
+request Http { method: "GET", url: "https://jsonplaceholder.typicode.com/posts/2", cache: false }
+
+private function parseResponse(response: object): object {
+  return { title: response.data.title, fromCache: response.fromCache }
+}
+</script>
+
+<component extends="Task">
+</component>

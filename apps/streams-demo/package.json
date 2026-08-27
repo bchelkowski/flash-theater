@@ -1,0 +1,17 @@
+{
+  "name": "streams-demo",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Roku showcase for flash-theater's stream primitive — stream <name>: <Type>, .emit/.subscribe's synchronous BehaviorSubject-style replay, a class-declared stream field reachable from whoever holds the instance, and the .subscribe(<target>.<methodName>) bound-method sugar versus its raw { target, action } descriptor form — this topic's own dedicated, router-mounted chapter app (see findings/demo-app-conventions.md).",
+  "scripts": {
+    "compile": "flash-theater compile",
+    "zip": "flash-theater zip",
+    "build:roku": "npm run compile && npm run zip",
+    "sideload": "kopytko-roku installer install --zip dist/streams-demo.zip"
+  },
+  "devDependencies": {
+    "flash-theater-compiler": "*",
+    "kopytko-roku-device": "^1.5.1"
+  }
+}

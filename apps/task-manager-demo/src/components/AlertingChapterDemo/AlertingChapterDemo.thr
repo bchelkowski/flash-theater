@@ -1,0 +1,136 @@
+<script>
+' Chapter 2/4 — taskManager.setAlertThresholds(...) + taskManager.onAlertChanged(...) — see
+' GRAMMAR.md's "Task manager" section and findings/task-manager-alerting.md. Migrated from
+' apps/async-demo's own AlertingDemo.thr into this app's router-mounted chapter framing.
+'
+' Default example: "Flood queue (8 tasks, warning=3/critical=6)" creates all 8 SlowTask instances
+' in one tight loop, well before any of their own state-change notifications could possibly fire
+' (see findings/task-manager-core.md's "Counting is commit-time, not purely observer-time") —
+' pushes queuedCount from 0 straight past both thresholds in a handful of synchronous `enqueue()`
+' calls. `onAlertChanged(...)` is HYSTERESIS-gated (`reevaluateAlertLevel()` only ever writes
+' `alertLevel` when it actually changes), so the log should show exactly TWO entries for one flood
+' press — "none -> warning" once queuedCount crosses 3, "warning -> critical" once it crosses 6.
+'
+' Customized example (the addition this chapter makes beyond the migrated default): "Flood tight
+' (4 tasks, warning=1/critical=2)" lowers the thresholds further and floods fewer, faster tasks
+' (`durationSeconds: 2`, `maxConcurrent` still 1) specifically so the WHOLE cycle — flood past both
+' thresholds, then drain naturally back down as each task finishes — completes in well under 10
+' seconds. This is the half of hysteresis the default example alone never demonstrates on its own
+' timescale: as the queue drains from 3 back toward 0 (one task finishing at a time), the log shows
+' exactly two MORE entries ("critical -> warning", "warning -> none") — never one entry per queue
+' mutation, even though the queue depth actually changes 7 times total (4 up, 3 down) across one
+' full flood-and-drain cycle. Watch `queuedReadout`/`alertReadout` tick down after the flood to see
+' the drain happen without touching anything else.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 420
+scale field buttonHeight: integer = 50
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state thresholdsTranslation: object = [40, 100]
+scale state floodButtonTranslation: object = [40, 140]
+scale state floodTightButtonTranslation: object = [40, 200]
+scale state runningReadoutTranslation: object = [40, 270]
+scale state queuedReadoutTranslation: object = [40, 300]
+scale state alertReadoutTranslation: object = [40, 330]
+scale state logTranslation: object = [40, 370]
+scale state buttonLabelInset: object = [16, 12]
+
+state runningCount: integer = 0
+state queuedCount: integer = 0
+state alertLevel: string = "none"
+state warningThreshold: integer = 3
+state criticalThreshold: integer = 6
+state log: string = "(no alerts yet)"
+
+derived runningLabel: string = "Running: " + runningCount.ToStr()
+derived queuedLabel: string = "Queued: " + queuedCount.ToStr()
+derived alertLabel: string = "Alert level: " + alertLevel
+derived alertColor: string = pickAlertColor(alertLevel)
+derived thresholdsLabel: string = "Thresholds: warning=" + warningThreshold.ToStr() + ", critical=" + criticalThreshold.ToStr()
+
+private function pickAlertColor(level: string): string {
+  if (level = "critical") {
+    return "0xFF4444FF"
+  }
+  if (level = "warning") {
+    return "0xFFCC44FF"
+  }
+  return "0x66FF99FF"
+}
+
+' Router-mounted, so `setup()` is called automatically — see RunCancelDemo.thr's own comment on
+' this same distinction from apps/async-demo's manually-`callFunc`'d `startDemo()`.
+public function setup() {
+  taskManager.setMaxConcurrent(1)
+  applyDefaultThresholds()
+  taskManager.onAlertChanged(onAlert)
+  m.pollTimer = setInterval(function() {
+    state runningCount = taskManager.runningCount
+    state queuedCount = taskManager.queuedCount
+  }, 300)
+}
+
+private function applyDefaultThresholds() {
+  state warningThreshold = 3
+  state criticalThreshold = 6
+  taskManager.setAlertThresholds({ warning: 3, critical: 6 })
+}
+
+private function applyTightThresholds() {
+  state warningThreshold = 1
+  state criticalThreshold = 2
+  taskManager.setAlertThresholds({ warning: 1, critical: 2 })
+}
+
+private function onAlert(level: string) {
+  state log = log + alertLevel + " -> " + level + Chr(10)
+  state alertLevel = level
+}
+
+private function floodQueue(key: string, press: boolean) {
+  if (press) {
+    applyDefaultThresholds()
+    state log = ""
+    for (i = 1 to 8) {
+      task = CreateObject("roSGNode", "SlowTask")
+      task.functionName = "doWork"
+      task.label = "flood-" + i.ToStr()
+      task.durationSeconds = 4
+      taskManager.run(task)
+    }
+  }
+}
+
+private function floodQueueTight(key: string, press: boolean) {
+  if (press) {
+    applyTightThresholds()
+    state log = ""
+    for (i = 1 to 4) {
+      task = CreateObject("roSGNode", "SlowTask")
+      task.functionName = "doWork"
+      task.label = "tight-" + i.ToStr()
+      task.durationSeconds = 2
+      taskManager.run(task)
+    }
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="2/4 — taskManager.onAlertChanged (hysteresis-gated)" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="UP/DOWN between buttons, OK to flood — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Label id="thresholdsReadout" text="{thresholdsLabel}" color="0xAAAAAAFF" translation="{thresholdsTranslation}" />
+  <Rectangle id="floodButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{floodButtonTranslation}" on:key[OK]="{floodQueue()}">
+    <Label id="floodButtonLabel" text="Flood queue (8 tasks, warning=3/critical=6)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="floodTightButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{floodTightButtonTranslation}" on:key[OK]="{floodQueueTight()}">
+    <Label id="floodTightButtonLabel" text="Flood tight (4 tasks, warning=1/critical=2) — watch it drain" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="runningReadout" text="{runningLabel}" color="0x66FF99FF" translation="{runningReadoutTranslation}" />
+  <Label id="queuedReadout" text="{queuedLabel}" color="0xFFCC66FF" translation="{queuedReadoutTranslation}" />
+  <Label id="alertReadout" text="{alertLabel}" color="{alertColor}" translation="{alertReadoutTranslation}" />
+  <Label id="logReadout" text="{log}" color="0x66CCFFFF" translation="{logTranslation}" />
+</Rectangle>
+</component>

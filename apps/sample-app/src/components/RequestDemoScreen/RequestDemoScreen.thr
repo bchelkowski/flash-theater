@@ -1,0 +1,177 @@
+<script>
+' Demonstrates the DSL's `request Http {}` feature end to end — see GRAMMAR.md's "Requests" and
+' "Task manager" sections, and findings/requests-runtime.md/findings/task-manager-request-callbacks.md. GetPosts.thr is a
+' real HTTP GET request/endpoint component (jsonplaceholder.typicode.com, a free public REST test
+' API) — driven exactly like any other Task via taskManager.run(task), consumed here BOTH
+' documented ways side by side: "Load posts" (below) wires observeFieldScoped("result"/"error", ...)
+' by hand (the old style); "Load posts (onResult)" instead calls taskManager.onResult(task,
+' onSuccess, onError) — the newer promise-style sugar, whose callbacks receive the already-unwrapped
+' result/error value directly, not a roSGNodeEvent needing .GetData(). Note it's the TASK NODE
+' passed to onResult, not the id taskManager.run(...) returns — see GetPosts's own comment below and
+' findings/task-manager-request-callbacks.md for why (a Function value can't survive a callFunc crossing to a
+' different node, confirmed live; registration happens locally instead). Both buttons drive the SAME
+' GetPosts.thr component (including its buildRequest/prepareRequest dynamic-userId parameterization
+' — see below) to prove the two consumption styles are genuinely interchangeable, not tied to a
+' different kind of request.
+'
+' onPostsLoaded/onPostsFailed are `public function`, not `private` — deliberately, same reason
+' SlowTask.thr's own doWork keeps its literal name for functionName matching: observeFieldScoped's
+' target is a plain string, passed straight through by this compiler (an ordinary method call, not
+' `taskManager.*`/`focus.*` reserved-keyword sugar the compiler rewrites) — `private function` would
+' get renamed to `private_onPostsLoaded` and silently never match "onPostsLoaded", so the observer
+' would never fire even though m.top.result/error still update correctly. Confirmed live the hard
+' way — see findings/requests-runtime.md. Contrast with GetPosts.thr's own `buildRequest`/`parseResponse`/
+' `parseError` hooks, which ARE safe as `private function` — the compiler calls those by their real
+' compiled name (`request-emitter.ts`'s `resolveHookCallName`), not a bare string, so there's no
+' equivalent gotcha there.
+'
+' Reachable from Shell's own sidebar ("Request demo"), same role TaskDemoScreen.thr already plays
+' for taskManager itself. loadButton sits at the same y-translation as Shell's own menuRequests
+' item (not the y=100 other content screens use) — the two must vertically overlap for the LRUD
+' focus system's cross-owner "Right" entry to find it at all (see findings/focus-system.md's
+' "genuinely overlaps the focused box on the perpendicular axis" rule) — confirmed live the hard way
+' too, not just laid out by convention. `scale`d throughout — same HD baseline as every other
+' screen, see Shell.thr's own top comment; this alignment holds at every resolution because both
+' this button's translation and Shell's own menu row are scaled by the same app-wide factor.
+scale field rootWidth: integer = 880
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 300
+scale field buttonHeight: integer = 60
+scale state titleTranslation: object = [40, 20]
+scale state resultReadoutTranslation: object = [40, 200]
+scale state errorReadoutTranslation: object = [40, 240]
+scale state onResultResultReadoutTranslation: object = [40, 280]
+scale state onResultErrorReadoutTranslation: object = [40, 320]
+scale state cachedResultReadoutTranslation: object = [40, 360]
+scale state cachedErrorReadoutTranslation: object = [40, 400]
+scale state onResultButtonTranslation: object = [40, 450]
+scale state loadCachedPostButtonTranslation: object = [40, 530]
+scale state loadButtonTranslation: object = [40, 610]
+scale state buttonLabelInset: object = [16, 16]
+
+state resultText: string = "Not run yet"
+state errorText: string = ""
+' Cycles 1..10 across presses — handed to GetPosts.thr's generated prepareRequest(requestData) via
+' callFunc BEFORE taskManager.run(task), read by ITS OWN buildRequest(requestData) hook to build a
+' per-call ?userId=<n> query filter. Demonstrates real per-call request parameterization: every
+' press hits the network with a different query string, not a config-literal value baked in at
+' compile time (see GetPosts.thr's own comment). callFunc, not a field write (task.requestData =
+' ...), specifically so buildRequest resolves BEFORE the Task's background thread ever starts — see
+' GetPosts.thr's own comment on why, and findings/requests-runtime.md's rendezvous-avoidance writeup.
+state nextUserId: integer = 1
+state lastUserId: integer = 0
+
+' "Load posts (onResult)" — the exact same GetPosts.thr/buildRequest/prepareRequest dance as
+' loadPosts() below, but consumed via taskManager.onResult(task, onSuccess, onError) instead of
+' observeFieldScoped: called with the TASK NODE itself (not an id) after taskManager.run(task) —
+' see GRAMMAR.md's own note on why (task.id, the registration's own lookup key, is only actually
+' assigned once run() has processed the node).
+state onResultResultText: string = "Not run yet"
+state onResultErrorText: string = ""
+
+' GetPost.thr's own caching demo — no requestData/buildRequest involved at all, deliberately (see
+' GetPost.thr's own comment): press "Load post (cached)" twice in a row (within 30s) and the
+' second press's cachedResultText should report fromCache=true, proving runtime-assets/Http/
+' FlashTheaterHttp.brs's cache actually short-circuits the network call, not just "looks the same."
+state cachedResultText: string = "Not run yet"
+state cachedErrorText: string = ""
+
+private function loadPosts(key: string, press: boolean) {
+  if (press) {
+    task = CreateObject("roSGNode", "GetPosts")
+    task.observeFieldScoped("result", "onPostsLoaded")
+    task.observeFieldScoped("error", "onPostsFailed")
+    task.callFunc("prepareRequest", { userId: nextUserId })
+    state lastUserId = nextUserId
+    state nextUserId = (nextUserId mod 10) + 1
+    taskManager.run(task)
+  }
+}
+
+public function onPostsLoaded(event: dynamic) {
+  result = event.GetData()
+  state resultText = "Loaded " + result.count.ToStr() + " posts for userId=" + lastUserId.ToStr()
+  state errorText = ""
+}
+
+public function onPostsFailed(event: dynamic) {
+  error = event.GetData()
+  state errorText = error.message
+}
+
+private function loadPostsViaOnResult(key: string, press: boolean) {
+  if (press) {
+    task = CreateObject("roSGNode", "GetPosts")
+    task.callFunc("prepareRequest", { userId: nextUserId })
+    state lastUserId = nextUserId
+    state nextUserId = (nextUserId mod 10) + 1
+    taskManager.run(task)
+    taskManager.onResult(task, onPostsResultSuccess, onPostsResultError)
+  }
+}
+
+' `result` here is already exactly what GetPosts.thr's own parseResponse(...) returned — no
+' event.GetData() unwrapping needed, unlike onPostsLoaded above. Safe as `private function` too:
+' taskManager.onResult(...) passes callbacks by Function VALUE (through the same rewrite pipeline
+' taskManager.onAlertChanged(...) already uses), never by bare string name, so there's no
+' observeFieldScoped-style private_ prefix gotcha here.
+private function onPostsResultSuccess(result: dynamic) {
+  state onResultResultText = "Loaded " + result.count.ToStr() + " posts for userId=" + lastUserId.ToStr() + " (via onResult)"
+  state onResultErrorText = ""
+}
+
+private function onPostsResultError(error: dynamic) {
+  state onResultErrorText = error.message
+}
+
+private function loadCachedPost(key: string, press: boolean) {
+  if (press) {
+    task = CreateObject("roSGNode", "GetPost")
+    task.observeFieldScoped("result", "onPostLoaded")
+    task.observeFieldScoped("error", "onPostFailed")
+    taskManager.run(task)
+  }
+}
+
+public function onPostLoaded(event: dynamic) {
+  result = event.GetData()
+  ' Chr(34) for an embedded literal quote — NOT \" (BrightScript string literals don't support
+  ' backslash-escapes at all; this DSL's own string literals pass through to generated BrightScript
+  ' verbatim, so \" here compiled cleanly with no diagnostic but crashed at runtime with a "Type
+  ' Mismatch" error on the stray \ operator — see findings/statement-grammar-features.md).
+  state cachedResultText = Chr(34) + result.title + Chr(34) + " (fromCache=" + result.fromCache.ToStr() + ")"
+  state cachedErrorText = ""
+}
+
+public function onPostFailed(event: dynamic) {
+  error = event.GetData()
+  state cachedErrorText = error.message
+}
+
+' Reveals this screen immediately instead of waiting out childOutlet's own loadingTimeout safety
+' net — see Shell.thr's own top comment and findings/router-transitions.md.
+public function setup() {
+  router.markReady()
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="Request demo — request Http {} + taskManager.run(task)" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="resultReadout" text="{resultText}" color="0x66FF99FF" translation="{resultReadoutTranslation}" />
+  <Label id="errorReadout" text="{errorText}" color="0xFF6666FF" translation="{errorReadoutTranslation}" />
+  <Label id="onResultResultReadout" text="{onResultResultText}" color="0x66FF99FF" translation="{onResultResultReadoutTranslation}" />
+  <Label id="onResultErrorReadout" text="{onResultErrorText}" color="0xFF6666FF" translation="{onResultErrorReadoutTranslation}" />
+  <Label id="cachedResultReadout" text="{cachedResultText}" color="0x66FF99FF" translation="{cachedResultReadoutTranslation}" />
+  <Label id="cachedErrorReadout" text="{cachedErrorText}" color="0xFF6666FF" translation="{cachedErrorReadoutTranslation}" />
+  <Rectangle id="onResultButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{onResultButtonTranslation}" on:key[OK]="{loadPostsViaOnResult()}">
+    <Label id="onResultButtonLabel" text="Load posts (onResult)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="loadCachedPostButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{loadCachedPostButtonTranslation}" on:key[OK]="{loadCachedPost()}">
+    <Label id="loadCachedPostButtonLabel" text="Load post (cached)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="loadButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{loadButtonTranslation}" on:key[OK]="{loadPosts()}">
+    <Label id="loadButtonLabel" text="Load posts" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+</Rectangle>
+</component>

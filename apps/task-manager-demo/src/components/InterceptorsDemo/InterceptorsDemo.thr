@@ -1,0 +1,64 @@
+<script>
+' Chapter 4/4 — taskManager.onRequestSent(...)/onResponseReceived(...), the global, app-wide,
+' register-once HTTP interceptors (see GRAMMAR.md's "Task manager" section and
+' findings/task-manager-request-interceptors.md). NEW chapter — apps/async-demo demonstrated this
+' too, but only implicitly, through its own MainScene.thr's persistent readout reacting to whatever
+' its two request-safety demo screens happened to trigger; this chapter is the first place either
+' mechanism gets its own dedicated, narrated deep-dive.
+'
+' This screen's own job is narrow on purpose: fire ONE real HTTP request (via GetPost.thr, a
+' minimal `request Http {}` component — see that file's own top comment for why it's deliberately
+' NOT a requests-safety showcase) so there's something for the interceptors to observe. The actual
+' point being proven — REGISTER ONCE, FIRES APP-WIDE — is demonstrated by MainScene.thr's own
+' persistent `requestReadout`/`responseReadout` labels at the bottom of the screen, NOT by anything
+' local to this chapter: `taskManager.onRequestSent`/`onResponseReceived` are registered exactly
+' once, in MainScene.thr's own `setup()`, and stay live across every chapter switch. Press "Fetch a
+' post" here, then switch chapters (REWIND/FAST-FORWARD) — the persistent readout at the bottom
+' keeps showing this chapter's last request/response even after navigating away, since the
+' subscription lives in MainScene, not in this chapter's own script.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 420
+scale field buttonHeight: integer = 50
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state loadButtonTranslation: object = [40, 120]
+scale state resultReadoutTranslation: object = [40, 190]
+scale state errorReadoutTranslation: object = [40, 220]
+scale state buttonLabelInset: object = [16, 12]
+
+state resultText: string = "Not run yet"
+state errorText: string = ""
+
+private function loadPost(key: string, press: boolean) {
+  if (press) {
+    task = CreateObject("roSGNode", "GetPost")
+    task.observeFieldScoped("result", "onPostLoaded")
+    task.observeFieldScoped("error", "onPostFailed")
+    taskManager.run(task)
+  }
+}
+
+public function onPostLoaded(event: dynamic) {
+  result = event.GetData()
+  state resultText = "Loaded: " + result.title
+  state errorText = ""
+}
+
+public function onPostFailed(event: dynamic) {
+  error = event.GetData()
+  state errorText = error.message
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="4/4 — taskManager.onRequestSent/onResponseReceived (global interceptors)" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="OK to fire a request — watch the persistent readout at the bottom of the screen (registered once in MainScene)" color="0x888888FF" translation="{hintTranslation}" />
+  <Rectangle id="loadButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{loadButtonTranslation}" on:key[OK]="{loadPost()}">
+    <Label id="loadButtonLabel" text="Fetch a post" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="resultReadout" text="{resultText}" color="0x66FF99FF" translation="{resultReadoutTranslation}" />
+  <Label id="errorReadout" text="{errorText}" color="0xFF6666FF" translation="{errorReadoutTranslation}" />
+</Rectangle>
+</component>

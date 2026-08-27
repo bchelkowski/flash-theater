@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- flash-theater:generated — do not edit by hand, source: FavoriteCounter.thr -->
+<component name="FavoriteCounter" extends="Group">
+  <interface>
+    <field id="backgroundWidth" type="integer" value="260" onChange="on_backgroundWidthChange" />
+    <field id="backgroundHeight" type="integer" value="90" onChange="on_backgroundHeightChange" />
+    <field id="pillWidth" type="integer" value="240" onChange="on_pillWidthChange" />
+    <field id="pillHeight" type="integer" value="50" onChange="on_pillHeightChange" />
+    <function name="addFavorite" />
+    <function name="toggleCelebration" />
+  </interface>
+  <children>
+    <Rectangle id="background">
+      <Rectangle id="pill">
+        <Label id="label" />
+        <Group id="ft_if_1">
+          <Label id="emptyBadge" text="Add your first!" />
+        </Group>
+      </Rectangle>
+      <Label id="milestone" />
+      <Label id="tier" />
+    </Rectangle>
+  </children>
+  <script type="text/brightscript" uri="FavoriteCounter.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Classes/LabeledCounter.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Classes/Counter.brs" />
+  <script type="text/brightscript" uri="pkg:/components/FlashTheater/SafeCompare/FlashTheaterSafeCompare.brs" />
+  <script type="text/brightscript" uri="pkg:/components/FlashTheater/Scale/FlashTheaterScale.brs" />
+</component>

@@ -1,0 +1,82 @@
+<script>
+' Chapter 3/3 — runtime `switchTheme(name)`. Generated per GRAMMAR.md's "Theme" section as a
+' public function on the compiled theme node (`packages/compiler/src/codegen/theme-emitter.ts`'s
+' `emitSwitchThemeFunction`): re-assigns every top-level group field to the named variant's own
+' literal table (firing each group's `ObserveFieldScoped` cascade everywhere it's read — see
+' chapter 2), or, for an unknown name, a harmless no-op with a debug `print` — never a crash, since
+' a runtime string can't be statically checked. There is no DSL-level call sugar for it (unlike
+' `router.navigate(...)`) — it's called the same way any other generated Node interface function is
+' called from a private function body elsewhere in this codebase (see e.g.
+' apps/focus-demo/src/components/VacuumRuleDemo/VacuumRuleDemo.thr's own
+' `m.global.ft_focus.callFunc(...)` calls): `m.global.ft_theme.callFunc("switchTheme", name)`.
+'
+' Default example: "Switch to ocean"/"Switch to sunset" toggle between chapter 1's own two
+' variants — `root`'s own `color="{theme.colors.background}"` binding means the WHOLE screen
+' visibly retints on every press, not just an isolated readout.
+' Customized example: "Switch to doesNotExist" calls switchTheme() with a name no `<theme
+' name="...">` file declares. `lastRequestedText` (updated on EVERY press, known or not) keeps
+' reading "doesNotExist" afterward while `root`'s own background visibly does NOT change and
+' `activeVariantText` (updated only after a KNOWN-name press) keeps reading whichever variant was
+' active before — demonstrating the no-op directly: the call was accepted, nothing crashed, and
+' the previously-active theme simply stayed active.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 420
+scale field buttonHeight: integer = 50
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state oceanButtonTranslation: object = [40, 110]
+scale state sunsetButtonTranslation: object = [40, 170]
+scale state unknownButtonTranslation: object = [40, 230]
+scale state buttonLabelInset: object = [16, 12]
+scale state lastRequestedTranslation: object = [40, 310]
+scale state activeVariantTranslation: object = [40, 340]
+
+state activeVariantName: string = "ocean"
+state lastRequestedName: string = "(none yet)"
+
+derived backgroundValue: string = theme.colors.background
+derived lastRequestedText: string = "last switchTheme(...) call: " + lastRequestedName
+derived activeVariantText: string = "active variant (updates only on a KNOWN name): " + activeVariantName
+
+private function switchToOcean(key: string, press: boolean) {
+  if (press) {
+    state lastRequestedName = "ocean"
+    m.global.ft_theme.callFunc("switchTheme", "ocean")
+    state activeVariantName = "ocean"
+  }
+}
+
+private function switchToSunset(key: string, press: boolean) {
+  if (press) {
+    state lastRequestedName = "sunset"
+    m.global.ft_theme.callFunc("switchTheme", "sunset")
+    state activeVariantName = "sunset"
+  }
+}
+
+private function switchToUnknown(key: string, press: boolean) {
+  if (press) {
+    state lastRequestedName = "doesNotExist"
+    m.global.ft_theme.callFunc("switchTheme", "doesNotExist")
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="{backgroundValue}" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="3/3 — runtime switchTheme(name)" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="OK on a button to switch — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0xCCCCCCFF" translation="{hintTranslation}" />
+  <Rectangle id="oceanButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{oceanButtonTranslation}" on:key[OK]="{switchToOcean()}">
+    <Label id="oceanButtonLabel" text="Switch to ocean" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="sunsetButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{sunsetButtonTranslation}" on:key[OK]="{switchToSunset()}">
+    <Label id="sunsetButtonLabel" text="Switch to sunset" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="unknownButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{unknownButtonTranslation}" on:key[OK]="{switchToUnknown()}">
+    <Label id="unknownButtonLabel" text="Switch to doesNotExist (unknown name, no-op)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="lastRequestedReadout" text="{lastRequestedText}" color="0xFFCC66FF" translation="{lastRequestedTranslation}" />
+  <Label id="activeVariantReadout" text="{activeVariantText}" color="0x66FF99FF" translation="{activeVariantTranslation}" />
+</Rectangle>
+</component>

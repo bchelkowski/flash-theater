@@ -1,0 +1,17 @@
+<script>
+field count: integer = 0
+
+derived label: string = describe(count)
+
+private function describe(value: integer, unusedFlag: boolean): string {
+  formatted = "count: " + str(value)
+  unusedTotal = value * 2
+  return formatted
+}
+</script>
+
+<component>
+<LayoutGroup id="root">
+  <Label id="out" text="{label}" />
+</LayoutGroup>
+</component>

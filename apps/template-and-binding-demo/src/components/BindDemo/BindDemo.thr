@@ -1,0 +1,60 @@
+<script>
+' Chapter 4/4 — bind:<childField>={<stateName>} is ONE-DIRECTIONAL ONLY: a child field change
+' flows INTO a state, never state->child (despite the old "two-way binding" name in early planning
+' docs — see site/src/pages/docs/template-and-binding.astro's own explicit note on this). Default:
+' the built-in TextEditBox's own `text` field flows OUT into `typedText` via bind:text, mirrored
+' live by a separate label. Customized: the SAME TextEditBox ALSO receives a value pushed IN via an
+' ordinary dynamic attribute on a DIFFERENT field (`hintText`) — proving the push direction is just
+' a plain attr="{expr}" binding, entirely unrelated to bind: itself, on the same element.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+
+scale field boxWidth: integer = 500
+scale state boxTranslation: object = [40, 190]
+scale state echoTranslation: object = [40, 250]
+
+scale field hintButtonWidth: integer = 460
+scale field hintButtonHeight: integer = 50
+scale state hintButtonTranslation: object = [40, 310]
+scale state hintButtonLabelInset: object = [16, 12]
+
+scale state pushNoteTranslation: object = [40, 380]
+
+state typedText: string = ""
+state hintPrompt: string = "Type something (bind:text pulls this out)"
+state hintIndex: integer = 0
+
+derived echoText: string = "state typedText (mirrors what you type via bind:text): " + typedText
+
+private function cycleHint(key: string, press: boolean) {
+  if (press) {
+    state hintIndex = hintIndex + 1
+    if (hintIndex MOD 3 = 0) {
+      state hintPrompt = "Type something (bind:text pulls this out)"
+    } else if (hintIndex MOD 3 = 1) {
+      state hintPrompt = "hintText pushed in via a plain attr={expr}"
+    } else {
+      state hintPrompt = "bind: never pushes — only THIS attr does"
+    }
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="4/4 — bind: is one-directional (child -> state only)" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="TextEditBox.text flows OUT via bind:text. TextEditBox.hintText is pushed IN via a plain dynamic attr — two different fields, two different directions." color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+
+  <TextEditBox id="inputBox" focusable="true" default-focus="true" width="{boxWidth}" translation="{boxTranslation}" bind:text="{typedText}" hintText="{hintPrompt}" />
+
+  <Label id="echo" text="{echoText}" color="0x66CCFFFF" translation="{echoTranslation}" />
+
+  <Rectangle id="hintButton" focusable="true" color="0x2A2A2AFF" width="{hintButtonWidth}" height="{hintButtonHeight}" translation="{hintButtonTranslation}" on:key[OK]="{cycleHint()}">
+    <Label id="hintButtonLabel" text="Cycle hintText (OK) — pushes a new value IN" color="0xFFFFFFFF" translation="{hintButtonLabelInset}" />
+  </Rectangle>
+
+  <Label id="pushNote" text="hintText is a PLAIN dynamic attr, not bind: — bind: could never push a value into the child" color="0x888888FF" translation="{pushNoteTranslation}" />
+</Rectangle>
+</component>

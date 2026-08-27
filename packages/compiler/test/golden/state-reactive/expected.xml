@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="StateFixture" extends="Group">
+  <interface>
+    <field id="enabled" type="boolean" value="true" />
+    <field id="ft_routeReady" type="boolean" value="false" />
+    <function name="bump" />
+    <function name="ft_unmount" />
+  </interface>
+  <children>
+    <LayoutGroup id="root">
+      <Label id="out" />
+    </LayoutGroup>
+  </children>
+  <script type="text/brightscript" uri="StateFixture.brs" />
+</component>

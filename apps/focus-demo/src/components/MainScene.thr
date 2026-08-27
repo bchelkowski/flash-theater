@@ -1,0 +1,54 @@
+<script>
+' This app's root Scene, now compiled from .thr like every other app's — see
+' findings/demo-app-conventions.md for why router-free apps are no longer this repo's convention.
+' Router-mounted chapters, one per focus/navigation mechanism from
+' site/src/pages/docs/focus-and-navigation.astro. Chapter 5 (CrossSiblingRelayDemo) is the one
+' deliberate exception: a hand-authored, non-.thr component used directly as a route's own
+' `component:` — see that file's own top comment for why, and for the interop lesson it now
+' proves as a router-mounted screen instead of as this app's own root Scene.
+scale field rootWidth: integer = 1920
+scale field rootHeight: integer = 1080
+scale state hintTranslation: object = [40, 1020]
+
+field chapterPaths: array = [
+  "focusable-basics", "lrud-navigation", "vacuum-rule",
+  "focus-state", "cross-sibling-relay", "destroy-nested-gap", "jump-focus"
+]
+state activeChapterIndex: integer = 0
+
+derived hintText: string = "Chapter " + (activeChapterIndex + 1).ToStr() + "/7 — REWIND / FAST-FORWARD to switch, BACK to return"
+
+private function nextChapter(key: string, press: boolean) {
+  if (press and activeChapterIndex < chapterPaths.Count() - 1) {
+    state activeChapterIndex = activeChapterIndex + 1
+    router.navigate("/" + chapterPaths[activeChapterIndex])
+  }
+}
+
+private function prevChapter(key: string, press: boolean) {
+  if (press and activeChapterIndex > 0) {
+    state activeChapterIndex = activeChapterIndex - 1
+    router.navigate("/" + chapterPaths[activeChapterIndex])
+  }
+}
+
+public function setup() {
+  router.setRouting([
+    { path: "focusable-basics", component: "FocusableBasicsDemo" },
+    { path: "lrud-navigation", component: "ScrollFocusDemo" },
+    { path: "vacuum-rule", component: "VacuumRuleDemo" },
+    { path: "focus-state", component: "FocusStateDemo" },
+    { path: "cross-sibling-relay", component: "CrossSiblingRelayDemo" },
+    { path: "destroy-nested-gap", component: "DestroyNestedGapDemo" },
+    { path: "jump-focus", component: "JumpFocusDemo" }
+  ])
+  router.navigate("/" + chapterPaths[0])
+}
+</script>
+
+<component extends="Scene" on:key[fastforward]="{nextChapter()}" on:key[rewind]="{prevChapter()}">
+<Rectangle id="root" color="0x101010FF" width="{rootWidth}" height="{rootHeight}">
+  <FlashTheaterRouterOutlet id="outlet" width="{rootWidth}" height="{rootHeight}" />
+  <Label id="hint" text="{hintText}" color="0x888888FF" translation="{hintTranslation}" />
+</Rectangle>
+</component>

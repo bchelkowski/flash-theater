@@ -1,0 +1,116 @@
+<script>
+' Chapter 1/4 — static vs dynamic attributes, and automatic id-based node-ref caching (no
+' hand-written findNode anywhere in this file — every element id below is auto-cached onto `m` in
+' the generated init(), see GRAMMAR.md's "Template" section: "every node id is automatically
+' cached"). Default: "toggleBox" flips ONE dynamic attribute (color+text) per press. Customized:
+' "cascadeBox" flips THREE dynamic attributes (color/width/text) from a SINGLE press — the "one
+' write, several bindings react" cascade — and "Read cached ref" demonstrates m.cascadeBox
+' resolving directly inside a raw BrightScript passthrough block, proving the auto-cache without
+' any findNode call anywhere in this component.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+
+scale field staticBoxWidth: integer = 460
+scale field staticBoxHeight: integer = 70
+scale state staticBoxTranslation: object = [40, 150]
+scale state staticLabelTranslation: object = [16, 22]
+
+scale field toggleBoxWidth: integer = 460
+scale field toggleBoxHeight: integer = 70
+scale state toggleBoxTranslation: object = [40, 240]
+scale state toggleLabelTranslation: object = [16, 22]
+
+scale field cascadeBoxHeight: integer = 70
+scale state cascadeBoxTranslation: object = [40, 330]
+scale state cascadeLabelTranslation: object = [16, 22]
+scale field cascadeWidthNarrow: integer = 300
+scale field cascadeWidthWide: integer = 620
+
+scale field infoButtonWidth: integer = 460
+scale field infoButtonHeight: integer = 60
+scale state infoButtonTranslation: object = [40, 420]
+scale state infoLabelTranslation: object = [16, 18]
+
+scale state cachedInfoTranslation: object = [40, 500]
+
+state toggleColor: string = "0x3A6EA5FF"
+state toggleText: string = "Dynamic — press OK to change my color"
+
+state cascadeColor: string = "0x3A6EA5FF"
+scale state cascadeWidth: integer = 300
+' Short enough to stay roughly within cascadeWidthNarrow's own rendered width — a much longer
+' default here ("...color+width+text all change together") let this Label's own text overflow the
+' Rectangle so far that FlashTheaterFocusManager's BoundingRect()-based LRUD scoring (which
+' includes descendant overflow, see findings/focus-runtime-bugs.md's new entry) computed this box's
+' center point far enough off to its right that a vertical Down/Up move from/to its neighbors
+' skipped it entirely, scoring the farther, non-overflowing infoButton as "nearer" instead —
+' live-device-caught, see findings/template-and-binding-demo-app.md's device-pass writeup.
+state cascadeText: string = "Cascade — press OK to change all 3"
+
+state cachedInfoText: string = "Focus the Read cached ref button and press OK"
+
+private function toggleColorPress(key: string, press: boolean) {
+  if (press) {
+    if (toggleColor == "0x3A6EA5FF") {
+      state toggleColor = "0xE0A030FF"
+      state toggleText = "Dynamic — orange now"
+    } else {
+      state toggleColor = "0x3A6EA5FF"
+      state toggleText = "Dynamic — blue now"
+    }
+  }
+}
+
+private function cyclePress(key: string, press: boolean) {
+  if (press) {
+    if (cascadeColor == "0x3A6EA5FF") {
+      state cascadeColor = "0xE0A030FF"
+      state cascadeWidth = cascadeWidthWide
+      state cascadeText = "Cascade — orange / wide (one press, three attrs)"
+    } else {
+      state cascadeColor = "0x3A6EA5FF"
+      state cascadeWidth = cascadeWidthNarrow
+      state cascadeText = "Cascade — blue / narrow (one press, three attrs)"
+    }
+  }
+}
+
+' `m.cascadeBox` is read directly here, with no findNode call — the id was auto-cached onto `m`
+' in the generated init() purely by declaring `id="cascadeBox"` in the template below.
+private function readCachedRef(key: string, press: boolean) {
+  if (press) {
+    w = 0
+    ' flash-theater:raw
+    w = m.cascadeBox.width
+    ' flash-theater:end-raw
+    state cachedInfoText = "m.cascadeBox.width read directly (no findNode): " + w.ToStr()
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="1/4 — static vs dynamic attributes" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="OK toggles the focused box. Every id below is auto-cached — no findNode anywhere in this file." color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+
+  <Rectangle id="staticBox" color="0x444444FF" width="{staticBoxWidth}" height="{staticBoxHeight}" translation="{staticBoxTranslation}">
+    <Label id="staticLabel" text="Static — literal color/width, never changes" color="0xCCCCCCFF" translation="{staticLabelTranslation}" />
+  </Rectangle>
+
+  <Rectangle id="toggleBox" focusable="true" default-focus="true" color="{toggleColor}" width="{toggleBoxWidth}" height="{toggleBoxHeight}" translation="{toggleBoxTranslation}" on:key[OK]="{toggleColorPress()}">
+    <Label id="toggleLabel" text="{toggleText}" color="0xFFFFFFFF" translation="{toggleLabelTranslation}" />
+  </Rectangle>
+
+  <Rectangle id="cascadeBox" focusable="true" color="{cascadeColor}" width="{cascadeWidth}" height="{cascadeBoxHeight}" translation="{cascadeBoxTranslation}" on:key[OK]="{cyclePress()}">
+    <Label id="cascadeLabel" text="{cascadeText}" color="0xFFFFFFFF" translation="{cascadeLabelTranslation}" />
+  </Rectangle>
+
+  <Rectangle id="infoButton" focusable="true" color="0x2A2A2AFF" width="{infoButtonWidth}" height="{infoButtonHeight}" translation="{infoButtonTranslation}" on:key[OK]="{readCachedRef()}">
+    <Label id="infoLabel" text="Read cached ref (OK)" color="0xFFFFFFFF" translation="{infoLabelTranslation}" />
+  </Rectangle>
+
+  <Label id="cachedInfo" text="{cachedInfoText}" color="0x66CCFFFF" translation="{cachedInfoTranslation}" />
+</Rectangle>
+</component>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- flash-theater:generated — do not edit by hand, copied from packages/compiler/runtime-assets/FocusManager -->
+<component name="FlashTheaterFocusManager" extends="Node">
+  <interface>
+    <function name="setSceneRef" />
+    <function name="register" />
+    <function name="unregister" />
+    <function name="unregisterSubtree" />
+    <function name="recoverFocusFor" />
+    <function name="claimFocusIfVacant" />
+    <function name="navigate" />
+    <function name="moveFocusTo" />
+    <function name="focusComponent" />
+    <function name="resolveEntryTarget" />
+    <function name="registerFocusState" />
+    <!-- Deferred focus application — see FlashTheaterFocusManager.brs's own section comment. -->
+    <function name="beginFocusTransition" />
+    <function name="proposeFocusTarget" />
+    <function name="requestFocusTarget" />
+    <function name="applyPendingFocus" />
+    <!-- Diagnostics: "what has focus right now, and where does it sit in the tree". -->
+    <function name="focusedNode" />
+    <function name="getFocusPath" />
+    <function name="getFocusPathString" />
+    <function name="startRepeat" />
+    <function name="stopRepeat" />
+  </interface>
+  <script type="text/brightscript" uri="FlashTheaterFocusManager.brs" />
+</component>

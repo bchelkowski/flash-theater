@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- flash-theater:generated — do not edit by hand, source: ScheduleList.thr -->
+<component name="ScheduleList" extends="Group">
+  <interface>
+    <field id="rootWidth" type="integer" value="300" onChange="on_rootWidthChange" />
+    <field id="rootHeight" type="integer" value="360" onChange="on_rootHeightChange" />
+    <field id="rowX" type="integer" value="10" onChange="on_rowXChange" />
+    <field id="todayBadgeX" type="integer" value="120" onChange="on_todayBadgeXChange" />
+    <field id="searchBoxWidth" type="integer" value="280" onChange="on_searchBoxWidthChange" />
+    <field id="prefix" type="string" value="&quot;Day: &quot;" onChange="on_prefixChange" />
+    <function name="load" />
+    <function name="unload" />
+    <function name="addDay" />
+    <function name="removeFirstDay" />
+    <function name="shuffleDays" />
+    <function name="removeToday" />
+  </interface>
+  <children>
+    <Rectangle id="root" color="0x1A1A1AFF" />
+  </children>
+  <script type="text/brightscript" uri="ScheduleList.brs" />
+  <script type="text/brightscript" uri="pkg:/components/FlashTheater/Scale/FlashTheaterScale.brs" />
+</component>

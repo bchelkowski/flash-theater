@@ -1,0 +1,7 @@
+Placeholder asset that only ever ships in the "staging" environment build — see
+apps/sample-app/environments/staging.config.json's "include" and the base
+flash-theater.config.json's "exclude" for how this file is kept out of the plain
+(no --env) build and out of the "production" build. A plain text placeholder
+(not a real image) is enough to prove the include/exclude mechanics, since this
+file isn't referenced from any .thr template or the manifest. See
+findings/environments.md.

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="ControlFlowBasicFixture" extends="Group">
+  <interface>
+    <field id="limit" type="integer" value="5" />
+    <field id="ft_routeReady" type="boolean" value="false" />
+    <function name="recompute" />
+    <function name="ft_unmount" />
+  </interface>
+  <children>
+    <LayoutGroup id="root">
+      <Label id="out" />
+    </LayoutGroup>
+  </children>
+  <script type="text/brightscript" uri="ControlFlowBasicFixture.brs" />
+</component>

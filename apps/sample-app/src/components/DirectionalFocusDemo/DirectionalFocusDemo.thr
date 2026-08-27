@@ -1,0 +1,64 @@
+<script>
+' Demonstrates choosing which element gets initial focus based on WHICH DIRECTION this route was
+' entered from, using two independent, already-documented primitives together:
+'   - `router.isBackJourney` — a schemaless read off the router's own current route data, exactly
+'     like `router.path`/`router.params.*`/`router.backJourneyData.*` (see GRAMMAR.md's "Router"
+'     section) — `true` when this mount was reached via `router.back()`, `false` for an ordinary
+'     `router.navigate(...)` (forward) mount.
+'   - `focus(<id>)` — an EXPLICIT focus request, always winning over both the vacuum rule and any
+'     automatic route-memory restoration (see GRAMMAR.md's "Navigation and focus" section) — called
+'     from `setup()`, which every router-mounted component gets automatically, at exactly the right
+'     point in the mount cascade for this to establish real key routing.
+'
+' A real authoring need this solves: the SAME route can legitimately want a DIFFERENT entry point
+' depending on how the user arrived — e.g. a multi-step flow that should focus its own "continue"
+' action on a fresh forward visit, but its own "review/edit" action when the user has stepped away
+' and come BACK to revisit it.
+'
+' This screen's own round trip proves the branch is genuinely direction-aware, not just "whatever
+' was pressed last" (which an ordinary automatic route-memory restoration demo can't distinguish —
+' see findings/router-focus-integration.md's own "vacuum rule" entry for why): press OK on `buttonA`
+' (focused on the first, forward visit) to go forward to DirectionalFocusDemoDetail.thr, then press
+' OK there to come back — `buttonB` is focused this second time, not `buttonA`, even though nothing
+' about THIS screen's own content was ever left focused on the way out (`buttonA` itself is what
+' triggered leaving). Verify live: enter from HomeScreen's own prompt below, confirm `buttonA`
+' (yellow) is focused; press OK, then OK again on the detail screen's own back prompt; confirm
+' `buttonB` (yellow) is focused this time, not `buttonA`.
+scale field rootWidth: integer = 880
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 620
+scale field buttonHeight: integer = 60
+scale state titleTranslation: object = [40, 20]
+scale state explanationTranslation: object = [40, 70]
+scale state buttonATranslation: object = [40, 220]
+scale state buttonBTranslation: object = [40, 300]
+scale state buttonLabelInset: object = [16, 20]
+
+public function setup() {
+  if (router.isBackJourney) {
+    focus("buttonB")
+  } else {
+    focus("buttonA")
+  }
+  router.markReady()
+}
+
+private function goToDetail(key: string, press: boolean) {
+  if (press) {
+    router.navigate("/browse/directional-focus-detail")
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x101010FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="Directional focus demo — router.isBackJourney" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="explanation" text="Forward entry focuses A; a BACK journey into this route focuses B instead" color="0x888888FF" translation="{explanationTranslation}" />
+  <Rectangle id="buttonA" focusable="true" color="0x3A3A3AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{buttonATranslation}" on:key[OK]="{goToDetail()}">
+    <Label id="buttonALabel" text="A — focused on FORWARD entry. OK: go to detail screen" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="buttonB" focusable="true" color="0x3A3A3AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{buttonBTranslation}" on:key[OK]="{goToDetail()}">
+    <Label id="buttonBLabel" text="B — focused when returning via a BACK journey. OK: go to detail again" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+</Rectangle>
+</component>

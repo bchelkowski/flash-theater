@@ -1,0 +1,24 @@
+<script>
+field enabled: boolean = true
+field score: integer = 0
+
+derived doubled: integer = score * 2
+derived summary: string = describe()
+
+private function describe(): string {
+  if (enabled) {
+    return "on: " + str(doubled)
+  }
+  return "off"
+}
+
+public function echoScore(score: integer): integer {
+  return score
+}
+</script>
+
+<component>
+<LayoutGroup id="root">
+  <Label id="out" text="{summary}" />
+</LayoutGroup>
+</component>

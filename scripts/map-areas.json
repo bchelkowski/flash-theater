@@ -1,0 +1,10 @@
+{
+  "packages/flash-parser/src": "Lossless CST + typed AST for the whole .thr/.flsh language — the DSL's own grammar plus, as of this package's own full ownership of it, the entire BrightScript expression/statement grammar and SceneGraph XML template markup too (see xml/ below); kopytko-brightscript-parser is used only as a live catalog dependency (builtins/SceneGraph reference data) and a post-codegen validator, never for parsing",
+  "packages/flash-parser/src/xml": "This package's own SceneGraph XML lexer/parser/typed-AST (XmlDocument/XmlElement/XmlAttribute) for .thr template markup — replaces the former kopytko-brightscript-parser parseXml dependency",
+  "packages/compiler/src": "Package entry point, pipeline orchestration (compile.ts), CLI logic (cli.ts), and dist/ zip packaging (packaging.ts)",
+  "packages/compiler/src/analysis": "BrightScript expression parsing (via flash-parser's own grammar), identifier rewriting, and the derived dependency graph",
+  "packages/compiler/src/codegen": "XML/BRS emitters, generated-name conventions, and template-to-field binding analysis",
+  "packages/compiler/src/dsl-parser": "AST types, plus the thin adapter from flash-parser's typed AST into this package's ThrScriptAst/ThrTemplateAst shapes",
+  "packages/compiler/bin": "flash-theater CLI executable entry point",
+  "apps/environments-demo/scripts": "Node wrappers (with-env.mjs, sideload.mjs) that default FLASH_THEATER_ENV/ENVIRONMENTS_DEMO_BUILD_LABEL so compile/zip/sideload still work with zero setup — every chapter in this app reads env.*, so unlike every other demo app there is no meaningful build with no active environment"
+}

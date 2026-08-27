@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- flash-theater:generated — do not edit by hand, source: Shell.thr -->
+<component name="Shell" extends="Group">
+  <interface>
+    <field id="rootWidth" type="integer" value="1280" onChange="on_rootWidthChange" />
+    <field id="rootHeight" type="integer" value="720" onChange="on_rootHeightChange" />
+    <field id="menuItemWidth" type="integer" value="300" onChange="on_menuItemWidthChange" />
+    <field id="menuItemHeight" type="integer" value="60" onChange="on_menuItemHeightChange" />
+    <field id="dividerWidth" type="integer" value="2" onChange="on_dividerWidthChange" />
+    <field id="isFocused" type="boolean" value="false" onChange="on_isFocusedChange" />
+    <field id="isInFocusChain" type="boolean" value="false" onChange="on_isInFocusChainChange" />
+  </interface>
+  <children>
+    <Rectangle id="root" color="0x0A0A0AFF">
+      <FavoriteCounter id="counter" />
+      <Rectangle id="menuHome" focusable="true" color="0x2A2A2AFF">
+        <Label id="menuHomeLabel" text="Home" color="0xFFFFFFFF" />
+      </Rectangle>
+      <Rectangle id="menuSchedule" focusable="true" color="0x2A2A2AFF">
+        <Label id="menuScheduleLabel" text="Schedule" color="0xFFFFFFFF" />
+      </Rectangle>
+      <Rectangle id="menuLoading" focusable="true" color="0x2A2A2AFF">
+        <Label id="menuLoadingLabel" text="Loading demo" color="0xFFFFFFFF" />
+      </Rectangle>
+      <Rectangle id="menuCards" focusable="true" color="0x2A2A2AFF">
+        <Label id="menuCardsLabel" text="Cards demo" color="0xFFFFFFFF" />
+      </Rectangle>
+      <Rectangle id="menuTasks" focusable="true" color="0x2A2A2AFF">
+        <Label id="menuTasksLabel" text="Task demo" color="0xFFFFFFFF" />
+      </Rectangle>
+      <Rectangle id="menuStreams" focusable="true" color="0x2A2A2AFF">
+        <Label id="menuStreamsLabel" text="Stream demo" color="0xFFFFFFFF" />
+      </Rectangle>
+      <Rectangle id="menuRequests" focusable="true" color="0x2A2A2AFF">
+        <Label id="menuRequestsLabel" text="Request demo" color="0xFFFFFFFF" />
+      </Rectangle>
+      <Label id="focusStateReadout" color="0x66FF99FF" />
+      <Group id="ft_if_1">
+        <Label id="menuHintLabel" text="press RIGHT to enter content" color="0x888888FF" />
+      </Group>
+      <Rectangle id="divider" color="0x2A2A2AFF" />
+      <FlashTheaterRouterOutlet id="childOutlet" />
+    </Rectangle>
+  </children>
+  <script type="text/brightscript" uri="Shell.brs" />
+  <script type="text/brightscript" uri="pkg:/components/FlashTheater/Scale/FlashTheaterScale.brs" />
+</component>

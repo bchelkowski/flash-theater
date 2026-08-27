@@ -1,0 +1,26 @@
+<script>
+' Chapter 1/4 — router.navigate(path, [params], [skipInHistory]) / router.back() / router.params.* /
+' router.appendBackJourneyData/updateBackJourneyData + router.backJourneyData.* — the ONE chapter in
+' this app that genuinely needs router NESTING (see findings/router-demo-app.md and MainScene.thr's
+' own top comment): a plain "list" screen with nowhere real to navigate wouldn't demonstrate params
+' or backJourneyData surviving a real destroy-and-recreate round trip, so this route declares its own
+' `children: [...]` in MainScene.thr's setRouting() — a "list" default child (ParamsListScreen.thr)
+' and a "detail" child (ParamsDetailScreen.thr) reached from it.
+'
+' THIS component is a deliberately thin wrapper — no focusable content, no visible chrome of its own
+' — exactly like apps/sample-app's Shell.thr is chrome-ful while its OWN mounted default child
+' (HomeScreen.thr) is what the vacuum rule actually lands default-focus on. Here there's no
+' persistent-menu chrome to show, so this wrapper carries nothing but the nested outlet itself;
+' ParamsListScreen.thr's own default-focus="true" is what actually receives focus the first time this
+' chapter is entered, exactly one level down.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+
+public function setup() {
+  router.markReady()
+}
+</script>
+
+<component>
+<FlashTheaterRouterOutlet id="childOutlet" width="{rootWidth}" height="{rootHeight}" />
+</component>

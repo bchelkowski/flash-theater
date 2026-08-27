@@ -1,0 +1,14 @@
+<script>
+field favoriteCount: integer = 0
+
+derived hasFavorites: boolean = favoriteCount > 0
+</script>
+
+<component>
+<Rectangle id="root">
+  <Label id="countLabel" text="{favoriteCount}" />
+  {#if hasFavorites}
+    <Label id="badge" text="Has favorites" />
+  {/if}
+</Rectangle>
+</component>

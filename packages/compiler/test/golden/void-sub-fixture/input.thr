@@ -1,0 +1,22 @@
+<script>
+field enabled: boolean = false
+
+derived statusText: string = describeStatus(enabled)
+
+public function describeStatus(value: boolean): string {
+  if (value) {
+    return "on"
+  }
+  return "off"
+}
+
+public function logStatus(value: boolean) {
+  print value
+}
+</script>
+
+<component>
+<LayoutGroup id="root">
+  <Label id="statusLabel" text="{statusText}" />
+</LayoutGroup>
+</component>

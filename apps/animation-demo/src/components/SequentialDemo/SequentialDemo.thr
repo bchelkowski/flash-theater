@@ -1,0 +1,55 @@
+<script>
+' Chapter 2/8 — sequential composition: fade in, then slide up into place, one after another.
+' `translation`'s object form gives the second step full explicit keyframe control; both steps
+' inherit `target: card` from the outer declaration — see GRAMMAR.md's "animation" section.
+'
+' The slide step sets `scaled: true` — a `translation` keyframe is otherwise an ABSOLUTE
+' compile-time literal that `scale` never touches, which would visibly drift out of sync with this
+' screen's own `scale`d resting layout the moment the app renders natively at a non-FHD tier (see
+' findings/animation.md's "scale and animation {} are two independently-built features" entry).
+' `scaled: true` runs each keyframe through the same `ft_scale(...)` factor `cardTranslation` below
+' already uses, so the animation's own end position and the card's static resting position always
+' agree, at any resolution — not just at this app's FHD design baseline.
+animation introSequence {
+  target: card
+  sequential: true
+  steps: [
+    { opacity: [0, 1], duration: 0.3 },
+    { translation: { key: [0, 1], keyValue: [[760, -200], [760, 450]], scaled: true }, duration: 0.4 }
+  ]
+}
+
+private function play(key: string, press: boolean) {
+  if (press) {
+    introSequence.start()
+  }
+}
+
+' Static layout below is `scale`d so this screen looks the same at any declared ui_resolutions
+' tier — see findings/scale.md.
+scale field rootWidth: integer = 1920
+scale field rootHeight: integer = 1080
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+scale field triggerWidth: integer = 300
+scale field triggerHeight: integer = 60
+scale state triggerTranslation: object = [40, 140]
+scale state triggerLabelTranslation: object = [16, 16]
+scale field cardWidth: integer = 400
+scale field cardHeight: integer = 240
+scale state cardTranslation: object = [760, 450]
+scale state cardLabelTranslation: object = [24, 24]
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="2/8 — sequential composition" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="Fade in, then slide up into place — one step after another" color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+  <Rectangle id="trigger" focusable="true" default-focus="true" color="0x2A2A6AFF" width="{triggerWidth}" height="{triggerHeight}" translation="{triggerTranslation}" on:key[OK]="{play()}">
+    <Label id="triggerLabel" text="Press OK to play" color="0xFFFFFFFF" translation="{triggerLabelTranslation}" />
+  </Rectangle>
+  <Rectangle id="card" color="0x6A2A6AFF" width="{cardWidth}" height="{cardHeight}" translation="{cardTranslation}">
+    <Label id="cardLabel" text="Sequential card" color="0xFFFFFFFF" translation="{cardLabelTranslation}" />
+  </Rectangle>
+</Rectangle>
+</component>

@@ -1,0 +1,272 @@
+---
+import DocsLayout from '../../components/DocsLayout.astro';
+import DocsHero from '../../components/DocsHero.astro';
+import CodePanel from '../../components/CodePanel.astro';
+import NotSupported from '../../components/NotSupported.astro';
+import DocsFooterLinks from '../../components/DocsFooterLinks.astro';
+
+const ifElse = `if (condition) {
+  ...
+} else if (condition2) {
+  ...
+} else {
+  ...
+}
+
+if (condition) doOneThing()   ' inline form — no braces, runs to end of line`;
+
+const ternary = `value = cond1 ? (cond2 ? a : b) : c
+state tierLabel = newCount < 3 ? "starting out" : newCount < 10 ? "collector" : "super fan"`;
+
+const comparison = `if (count == 1) {
+  return "1 favorite"
+}
+' == / != are crash-safe (ft_equals under the hood) — a bare BrightScript = / <>
+' throws at runtime when the two operands are different, incompatible types.`;
+
+const relational = `derived isWide: boolean = width > 300
+
+try {
+  isOverBudget = spent >= budget
+} catch (e) {
+  ' e.code == "relational/type-mismatch" when spent/budget aren't both
+  ' numbers (or both strings) — e.message has the human-readable detail.
+  isOverBudget = false
+}
+' < / > / <= / >= are crash-safe too (ft_relationalGuard under the hood) —
+' a genuine type mismatch THROWS instead of guessing a fallback value, since
+' unlike ==/!=, there's no obviously-correct answer for "is X greater than Y?"
+' when X and Y aren't comparable. Catchable via try/catch, same as any throw.`;
+
+const safeNot = `if (!showCelebration) {
+  return
+}
+state showCelebration = !showCelebration   ' toggles a boolean field/state safely
+
+' ! is crash-safe (ft_not under the hood) — a bare BrightScript Not throws at
+' runtime when the operand isn't a real Boolean. Fully nestable: !!x, !(a == b).`;
+
+const chainSafety = `derived userName: string = profile.account.name
+derived badgeLabel: string = describeBadge(pendingBadge)  ' bare call, still a read
+
+private function refresh() {
+  cache.tracker.recordVisit()          ' a bare statement — left untouched
+  logEvent(cache.tracker.summarize())  ' its own argument still gets chained
+  cache.counters.total = 0             ' an assignment target — left untouched
+}
+
+' generated .brs:
+'   m.userName = m?.top?.profile?.account?.name
+'   m.badgeLabel = private_describeBadge(m?.top?.pendingBadge)  ' bare callee never gets ?(
+'   m.top.cache.tracker.recordVisit()
+'   private_logEvent(m?.top?.cache?.tracker?.summarize?())      ' chained callee does
+'   m.top.cache.counters.total = 0`;
+
+const loops = `for (i = 0 to days.Count() - 1) {
+  day = days[i]
+  scale y = i * 40
+  day.y = y
+}
+
+for each (day in schedule) {
+  print day.title
+}
+
+while (retries < 3) {
+  retries = retries + 1
+}`;
+
+const tryCatch = `try {
+  result = riskyCall()
+} catch (e) {
+  print "failed: "; e.message
+}`;
+
+const anonFn = `private function filterDays(days: object, predicate: Function): object {
+  updated = []
+  for (i = 0 to days.Count() - 1) {
+    if (predicate(days[i])) {
+      updated.Push(days[i])
+    }
+  }
+  return updated
+}
+
+public function removeToday() {
+  updated = filterDays(schedule, function (day: object): boolean {
+    return NOT day.isToday
+  })
+  state schedule = updated
+}`;
+
+const rawBlock = `private function describeLimit(): string {
+  ' flash-theater:raw
+  result = "limit is " + CreateObject("roDeviceInfo").GetModel()
+  ' flash-theater:end-raw
+  return result
+}
+
+' flash-theater:raw
+m.top.limit = m.top.limit + 1
+' flash-theater:end-raw`;
+---
+<DocsLayout title="Statements & expressions" slug="statements">
+  <DocsHero icon="🧮">
+    Statements &amp; expressions
+    <br />
+    <span class="text-base text-slate-500 font-normal">if/else, ternary, ==/!=/&lt;/&gt;/&lt;=/&gt;=, !, chain safety, loops, try/catch, anonymous functions.</span>
+  </DocsHero>
+
+  <p class="text-slate-300 leading-relaxed mb-6">
+    Function bodies are ordinary BrightScript-flavored text — assignments, <code class="text-amber-300">return</code>,
+    <code class="text-amber-300">print</code>, calls all pass through as-is — with a handful of JS-shaped control-flow
+    forms layered on top that the compiler expands into real BrightScript at compile time.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3"><code>if</code> / <code>else if</code> / <code>else</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Always parens around the condition, always <code class="text-amber-300">{'{ }'}</code> for a block — no
+    <code class="text-amber-300">then</code>/<code class="text-amber-300">end if</code> in source. An inline,
+    braceless single-statement form is also allowed.
+  </p>
+  <CodePanel code={ifElse} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Ternary <code>? :</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    BrightScript has no ternary operator — this lowers to a hoisted temp variable plus an ordinary
+    <code class="text-amber-300">if</code>/<code class="text-amber-300">else</code>. Fully nestable and chainable, but
+    only as the entire right-hand side of a plain assignment or a <code class="text-amber-300">state</code> write —
+    not inside a <code class="text-amber-300">derived</code> default, a template binding, or an <code class="text-amber-300">if</code>
+    condition.
+  </p>
+  <CodePanel code={ternary} lang="xml" filename="FavoriteCounter.thr (excerpt)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Crash-safe comparison <code>==</code> / <code>!=</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    A bare BrightScript <code class="text-amber-300">=</code>/<code class="text-amber-300">&lt;&gt;</code> crashes at
+    runtime on a type mismatch (e.g. comparing an integer field to <code class="text-amber-300">Invalid</code>).
+    <code class="text-amber-300">==</code>/<code class="text-amber-300">!=</code> are DSL-only sugar over a shared
+    <code class="text-amber-300">ft_equals(...)</code> helper: numbers compare by value across subtypes
+    (<code class="text-amber-300">3 == 3.0</code> is true), arrays/assocarrays/SceneGraph nodes compare by
+    reference identity (JS-<code class="text-amber-300">==</code>-style), and a genuine type mismatch returns
+    <code class="text-amber-300">false</code> instead of crashing.
+  </p>
+  <CodePanel code={comparison} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">
+    Crash-safe relational operators <code>&lt;</code> / <code>&gt;</code> / <code>&lt;=</code> / <code>&gt;=</code>
+  </h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Same idea as <code class="text-amber-300">==</code>/<code class="text-amber-300">!=</code>, but there's no
+    obviously-correct fallback <em>value</em> for an incompatible <em>ordering</em> comparison the way
+    <code class="text-amber-300">false</code> is for equality — so instead of returning a guessed answer, a genuine
+    mismatch <strong class="text-slate-300">throws</strong>. <code class="text-amber-300">&lt;</code>/<code class="text-amber-300">&gt;</code>/<code class="text-amber-300">&lt;=</code>/<code class="text-amber-300">&gt;=</code>
+    are DSL-only sugar over a shared <code class="text-amber-300">ft_relationalGuard(...)</code> helper: both operands
+    must be numbers (any subtype) or both strings, or it throws a structured
+    <code class="text-amber-300">{`{code, message}`}</code> — catchable with an ordinary
+    <code class="text-amber-300">try</code>/<code class="text-amber-300">catch</code>. Existing source needs no changes;
+    every <code class="text-amber-300">&lt;</code>/<code class="text-amber-300">&gt;</code>/<code class="text-amber-300">&lt;=</code>/<code class="text-amber-300">&gt;=</code>
+    is guarded automatically.
+  </p>
+  <CodePanel code={relational} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Crash-safe NOT <code>!</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    A bare BrightScript <code class="text-amber-300">Not</code> crashes at runtime when its operand
+    isn't a real <code class="text-amber-300">Boolean</code> (e.g. <code class="text-amber-300">Invalid</code>,
+    or a numeric field nobody guarded first). <code class="text-amber-300">!</code> is DSL-only sugar
+    over a shared <code class="text-amber-300">ft_not(...)</code> helper: it checks the operand's type
+    first, negating only a genuine <code class="text-amber-300">Boolean</code> and returning
+    <code class="text-amber-300">false</code> instead of crashing on anything else. Fully nestable —
+    <code class="text-amber-300">!!x</code>, <code class="text-amber-300">!(a == b)</code>, and so on.
+  </p>
+  <CodePanel code={safeNot} lang="xml" filename="FavoriteCounter.thr (excerpt)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Chain safety <code>?.</code> / <code>?[</code> / <code>?(</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Every member access, array/index access, and function call in <strong class="text-slate-300">generated</strong>
+    <code class="text-amber-300">.brs</code> is automatically rewritten to BrightScript's own native optional-chaining
+    operators, so a chain never crashes just because something in the middle turns out to be
+    <code class="text-amber-300">Invalid</code>. You never write <code class="text-amber-300">?.</code>/<code class="text-amber-300">?[</code>/<code class="text-amber-300">?(</code>
+    yourself — the compiler inserts it everywhere, automatically, and doing so by hand in source is a compile error.
+    Unlike <code class="text-amber-300">==</code>/<code class="text-amber-300">!</code> above, there's no runtime helper
+    involved — it's a pure syntactic rewrite using Roku's own built-in operators (OS 11.0+).
+  </p>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Three spots are left exactly as written, because Roku's own operators can't legally appear there: an
+    assignment's target (<code class="text-amber-300">a.b.c = x</code> stays plain), a bare statement whose
+    entire content is a discarded call (<code class="text-amber-300">obj.foo.bar()</code> alone on its own line —
+    though that call's own <em>arguments</em> are still a normal read and still get chained), and a call whose
+    callee is a bare identifier — a plain global function or built-in, never <code class="text-amber-300">?(</code>
+    in <em>any</em> context, including a read: <code class="text-amber-300">someFunction(a, b)</code> stays exactly
+    that. <code class="text-amber-300">?(</code> only ever appears when the callee is itself a chain
+    (<code class="text-amber-300">obj.method()</code> → <code class="text-amber-300">obj?.method?()</code>).
+  </p>
+  <CodePanel code={chainSafety} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Loops</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">for</code>/<code class="text-amber-300">for each</code>/<code class="text-amber-300">while</code> —
+    JS-bracket sugar over BrightScript's own loop forms. No inline (braceless) form for any of the three, unlike
+    <code class="text-amber-300">if</code>.
+  </p>
+  <CodePanel code={loops} lang="xml" filename="ScheduleList.thr (excerpt)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3"><code>try</code> / <code>catch</code></h2>
+  <CodePanel code={tryCatch} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Anonymous function expressions</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    BrightScript's own array interface has no <code class="text-amber-300">Map</code>/<code class="text-amber-300">Filter</code>/<code class="text-amber-300">ForEach</code> —
+    but <code class="text-amber-300">Function</code> is a real first-class value, so a hand-written helper plus an
+    anonymous function argument gets you the same result:
+  </p>
+  <CodePanel code={anonFn} lang="xml" filename="ScheduleList.thr (excerpt)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Raw BrightScript passthrough</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    An escape hatch for a BrightScript idiom this DSL has no sugar for — everything between
+    <code class="text-amber-300">' flash-theater:raw</code> and <code class="text-amber-300">' flash-theater:end-raw</code>
+    is copied into the generated <code class="text-amber-300">.brs</code> completely unchanged: no
+    identifier-rewrite (write the real generated form by hand — <code class="text-amber-300">m.top.&lt;field&gt;</code>,
+    <code class="text-amber-300">m.&lt;derived&gt;</code>, <code class="text-amber-300">private_&lt;fn&gt;()</code>),
+    no elision, only re-indentation to match the surrounding code. Valid as a statement inside a
+    function/method/constructor body, or as a top-level <code class="text-amber-300">{'<script>'}</code>
+    declaration — the second form's content lands at the very end of the generated
+    <code class="text-amber-300">init()</code>, after everything else has already run. The content is still
+    validated as real BrightScript at compile time, so a genuine syntax error inside one is caught
+    immediately, attributed to you rather than reported as a compiler bug.
+  </p>
+  <CodePanel code={rawBlock} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Reference implementation — <code>apps/statements-demo</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-8">
+    Every mechanism on this page has a router-mounted, <code class="text-amber-300">scale</code>d
+    chapter in <code class="text-amber-300">apps/statements-demo</code> — 4 chapters
+    (<code class="text-amber-300">/conditionals</code> through
+    <code class="text-amber-300">/anonymous-functions-and-raw</code>), reachable with REWIND/
+    FAST-FORWARD once compiled and sideloaded. Each chapter shows a default, no-customization
+    example alongside a deliberately different, customized one — e.g.
+    <code class="text-amber-300">ConditionalsDemo.thr</code>'s block-form
+    <code class="text-amber-300">if</code>/<code class="text-amber-300">else if</code>/<code class="text-amber-300">else</code>
+    chain (default) next to a NESTED ternary driving a <code class="text-amber-300">state</code> write
+    from two independent booleans (customized), and <code class="text-amber-300">SafeOperatorsDemo.thr</code>'s ordinary
+    <code class="text-amber-300">==</code>/<code class="text-amber-300">!=</code>/<code class="text-amber-300">!</code>
+    usage (default) next to a deliberately-triggered <code class="text-amber-300">ft_relationalGuard</code>
+    throw, caught with <code class="text-amber-300">try</code>/<code class="text-amber-300">catch</code>
+    (customized). This is the live, compiling reference for the whole page — see
+    <code class="text-amber-300">findings/statements-demo-app.md</code> for what each chapter covers
+    and <code class="text-amber-300">findings/demo-app-conventions.md</code> for the app-structure
+    convention it follows.
+  </p>
+
+  <NotSupported items={[
+    'Real BrightScript <code class="text-amber-300">for i = 0 to 10 ... end for</code> is not usable anymore — <code class="text-amber-300">for</code> is a claimed DSL keyword now, always bracketed.',
+    'No <code class="text-amber-300">finally</code>, and <code class="text-amber-300">catch</code> is mandatory — there\'s no catch-less <code class="text-amber-300">try</code>.',
+    'An anonymous function cannot close over the enclosing function\'s own local variables (matches real BrightScript semantics) — only <code class="text-amber-300">field</code>/<code class="text-amber-300">derived</code>/<code class="text-amber-300">state</code>/function references and <code class="text-amber-300">m</code> still resolve inside its body.',
+    'An anonymous function directly inside a template attribute/<code class="text-amber-300">bind:</code>/<code class="text-amber-300">on:key</code>/<code class="text-amber-300">{#if}</code>/<code class="text-amber-300">{#each}</code> expression — write a named function and call that instead.',
+    'A raw BrightScript passthrough block cannot nest, cannot be the single statement of an inline <code class="text-amber-300">if</code>/<code class="text-amber-300">else</code>, cannot appear inside a template/binding expression, and has no top-level form inside a <code class="text-amber-300">.flsh</code> class body (only inside an existing method/constructor) — a class isn\'t guaranteed to have any lifecycle sub to run one from.',
+  ]} />
+
+  <DocsFooterLinks grammarAnchor="#statements-in-function-bodies" />
+</DocsLayout>

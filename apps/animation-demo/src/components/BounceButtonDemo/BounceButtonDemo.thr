@@ -1,0 +1,93 @@
+<script>
+' Chapter 1/8 — Layer 1's core primitive: a custom `animation {}` declaration triggered
+' imperatively via `.start()` from an on:key[OK] handler, plus `.onFinish(callback)` — a hook that
+' fires every time (not just once) the animation reports state="stopped". See GRAMMAR.md's
+' "animation" section.
+animation bounce {
+  target: card
+  duration: 0.4
+  easeFunction: "outExpo"
+  scale: [1, 1.15, 1]
+}
+
+' The "customized" companion to `bounce` above — deliberately different `easeFunction`/`delay`, the
+' `color` shorthand (Layer 1's ColorFieldInterpolator — otherwise unused anywhere in this app), and
+' the `field: {name, as}` escape hatch for `width` (no known shorthand covers it). `scaled: true` on
+' the escape-hatch field since `width` is an absolute pixel value like `translation`, not a relative
+' multiplier like `scale`/`opacity`/`color` — see GRAMMAR.md's "animation" section, "Escape hatch".
+' Triggered/paused independently of `bounce` (Replay/Backspace vs. OK) to also exercise
+' `.pause()`/`.resume()`, never demonstrated elsewhere in this app. `color`'s own keyValue entries
+' must each be a plain decimal number (the packed RGBA uint32), never a hex-string literal like the
+' static `color="0x..."` XML attributes elsewhere in this file use — 711609087/2956606207 below are
+' 0x2A6A4AFF/0xB03A3AFF decimal (`animation/invalid-key-value-shape` otherwise).
+animation customized {
+  target: card
+  duration: 0.6
+  delay: 0.1
+  easeFunction: "inOutCubic"
+  color: [711609087, 2956606207, 711609087]
+  field: { name: "width", as: "float", key: [0, 0.5, 1], keyValue: [300, 345, 300], scaled: true }
+}
+
+state bounceCount: integer = 0
+state cardLabelText: string = "Press OK to bounce"
+state isCustomPaused: boolean = false
+
+private function play(key: string, press: boolean) {
+  if (press) {
+    bounce.start()
+    bounce.onFinish(onBounceFinished)
+  }
+}
+
+private function playCustomized(key: string, press: boolean) {
+  if (press) {
+    customized.start()
+  }
+}
+
+private function togglePauseCustomized(key: string, press: boolean) {
+  if (press) {
+    if (isCustomPaused) {
+      customized.resume()
+    } else {
+      customized.pause()
+    }
+    state isCustomPaused = not isCustomPaused
+  }
+}
+
+private function onBounceFinished() {
+  state bounceCount = bounceCount + 1
+  state cardLabelText = "Bounced " + bounceCount.ToStr() + " times"
+  ' Raw BrightScript passthrough — a real device-clock idiom (roTimespan) with no DSL sugar, copied
+  ' into generated .brs completely unchanged. Note the generated `m.bounceCount` form is used by
+  ' hand here, not the bare DSL name `bounceCount` — raw-block content is never identifier-rewritten.
+  ' See findings/raw-brightscript-passthrough.md.
+  ' flash-theater:raw
+  print "[BounceButtonDemo] bounce #"; m.bounceCount; " at uptime(ms) "; CreateObject("roTimespan").TotalMilliseconds()
+  ' flash-theater:end-raw
+}
+
+' Static layout below is `scale`d so this screen looks the same at any declared ui_resolutions
+' tier — see findings/scale.md. `bounce`'s own `scale: [1, 1.15, 1]` keyframes above are already
+' resolution-independent relative multipliers, so they need no scaling of their own.
+scale field rootWidth: integer = 1920
+scale field rootHeight: integer = 1080
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+scale field cardWidth: integer = 300
+scale field cardHeight: integer = 180
+scale state cardTranslation: object = [810, 450]
+scale state cardLabelTranslation: object = [24, 24]
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="1/8 — animation {} + .start()/.onFinish() trigger sugar" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="OK: default bounce — Replay: customized (color+width escape hatch) — Backspace: pause/resume it" color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+  <Rectangle id="card" focusable="true" default-focus="true" color="0x2A6A4AFF" width="{cardWidth}" height="{cardHeight}" translation="{cardTranslation}" on:key[OK]="{play()}" on:key[replay]="{playCustomized()}" on:key[backspace]="{togglePauseCustomized()}">
+    <Label id="cardLabel" text="{cardLabelText}" color="0xFFFFFFFF" translation="{cardLabelTranslation}" />
+  </Rectangle>
+</Rectangle>
+</component>

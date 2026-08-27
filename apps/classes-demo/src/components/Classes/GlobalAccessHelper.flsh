@@ -1,0 +1,36 @@
+' Chapter 3/3 (/global-singletons-from-class) — proves `theme`/`router`/`taskManager` are all
+' reachable from inside a `.flsh` class method exactly like from a `.thr` component's own script:
+' no special syntax, just `theme.a.b`/`router.navigate(...)`/`taskManager.run(...)` written the
+' same way they'd be written in a `.thr` component's `<script>`. Under the hood this compiles
+' through `GetGlobalAA().global` instead of `m.global` (a class instance has no SceneGraph node for
+' `m` to auto-bind to) — see GRAMMAR.md's "Classes" section, "`theme`/`router`/`taskManager` ARE
+' reachable from a class body" for the full mechanism, and
+' apps/sample-app/src/components/Classes/GlobalAccessDemo.flsh for the original fixture this
+' chapter's own class is modeled on.
+'
+' `router.navigate(...)` must be a standalone statement of its own, even here — never nested inside
+' a larger expression (`expression/router-action-must-be-statement`) — see `goToChapter` below.
+'
+' NOT reachable from a class body at all (confirmed live this session, not just asserted — see
+' findings/classes-demo-app.md for the exact diagnostic and how it was verified, then removed
+' before shipping this file):
+'  - `store`/`state`/`focus(...)` — a class has no reactive lifecycle at all
+'    (`class/state-store-not-supported`).
+'  - `taskManager.onAlertChanged`/`onResult`/`onRequestSent`/`onResponseReceived` — each needs a
+'    real node identity a class instance doesn't have
+'    (`class/task-manager-on-result-not-supported` and its three siblings).
+class GlobalAccessHelper {
+  public function accentColorLabel(): string {
+    return "theme.colors.accent = " + theme.colors.accent
+  }
+
+  public function startQuickTask(): string {
+    task = CreateObject("roSGNode", "QuickTask")
+    task.functionName = "doWork"
+    return taskManager.run(task)
+  }
+
+  public function goToChapter(path: string) {
+    router.navigate(path)
+  }
+}

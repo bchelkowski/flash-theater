@@ -1,0 +1,164 @@
+---
+import Layout from '../components/Layout.astro';
+import CodePanel from '../components/CodePanel.astro';
+import ThrPlayground from '../components/ThrPlayground.tsx';
+import { docsNav } from '../data/docsNav';
+import flashParserPkg from '../../../packages/flash-parser/package.json';
+import compilerPkg from '../../../packages/compiler/package.json';
+
+const packages = [
+  { slug: 'parser', name: 'flash-parser', version: flashParserPkg.version, icon: '🧬', blurb: 'A lossless CST + typed AST parser for the flash-theater DSL, plus a full vendored BrightScript/XML grammar.' },
+  { slug: 'compiler', name: 'flash-theater-compiler', version: compilerPkg.version, icon: '⚙️', blurb: 'The .thr/.flsh → .xml/.brs compiler — CLI and library API, built on flash-parser.' },
+];
+
+const quickStart = `git clone https://github.com/bchelkowski/flash-theater
+cd flash-theater
+npm install
+npm run build   # builds flash-parser then packages/compiler
+npm test        # flash-parser's tests, then packages/compiler's
+
+# compile .thr components and package the sample app
+npm run build:roku`;
+
+const stats = [
+  { value: '7', label: 'real components validated' },
+  { value: '1506', label: 'tests' },
+  { value: '0', label: 'diagnostics on generated .brs' },
+  { value: '7', label: 'field types' },
+];
+
+const pipeline = [
+  { icon: '📝', title: '.thr source', body: 'field / derived / private-public function, template markup that is always valid XML.' },
+  { icon: '⚙️', title: 'packages/compiler', body: 'Parses with flash-parser’s own vendored BrightScript + XML grammar, adapted from kopytko-brightscript-parser but not delegated to it at parse time.' },
+  { icon: '📄', title: '.xml + .brs', body: 'Static SceneGraph tree, generated init()/onChange handlers — zero vdom, zero diffing.' },
+  { icon: '📺', title: 'Real Roku device', body: 'Sideloaded and verified live — reactive fields update the screen with no hand-written observer.' },
+];
+
+---
+<Layout title="Home">
+  <section class="relative overflow-hidden">
+    <div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(217,119,6,0.15),transparent)]"></div>
+    <div class="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-10 text-center">
+      <div class="text-5xl mb-4">🎬</div>
+      <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-3 pb-2 bg-clip-text text-transparent bg-gradient-to-b from-white to-slate-300">
+        A precompiler for<br class="hidden sm:block" /> Roku/BrightScript/SceneGraph
+      </h1>
+      <p class="text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-6 leading-relaxed">
+        Declarative <code class="text-amber-300">field</code>/<code class="text-amber-300">derived</code> bindings that
+        compile straight to SceneGraph <code class="text-amber-300">onChange</code> handlers —
+        no <code class="text-amber-300">observeFieldScoped</code>, no <code class="text-amber-300">forceUpdate</code>,
+        no observer cascades.
+      </p>
+      <div class="flex flex-wrap justify-center gap-3 mb-8">
+        <a href="#playground" class="px-5 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-medium rounded-lg transition-colors text-sm">
+          Try the live playground
+        </a>
+        <a href="https://github.com/bchelkowski/flash-theater" target="_blank" class="inline-flex items-center gap-2 px-5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 font-medium rounded-lg transition-colors text-sm">
+          GitHub
+        </a>
+      </div>
+
+      <div class="flex flex-wrap justify-center gap-6 sm:gap-10">
+        {stats.map(s => (
+          <div class="text-center">
+            <div class="text-2xl font-bold text-white">{s.value}</div>
+            <div class="text-xs text-slate-500 mt-0.5">{s.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <h2 class="text-2xl font-bold text-white text-center mb-2">How it works</h2>
+    <p class="text-center text-slate-400 max-w-2xl mx-auto mb-10">
+      Validated end to end on one real component, compiled to a working SceneGraph node
+      with generated observer wiring.
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {pipeline.map((p, i) => (
+        <div class="relative bg-[#111927] rounded-xl border border-[#1f2c42] p-5">
+          <div class="text-2xl mb-2">{p.icon}</div>
+          <h3 class="font-semibold text-white text-sm mb-1">{p.title}</h3>
+          <p class="text-xs text-slate-400 leading-relaxed">{p.body}</p>
+          {i < pipeline.length - 1 && (
+            <div class="hidden lg:block absolute top-1/2 -right-3 -translate-y-1/2 text-slate-600">→</div>
+          )}
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section id="playground" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 scroll-mt-20">
+    <h2 class="text-2xl font-bold text-white mb-2">Try it live</h2>
+    <p class="text-slate-400 mb-6 leading-relaxed max-w-2xl">
+      Edit the <code class="text-amber-300">.thr</code> source on the left — this runs the real
+      compiler (<code class="text-amber-300">packages/compiler</code>) in your browser, not a
+      canned example.
+    </p>
+    <ThrPlayground client:load />
+  </section>
+
+  <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <h2 class="text-2xl font-bold text-white mb-2">Documentation</h2>
+    <p class="text-slate-400 leading-relaxed max-w-2xl mb-8">
+      Every shipped feature, one topic per page — syntax, a real code showcase, and what's not (yet)
+      supported. This is a knowingly narrow subset of the target flash-theater language — enough to
+      validate the architecture end to end before investing in the rest.
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      {docsNav.map((item) => (
+        <a
+          href={`docs/${item.slug}/`}
+          class="group bg-[#111927] rounded-xl border border-[#1f2c42] p-5 hover:border-amber-700/50 transition-colors"
+        >
+          <div class="text-2xl mb-2">{item.icon}</div>
+          <h3 class="font-semibold text-white text-sm mb-1 group-hover:text-amber-300 transition-colors">{item.title}</h3>
+          <p class="text-xs text-slate-400 leading-relaxed">{item.blurb}</p>
+        </a>
+      ))}
+    </div>
+    <p class="text-xs text-slate-600">
+      Full status: <a href="https://github.com/bchelkowski/flash-theater/blob/main/docs/features.md" class="prose-link" target="_blank">docs/features.md</a>.
+      Exact grammar: <a href="https://github.com/bchelkowski/flash-theater/blob/main/packages/compiler/GRAMMAR.md" class="prose-link" target="_blank">GRAMMAR.md</a>.
+    </p>
+  </section>
+
+  <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <h2 class="text-2xl font-bold text-white mb-2">Packages</h2>
+    <p class="text-slate-400 leading-relaxed max-w-2xl mb-8">
+      Two npm packages, published separately — the parser and the compiler built on top of it.
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {packages.map((p) => (
+        <a
+          href={`${p.slug}/`}
+          class="group bg-[#111927] rounded-xl border border-[#1f2c42] p-5 hover:border-amber-700/50 transition-colors"
+        >
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-2xl">{p.icon}</div>
+            <span class="bg-slate-700/60 text-slate-400 text-xs px-2 py-0.5 rounded-full">v{p.version}</span>
+          </div>
+          <h3 class="font-semibold text-white text-sm mb-1 group-hover:text-amber-300 transition-colors font-mono">{p.name}</h3>
+          <p class="text-xs text-slate-400 leading-relaxed">{p.blurb}</p>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section class="border-t border-[#1f2c42] py-16">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+        <div>
+          <h2 class="text-2xl font-bold text-white mb-3">Get started</h2>
+          <p class="text-slate-400 leading-relaxed mb-4">
+            Clone the repo, build the compiler, and compile the sample apps — see
+            <a href="docs/getting-started/" class="prose-link">Getting started</a> for the full
+            project layout and CLI reference.
+          </p>
+        </div>
+        <CodePanel code={quickStart} lang="bash" filename="terminal" />
+      </div>
+    </div>
+  </section>
+</Layout>

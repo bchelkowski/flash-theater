@@ -1,0 +1,6 @@
+<theme name="dark">
+colors: {
+  background: string = "0x1A1A1AFF"
+  text: string = "0xFFFFFFFF"
+}
+</theme>

@@ -1,0 +1,110 @@
+<script>
+' Chapter 1/7 — focusable/on:key fundamentals, default AND customized.
+' Default (Left/Right buttons): plain focusable="true" + on:key[OK], default-focus="true" on
+' one of them — the simplest possible shape, see GRAMMAR.md's "focusable" section.
+' Customized (the card below): a DYNAMIC focusable="{expr}" drill-down/back-out handoff — the
+' parent and its two children are never simultaneously registered, so real focus ownership hands
+' off cleanly in either direction. Adapted from apps/sample-app's RichCard.thr (the original,
+' live-verified worked example this pattern is based on) — see that file's own top comment for
+' the full reasoning (no default-focus="true" needed on a dynamically-focusable node; on:key[back]
+' lives on each child, not the card root, so physical Back falls through to the router's own
+' fallthrough correctly whenever the card isn't entered).
+state pressedLabel: string = "-"
+
+derived pressedReadout: string = "Pressed: " + pressedLabel
+
+private function pressLeft(key: string, press: boolean) {
+  if (press) {
+    state pressedLabel = "left"
+  }
+}
+
+private function pressRight(key: string, press: boolean) {
+  if (press) {
+    state pressedLabel = "right"
+  }
+}
+
+state entered: boolean = false
+state cardPressedLabel: string = "-"
+
+derived cardStatus: string = describeCardStatus(entered, cardPressedLabel)
+
+private function describeCardStatus(isEntered: boolean, pressed: string): string {
+  if (isEntered) {
+    return "entered - pressed: " + pressed
+  }
+  return "not entered — OK to drill in"
+}
+
+private function enterCard(key: string, press: boolean) {
+  if (press) {
+    state entered = true
+    focus("cardBtnLeft")
+  }
+}
+
+private function exitCard(key: string, press: boolean) {
+  if (press) {
+    state entered = false
+    focus("cardRoot")
+  }
+}
+
+private function pressCardLeft(key: string, press: boolean) {
+  if (press) {
+    state cardPressedLabel = "left"
+  }
+}
+
+private function pressCardRight(key: string, press: boolean) {
+  if (press) {
+    state cardPressedLabel = "right"
+  }
+}
+
+scale field rootWidth: integer = 1920
+scale field rootHeight: integer = 1080
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+scale field buttonWidth: integer = 300
+scale field buttonHeight: integer = 60
+scale state leftButtonTranslation: object = [40, 160]
+scale state rightButtonTranslation: object = [360, 160]
+scale state buttonLabelInset: object = [16, 18]
+scale state pressedReadoutTranslation: object = [40, 240]
+scale field cardWidth: integer = 500
+scale field cardHeight: integer = 140
+scale state cardTranslation: object = [40, 340]
+scale state cardTitleTranslation: object = [16, 12]
+scale state cardStatusTranslation: object = [16, 90]
+scale field cardButtonWidth: integer = 200
+scale field cardButtonHeight: integer = 44
+scale state cardBtnLeftTranslation: object = [16, 40]
+scale state cardBtnRightTranslation: object = [284, 40]
+scale state cardButtonLabelInset: object = [10, 12]
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="1/7 — focusable + on:key: basics vs. a dynamic drill-down handoff" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="Left/Right: plain focusable basics — Card below: dynamic focusable={expr} handoff" color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+  <Rectangle id="left" focusable="true" default-focus="true" color="0x2A6A4AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{leftButtonTranslation}" on:key[OK]="{pressLeft()}">
+    <Label id="leftLabel" text="Left" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="right" focusable="true" color="0x2A2A6AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{rightButtonTranslation}" on:key[OK]="{pressRight()}">
+    <Label id="rightLabel" text="Right" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="pressedReadoutLabel" text="{pressedReadout}" color="0x66FF99FF" translation="{pressedReadoutTranslation}" />
+  <Rectangle id="cardRoot" focusable="{not entered}" color="0x1A1A1AFF" width="{cardWidth}" height="{cardHeight}" translation="{cardTranslation}" on:key[OK]="{enterCard()}">
+    <Label id="cardTitleLabel" text="Card — OK to drill in" color="0xFFFFFFFF" translation="{cardTitleTranslation}" />
+    <Label id="cardStatusLabel" text="{cardStatus}" color="0x66FF99FF" translation="{cardStatusTranslation}" />
+    <Rectangle id="cardBtnLeft" focusable="{entered}" color="0x2A2A2AFF" width="{cardButtonWidth}" height="{cardButtonHeight}" translation="{cardBtnLeftTranslation}" on:key[OK]="{pressCardLeft()}" on:key[back]="{exitCard()}">
+      <Label id="cardBtnLeftLabel" text="Left" color="0xFFFFFFFF" translation="{cardButtonLabelInset}" />
+    </Rectangle>
+    <Rectangle id="cardBtnRight" focusable="{entered}" color="0x2A2A2AFF" width="{cardButtonWidth}" height="{cardButtonHeight}" translation="{cardBtnRightTranslation}" on:key[OK]="{pressCardRight()}" on:key[back]="{exitCard()}">
+      <Label id="cardBtnRightLabel" text="Right" color="0xFFFFFFFF" translation="{cardButtonLabelInset}" />
+    </Rectangle>
+  </Rectangle>
+</Rectangle>
+</component>

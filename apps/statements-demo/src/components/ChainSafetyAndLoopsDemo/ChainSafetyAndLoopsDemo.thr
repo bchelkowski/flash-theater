@@ -1,0 +1,137 @@
+<script>
+' Chapter 3/4 — automatic chain safety (?./?[/?() in generated .brs, never written by hand) plus
+' for/for each/while loops. See GRAMMAR.md's "Chain safety" and "for"/"for each"/"while" sections
+' for the full grammar this exercises.
+'
+' Chain safety: `selectedItem` starts as `field: node = invalid` — reading `selectedItem.label`
+' through a `derived`/function chain never crashes even while the node is genuinely Invalid,
+' because every member access in generated .brs is automatically rewritten to BrightScript's own
+' `?.` operator (`m?.top?.selectedItem?.label`). "Pick item" (OK) later assigns a real node with a
+' `label` field via `m.top.selectedItem = <node>`, so the SAME chain resolves to real data once
+' something is actually selected — "Clear selection" sets it back to `invalid` and the chain
+' resolves safely again, no crash either way.
+'
+' Default: "Build list" (OK) uses a numeric `for` loop to build then join a list. Customized: "Sum
+' collection" uses `for each` to sum a fixed array, and "Count up" uses `while` to count up to a
+' limit with a visible per-iteration `state` update (the running total is re-rendered on every loop
+' iteration, not just once at the end).
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 420
+scale field buttonHeight: integer = 50
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state pickButtonTranslation: object = [40, 110]
+scale state clearButtonTranslation: object = [40, 170]
+scale state selectionReadoutTranslation: object = [40, 240]
+scale state buildListButtonTranslation: object = [40, 300]
+scale state listReadoutTranslation: object = [40, 360]
+scale state sumButtonTranslation: object = [520, 110]
+scale state sumReadoutTranslation: object = [520, 170]
+scale state countUpButtonTranslation: object = [520, 240]
+scale state countUpReadoutTranslation: object = [520, 300]
+scale state buttonLabelInset: object = [16, 12]
+
+field selectedItem: node = invalid
+state pickCount: integer = 0
+
+state builtList: string = "(not built yet)"
+state sumResult: string = "(not summed yet)"
+state countUpValue: integer = 0
+state countUpLog: string = "(not started)"
+
+private function describeSelection(value: dynamic): string {
+  if (value == invalid) {
+    return "(nothing selected yet)"
+  }
+  return value
+}
+
+' selectedItem is `invalid` until "Pick item" is pressed — this chain reads safely either way.
+derived selectionReadout: string = describeSelection(selectedItem.label)
+
+private function pickItem(key: string, press: boolean) {
+  if (press) {
+    state pickCount = pickCount + 1
+    node = CreateObject("roSGNode", "Node")
+    node.AddFields({ label: "Widget #" + pickCount.ToStr() })
+    m.top.selectedItem = node
+  }
+}
+
+private function clearSelection(key: string, press: boolean) {
+  if (press) {
+    m.top.selectedItem = invalid
+  }
+}
+
+' Default: a numeric `for` loop builds a list, then a second `for` joins it into one string.
+private function buildList(key: string, press: boolean) {
+  if (press) {
+    items = []
+    for (i = 0 to 4) {
+      items.Push("item-" + i.ToStr())
+    }
+    joined = ""
+    for (i = 0 to items.Count() - 1) {
+      if (i > 0) {
+        joined = joined + ", "
+      }
+      joined = joined + items[i]
+    }
+    state builtList = joined
+  }
+}
+
+' Customized: `for each` sums a fixed collection.
+private function sumCollection(key: string, press: boolean) {
+  if (press) {
+    numbers = [4, 8, 15, 16, 23, 42]
+    total = 0
+    for each (n in numbers) {
+      total = total + n
+    }
+    state sumResult = "sum of [4, 8, 15, 16, 23, 42] = " + total.ToStr()
+  }
+}
+
+' Customized: `while` counts up to a limit, updating `state` on every single iteration.
+private function countUpToLimit(key: string, press: boolean) {
+  if (press) {
+    state countUpValue = 0
+    limit = 5
+    log = ""
+    while (countUpValue < limit) {
+      state countUpValue = countUpValue + 1
+      log = log + countUpValue.ToStr() + " "
+    }
+    state countUpLog = "counted: " + log
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="3/4 — chain safety + for / for each / while" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="UP/DOWN between buttons, OK to trigger — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Rectangle id="pickButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{pickButtonTranslation}" on:key[OK]="{pickItem()}">
+    <Label id="pickButtonLabel" text="Pick item (chain resolves through a real node)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="clearButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{clearButtonTranslation}" on:key[OK]="{clearSelection()}">
+    <Label id="clearButtonLabel" text="Clear selection (chain resolves through invalid)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="selectionReadoutLabel" text="{selectionReadout}" color="0x66FF99FF" translation="{selectionReadoutTranslation}" />
+  <Rectangle id="buildListButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{buildListButtonTranslation}" on:key[OK]="{buildList()}">
+    <Label id="buildListButtonLabel" text="Build list (for)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="listReadout" text="{builtList}" color="0x66CCFFFF" translation="{listReadoutTranslation}" />
+  <Rectangle id="sumButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{sumButtonTranslation}" on:key[OK]="{sumCollection()}">
+    <Label id="sumButtonLabel" text="Sum collection (for each)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="sumReadout" text="{sumResult}" color="0x66CCFFFF" translation="{sumReadoutTranslation}" />
+  <Rectangle id="countUpButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{countUpButtonTranslation}" on:key[OK]="{countUpToLimit()}">
+    <Label id="countUpButtonLabel" text="Count up to 5 (while)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="countUpReadout" text="{countUpLog}" color="0x66CCFFFF" translation="{countUpReadoutTranslation}" />
+</Rectangle>
+</component>

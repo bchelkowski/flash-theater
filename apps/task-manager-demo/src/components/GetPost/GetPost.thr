@@ -1,0 +1,25 @@
+<script>
+' Minimal `request Http {}` component — exists purely as InterceptorsDemo.thr's own trigger for
+' `taskManager.onRequestSent(...)`/`onResponseReceived(...)` (see MainScene.thr's persistent
+' readout and GRAMMAR.md's "Task manager" + "Requests" sections). Deliberately NOT a requests-
+' safety showcase — no `buildRequest`/caching/error-injection here, that's `apps/requests-demo`'s
+' job (see findings/demo-app-conventions.md's roadmap). This app only needs ONE real HTTP call to
+' prove the interceptors fire app-wide, register-once, regardless of which component made the
+' request — adapted from apps/sample-app's own GetPost.thr, trimmed to the simplest possible shape
+' (a fixed URL, default caching, no `buildRequest`/`cache` override).
+request Http {
+  method: "GET",
+  url: "https://jsonplaceholder.typicode.com/posts/1"
+}
+
+private function parseResponse(response: object): object {
+  return { title: response.data.title }
+}
+
+private function parseError(response: object): object {
+  return { message: "HTTP " + response.httpStatusCode.ToStr() }
+}
+</script>
+
+<component extends="Task">
+</component>

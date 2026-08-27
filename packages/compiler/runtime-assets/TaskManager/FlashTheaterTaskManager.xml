@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="FlashTheaterTaskManager" extends="Node">
+  <interface>
+    <!-- Plain fields, not reactive — a snapshot read via taskManager.runningCount/.queuedCount,
+         same "read", non-`watch` treatment router.path/params already get. See init()'s own
+         doc comment for exactly what drives each one. `alertLevel`/`lastRequestSent`/
+         `lastResponseReceived` are the exceptions meant to be observed directly, never read as a
+         snapshot. `alertLevel` is hysteresis-gated (only changes on a real threshold crossing, see
+         reevaluateAlertLevel()) — taskManager.onAlertChanged(...) generates exactly that
+         ObserveFieldScoped registration. `lastRequestSent`/`lastResponseReceived` are written once
+         per `request Http {}`-generated task (see startNode()'s own doc comment) — never
+         hysteresis-gated, since every request/response is meant to be reported, not just distinct
+         ones — taskManager.onRequestSent(...)/onResponseReceived(...) generate the matching
+         ObserveFieldScoped registrations. -->
+    <field id="runningCount" type="integer" value="0" />
+    <field id="queuedCount" type="integer" value="0" />
+    <field id="alertLevel" type="string" value="none" />
+    <field id="lastRequestSent" type="assocarray" />
+    <field id="lastResponseReceived" type="assocarray" />
+    <function name="runTask" />
+    <function name="cancel" />
+    <function name="setMaxConcurrent" />
+    <function name="setAlertThresholds" />
+  </interface>
+  <script type="text/brightscript" uri="FlashTheaterTaskManager.brs" />
+</component>

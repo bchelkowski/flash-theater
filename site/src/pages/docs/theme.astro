@@ -1,0 +1,108 @@
+---
+import DocsLayout from '../../components/DocsLayout.astro';
+import DocsHero from '../../components/DocsHero.astro';
+import CodePanel from '../../components/CodePanel.astro';
+import NotSupported from '../../components/NotSupported.astro';
+import DocsFooterLinks from '../../components/DocsFooterLinks.astro';
+
+const themeTemplate = `<theme-template default="dark">
+colors: {
+  background: string = "0x1A1A1AFF"
+  highlight: string = "0x0057FFFF"
+  text: string = "0xFFFFFFFF"
+}
+</theme-template>`;
+
+const themeVariant = `<theme name="light">
+colors: {
+  background: string = "0xF5F5F5FF"
+  text: string = "0x111111FF"
+}
+</theme>`;
+
+const access = `${'<' + 'script>'}
+derived backgroundColor: string = theme.colors.background
+derived textColor: string = theme.colors.text
+${'<' + '/script>'}
+
+<component>
+<Rectangle id="background" color="{backgroundColor}">
+  <Label id="label" color="{textColor}" />
+</Rectangle>
+</component>`;
+
+const switchCall = `m.global.ft_theme.callFunc("switchTheme", "light")`;
+---
+<DocsLayout title="Theme" slug="theme">
+  <DocsHero icon="🎨">
+    Theme
+    <br />
+    <span class="text-base text-slate-500 font-normal">&lt;theme-template&gt;/&lt;theme&gt;, bare theme.a.b access, switchTheme.</span>
+  </DocsHero>
+
+  <p class="text-slate-300 leading-relaxed mb-6">
+    A validated, runtime-switchable theme system: one canonical <code class="text-amber-300">&lt;theme-template&gt;</code>
+    declares the full shape and defaults, and any number of <code class="text-amber-300">&lt;theme name="..."&gt;</code>
+    files partially override it.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Declaring the template and variants</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    A leaf is <code class="text-amber-300">&lt;name&gt;: &lt;Type&gt; = &lt;literal&gt;</code> (same shape as
+    <code class="text-amber-300">field</code>, minus the keyword); a group is <code class="text-amber-300">&lt;name&gt;: {'{'} ... {'}'}</code>,
+    nestable arbitrarily. Each of these lives in its own file — the file's own name is a free choice, the compiler
+    finds them structurally by their root tag, not by filename.
+  </p>
+  <CodePanel code={themeTemplate} lang="xml" filename="Theme.thr" class="mb-4" />
+  <p class="text-slate-400 leading-relaxed mb-4">
+    A variant may omit any member (it falls back to the template's default at that path), but anything it does
+    provide must exist in the template at that path, be the same kind (group vs. leaf), and repeat the
+    <strong class="text-slate-200">same type explicitly</strong>:
+  </p>
+  <CodePanel code={themeVariant} lang="xml" filename="Light.thr" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Reading <code>theme.a.b</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Bare dot access, validated against the whole app's declared theme shape at compile time (an unknown member is a
+    compile error) — reads are fully reactive, so a runtime theme switch is reflected live everywhere it's read,
+    not just on next mount. Theme is read-only from components; there is no <code class="text-amber-300">theme</code>-write syntax.
+  </p>
+  <CodePanel code={access} lang="xml" filename="Widget.thr" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Switching at runtime</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    The initial active theme resolves at compile time: <code class="text-amber-300">default="name"</code> if present,
+    otherwise the first-declared variant, otherwise the template's own literal defaults. A generated
+    <code class="text-amber-300">switchTheme(name)</code> changes it at runtime — an unknown variant name is a
+    harmless no-op with a debug print, never a crash.
+  </p>
+  <CodePanel code={switchCall} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Reference implementation — <code>apps/theme-demo</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-8">
+    Every mechanism on this page has a router-mounted, <code class="text-amber-300">scale</code>d
+    chapter in <code class="text-amber-300">apps/theme-demo</code> — 3 chapters
+    (<code class="text-amber-300">/theme-template</code>,
+    <code class="text-amber-300">/theme-access</code>,
+    <code class="text-amber-300">/switch-theme</code>), reachable with REWIND/FAST-FORWARD once
+    compiled and sideloaded. Chapter 1 declares a small template (two groups,
+    <code class="text-amber-300">colors</code>/<code class="text-amber-300">spacing</code>) plus a
+    default variant that overrides every leaf and a second variant that overrides only two —
+    labeled readouts show exactly which leaves fall back to the template's own defaults when the
+    partial variant is active. Chapter 2 reads several <code class="text-amber-300">theme.a.b</code>
+    paths at once, both through a <code class="text-amber-300">derived</code> and directly inline in
+    a template binding, side by side, to show both access styles pull from the same live snapshot.
+    Chapter 3 calls the generated <code class="text-amber-300">switchTheme(name)</code> between the
+    two variants from chapter 1 with the whole screen visibly re-theming, then calls it again with an
+    unknown name to show the documented no-op in action. See
+    <code class="text-amber-300">findings/theme-demo-app.md</code> for what each chapter covers.
+  </p>
+
+  <NotSupported items={[
+    'At most one <code class="text-amber-300">&lt;theme-template&gt;</code> per app.',
+    'No manifest-file or runtime-decided initial-theme selection — only the compile-time <code class="text-amber-300">default="name"</code> fallback chain exists.',
+    'Indexing through a theme leaf (e.g. treating a leaf value as if it were a group) — compile error.',
+  ]} />
+
+  <DocsFooterLinks grammarAnchor="#theme" />
+</DocsLayout>

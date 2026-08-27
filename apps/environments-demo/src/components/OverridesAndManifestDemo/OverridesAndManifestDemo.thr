@@ -1,0 +1,89 @@
+<script>
+' Chapter 2/2 — local overrides (environments/<name>.local.config.json) and manifestOverrides
+' (see GRAMMAR.md's "Environments" section and findings/environments.md). Also folds in
+' include/exclude glob patterns and the out-<env>/ output split (this app's own optional
+' "chapter 3" per the task note — narrated here rather than as its own separate router path,
+' since include/exclude can't cleanly gate a ROUTED component: every route in router.setRouting
+' below has to exist in EVERY environment's compiled output, so demonstrating file
+' inclusion/exclusion needs a non-routed asset instead — see below).
+'
+' Active environment, read the same structural way as chapter 1's other env.* reads:
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state environmentLabelTranslation: object = [40, 120]
+scale state baselineTitleTranslation: object = [40, 150]
+scale state manifestButtonTranslation: object = [40, 210]
+scale field manifestButtonWidth: integer = 560
+scale field manifestButtonHeight: integer = 50
+scale state manifestReadoutTranslation: object = [40, 275]
+scale state includeExcludeButtonTranslation: object = [40, 325]
+scale field includeExcludeButtonWidth: integer = 560
+scale field includeExcludeButtonHeight: integer = 50
+scale state includeExcludeReadoutTranslation: object = [40, 390]
+scale state localOverridesNoteTranslation: object = [40, 440]
+scale state localOverridesNoteWidth: integer = 1100
+
+derived environmentLabelLine: string = "env.environmentLabel: " + env.environmentLabel
+
+' The base src/manifest's own, un-overridden title — a plain static string here (not read from
+' anywhere at runtime; this app only ever ships the ALREADY-patched manifest, never the original),
+' so a viewer can compare it directly against the live roAppInfo readout below and see the patch
+' actually took effect.
+state baselineTitleText: string = "src/manifest's own title (before manifestOverrides): Flash Theater Environments Demo"
+
+state manifestTitleText: string = "(press OK to read the live manifest title via roAppInfo)"
+state includeExcludeText: string = "(press OK to probe both placeholder files via ReadAsciiFile)"
+
+' Proves manifestOverrides actually patched out-<env>/manifest, not just that the config file
+' declares it — roAppInfo is real Roku platform surface (unrelated to flash-theater), reading
+' whatever title this exact running build's manifest carries right now.
+private function readManifestTitle(key: string, press: boolean) {
+  if (press) {
+    state manifestTitleText = "roAppInfo.GetTitle(): " + CreateObject("roAppInfo").GetTitle()
+  }
+}
+
+' Proves include/exclude actually changed which files got packaged — not by inspecting a routed
+' component (every router.setRouting path must exist in EVERY environment's own compiled output,
+' so a route can't cleanly gate on which environment built it), but by reading two plain,
+' unreferenced placeholder files directly off the package filesystem at runtime. Exactly one of
+' the two should read back non-empty in any given build: images/dev-only/only-in-dev.txt in a
+' "dev" build (environments/dev.config.json's own "include", re-including what the base
+' flash-theater.config.json permanently excludes), images/prod-only/only-in-prod.txt in a "prod"
+' build (environments/prod.config.json's own "include") — never both, never neither.
+private function readIncludeExcludeProof(key: string, press: boolean) {
+  if (press) {
+    devFileContent = ReadAsciiFile("pkg:/images/dev-only/only-in-dev.txt")
+    prodFileContent = ReadAsciiFile("pkg:/images/prod-only/only-in-prod.txt")
+    devStatus = "absent (excluded from this build)"
+    if (devFileContent <> "") {
+      devStatus = "present (included in this build)"
+    }
+    prodStatus = "absent (excluded from this build)"
+    if (prodFileContent <> "") {
+      prodStatus = "present (included in this build)"
+    }
+    state includeExcludeText = "dev-only file: " + devStatus + "   |   prod-only file: " + prodStatus
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="2/2 — Local overrides, manifestOverrides, include/exclude" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="UP/DOWN between buttons, OK to probe — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Label id="environmentLabelReadout" text="{environmentLabelLine}" color="0x66CCFFFF" translation="{environmentLabelTranslation}" />
+  <Label id="baselineTitleReadout" text="{baselineTitleText}" color="0x888888FF" translation="{baselineTitleTranslation}" />
+  <Rectangle id="manifestButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{manifestButtonWidth}" height="{manifestButtonHeight}" translation="{manifestButtonTranslation}" on:key[OK]="{readManifestTitle()}">
+    <Label id="manifestButtonLabel" text="Read live manifest title (roAppInfo)" color="0xFFFFFFFF" translation="[16, 12]" />
+  </Rectangle>
+  <Label id="manifestReadout" text="{manifestTitleText}" color="0x66FF99FF" translation="{manifestReadoutTranslation}" />
+  <Rectangle id="includeExcludeButton" focusable="true" color="0x2A2A2AFF" width="{includeExcludeButtonWidth}" height="{includeExcludeButtonHeight}" translation="{includeExcludeButtonTranslation}" on:key[OK]="{readIncludeExcludeProof()}">
+    <Label id="includeExcludeButtonLabel" text="Probe include/exclude placeholder files" color="0xFFFFFFFF" translation="[16, 12]" />
+  </Rectangle>
+  <Label id="includeExcludeReadout" text="{includeExcludeText}" color="0x66FF99FF" translation="{includeExcludeReadoutTranslation}" />
+  <Label id="localOverridesNote" text="Local overrides: environments/<name>.local.config.json (git-ignored, .env.local-style) merges over the committed file above whenever that environment is selected, no extra flag. This app ships environments/dev.local.config.json.example as the copy-paste starting point. Not shown live above: a local override always wins the SAME env.* reads this chapter already displays, so there is nothing further to render here that a real .local file would change the shape of." color="0x777777FF" translation="{localOverridesNoteTranslation}" width="{localOverridesNoteWidth}" wrap="true" />
+</Rectangle>
+</component>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="ConditionalDestroySiblingsFixture" extends="Group">
+  <interface>
+    <field id="ft_routeReady" type="boolean" value="false" />
+    <function name="toggleMiddle" />
+    <function name="ft_unmount" />
+  </interface>
+  <children>
+    <Rectangle id="root">
+      <Label id="first" text="first" />
+      <Label id="last" text="last" />
+    </Rectangle>
+  </children>
+  <script type="text/brightscript" uri="ConditionalDestroySiblingsFixture.brs" />
+</component>

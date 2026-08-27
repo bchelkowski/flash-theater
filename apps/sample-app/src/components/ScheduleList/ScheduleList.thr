@@ -1,0 +1,139 @@
+<script>
+' `scale`d throughout — same HD baseline as every other screen, see Shell.thr's own top comment.
+' Per-row y is computed inside renumbered() (a loop, one row per index) — a template `{expr}`
+' binding can't be `scale`d directly, so the scaled value is computed once via the `scale <local>
+' = <expr>` statement form and stored directly on each row's own data, same pattern
+' CardsScreen.thr's makeCard() uses for its own per-item x/y.
+scale field rootWidth: integer = 300
+scale field rootHeight: integer = 360
+scale field rowX: integer = 10
+scale field todayBadgeX: integer = 120
+scale field searchBoxWidth: integer = 280
+scale state searchBoxTranslation: object = [10, 300]
+scale state searchEchoTranslation: object = [10, 330]
+
+field prefix: string = "Day: "
+state hasLoaded: boolean = false
+state schedule: object = invalid
+state nextId: integer = 1
+state searchText: string = ""
+
+private function selectDay(key: string, press: boolean, day: object) {
+  if (press) {
+    print "[ScheduleList] selected day: "; day.title
+  }
+}
+
+private function makeDay(idNum: integer, title: string, isToday: boolean): object {
+  day = {}
+  day.id = "d" + idNum.ToStr()
+  day.title = title
+  day.isToday = isToday
+  day.y = 0
+  return day
+}
+
+private function renumbered(days: object): object {
+  updated = []
+  for (i = 0 to days.Count() - 1) {
+    day = days[i]
+    scale y = i * 40
+    day.y = y
+    updated.Push(day)
+  }
+  return updated
+}
+
+public function load() {
+  ' schedule must be set before hasLoaded: flipping hasLoaded true immediately, synchronously
+  ' constructs the nested {#if:destroy}'s wrapper and reconciles the {#each} inside it against
+  ' whatever `schedule` holds at that exact moment — invalid (its initial value) if set after.
+  state schedule = renumbered([makeDay(1, "Monday", true), makeDay(2, "Tuesday", false), makeDay(3, "Wednesday", false)])
+  state hasLoaded = true
+  state nextId = 4
+}
+
+public function unload() {
+  ' Tears the whole {#if:destroy hasLoaded} block back down — including the bound searchBox
+  ' TextEditBox nested inside it, exercising bind:'s guarded UnobserveField teardown path on a
+  ' real device (see MainScene.brs's "back" key), not just its ObserveFieldScoped registration.
+  state hasLoaded = false
+}
+
+public function addDay() {
+  if (hasLoaded) {
+    updated = schedule
+    updated.Push(makeDay(nextId, "Day " + nextId.ToStr(), false))
+    state schedule = renumbered(updated)
+    state nextId = nextId + 1
+  }
+}
+
+public function removeFirstDay() {
+  if (hasLoaded) {
+    if (schedule.Count() > 0) {
+      updated = schedule
+      updated.Shift()
+      state schedule = renumbered(updated)
+    }
+  }
+}
+
+public function shuffleDays() {
+  if (hasLoaded) {
+    if (schedule.Count() > 1) {
+      updated = []
+      updated.Push(schedule[schedule.Count() - 1])
+      for (i = 0 to schedule.Count() - 2) {
+        updated.Push(schedule[i])
+      }
+      state schedule = renumbered(updated)
+    }
+  }
+}
+
+' `predicate` receives a plain function value and is invoked directly (`predicate(days[i])`) —
+' BrightScript's own ifArray has no Filter/Map/ForEach (verified against developer.roku.com; only
+' Push/Pop/Peek/Shift/Unshift/Delete/Count/Clear/Append), but functions ARE a real, documented
+' first-class type ("Expressions, Variables, and Types") that can be stored and called through a
+' reference like any other value — this is that, not a built-in callback API.
+private function filterDays(days: object, predicate: Function): object {
+  updated = []
+  for (i = 0 to days.Count() - 1) {
+    if (predicate(days[i])) {
+      updated.Push(days[i])
+    }
+  }
+  return updated
+}
+
+' Tier-2 anonymous function expression: nested inside a call argument (filterDays above, a
+' hand-written helper — not the whole right-hand side of an assignment, which would be Tier 1;
+' see makeDay/renumbered for ordinary functions and GRAMMAR.md's "Anonymous function expressions"
+' section for the Tier 1 vs Tier 2 distinction). Real, live proof this isn't just a synthetic
+' parser fixture: it filters the real `schedule` state this whole component's {#each} already
+' renders.
+public function removeToday() {
+  if (hasLoaded) {
+    updated = filterDays(schedule, function (day: object): boolean {
+      return NOT day.isToday
+    })
+    state schedule = renumbered(updated)
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x1A1A1AFF" width="{rootWidth}" height="{rootHeight}">
+  {#if:destroy hasLoaded}
+    {#each schedule as day (day.id)}
+      <Label id="row" text="{prefix + day.title}" color="0xFFFFFFFF" translation="{[rowX, day.y]}" focusable="true" on:key[OK]="{selectDay(day)}" />
+      {#if:destroy day.isToday}
+        <Label id="todayBadge" text="(today)" color="0xFFCC00FF" translation="{[todayBadgeX, day.y]}" />
+      {/if}
+    {/each}
+    <TextEditBox id="searchBox" translation="{searchBoxTranslation}" width="{searchBoxWidth}" bind:text="{searchText}" focusable="true" />
+    <Label id="searchEcho" text="{searchText}" color="0xFFFFFFFF" translation="{searchEchoTranslation}" />
+  {/if}
+</Rectangle>
+</component>

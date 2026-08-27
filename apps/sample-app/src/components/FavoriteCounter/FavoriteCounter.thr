@@ -1,0 +1,152 @@
+<script>
+import LabeledCounter from "components/Classes/LabeledCounter.flsh"
+
+' Mounted on HomeScreen.thr (a content-pane screen, not the sidebar — moved there 2026-08-19; the
+' sidebar is reserved for navigation only, see Shell.thr's own top comment). Reads the shared
+' `favoriteCount` store value reactively (`watch favoriteCount = store(favoriteCount)`) — a pure
+' display component with no public mutation method of its own: Shell.thr's own on:key[options]
+' handler bumps the store DIRECTLY (`store(favoriteCount) = store(favoriteCount) + 1`), reachable
+' from every child screen via ordinary key bubbling, regardless of whether THIS component happens
+' to be mounted at all when the key is pressed — the count still updates correctly the next time a
+' screen that renders it (HomeScreen) mounts, since the store — not this component's own local
+' state — is the actual source of truth. `scale`d throughout — same HD baseline as every other
+' component, see Shell.thr's own top comment. This component is instantiated with an already-scaled
+' translation, so its own internal sizes/positions are `scale`d the same way every other leaf
+' component's are.
+scale field backgroundWidth: integer = 620
+scale field backgroundHeight: integer = 300
+scale field pillWidth: integer = 240
+scale field pillHeight: integer = 50
+scale state pillTranslation: object = [10, 20]
+scale state labelTranslation: object = [16, 12]
+scale state emptyBadgeTranslation: object = [16, 32]
+scale state celebrationTranslation: object = [10, 74]
+scale state milestoneTranslation: object = [10, 96]
+scale state tierTranslation: object = [10, 118]
+scale state encouragementTranslation: object = [10, 140]
+scale state safeNotDemoTranslation: object = [10, 162]
+scale state oddCountDemoTranslation: object = [10, 184]
+scale state pendingBadgeTranslation: object = [10, 206]
+scale state deviceModelTranslation: object = [10, 228]
+
+field pendingBadge: node = invalid
+
+watch favoriteCount = store(favoriteCount)
+derived favoritesLabel: string = describeFavorites(favoriteCount)
+derived milestoneLabel: string = LabeledCounter(favoriteCount, "Favorites so far").describe()
+derived backgroundColor: string = theme.colors.background
+derived highlightColor: string = theme.colors.highlight
+derived textColor: string = theme.colors.text
+' A pure function of the shared store value — never local `state` written by this component's own
+' addFavorite()-style method, since Shell.thr's own on:key[options] handler (the ONLY thing that
+' ever bumps favoriteCount) now writes straight to the store directly, not through a callFunc into
+' whichever component instance happens to be mounted right now. Keeping tierLabel `derived` instead
+' of a separately-maintained `state` means it's always correct regardless of WHERE/WHEN this
+' component gets constructed relative to the count changing (including: bump the count from a
+' screen where this component isn't even mounted, navigate to one where it is — the freshly
+' constructed instance computes the right tier immediately, no separate "catch up" step needed).
+derived tierLabel: string = computeTier(favoriteCount)
+' Real, crash-safe == feeding a template {#if !...} condition — contrast this with
+' toggleCelebration()'s own bare `not showCelebration` below, which crashes if `showCelebration`
+' were ever anything but a real Boolean. `!isTopTier` never can, regardless of what isTopTier ends
+' up holding.
+derived isTopTier: boolean = tierLabel == "super fan"
+' `!` on a genuinely NON-Boolean operand — tierLabel is a String, never a Boolean. Real BrightScript
+' `Not tierLabel` throws a Type Mismatch runtime error the moment this line ran; `!tierLabel` never
+' can, because ft_not checks the operand's actual boxed type first and returns false for anything
+' that isn't roBoolean, exactly like ft_equals returns false instead of crashing on == given a real
+' type mismatch. This is intentionally always false — the point being demonstrated is "never
+' crashes," not "sometimes true."
+derived safeNotOnStringLabel: string = describeSafeNotOnNonBoolean(tierLabel)
+' Real, deliberately-unguarded `AND` stays a genuine bitwise-Integer op in a `derived` expression —
+' the derived type-checker (analysis/derived-type-check.ts) infers `integer` for
+' `favoriteCount AND 1`, never forcing `AND`/`OR` to `boolean` the way `==`/`!=`/`<`/`>`/`<=`/`>=`
+' always are. Demonstrates the checker doesn't wrongly reject a real, common BrightScript idiom
+' (checking odd/even via a bitmask) by declaring this `integer`, not `boolean`.
+derived favoriteCountParityBit: integer = favoriteCount AND 1
+derived oddCountLabel: string = describeOddCount(favoriteCountParityBit)
+' pendingBadge starts (and always stays, in this demo) invalid — nobody ever sets it. describePendingBadge
+' reads two hops through it (badge.itemContent.title); with a plain BrightScript `.` that would
+' crash the moment the `if` ran ("Attempting to index or access invalid"). The compiler
+' automatically rewrites every member/index/call access in generated .brs to use `?.`/`?[`/`?(`
+' (see GRAMMAR.md's "Chain safety" section) — no DSL syntax needed to opt in — so this reads
+' safely as invalid instead, and the crash-safe `!=` picks the fallback label.
+derived pendingBadgeLabel: string = describePendingBadge(pendingBadge)
+' A genuine BrightScript idiom this DSL has no sugar for — real device reflection
+' (CreateObject("roDeviceInfo")) — dropped into a raw BrightScript passthrough block. See
+' describeDeviceModel() below: the block's own content is copied into generated .brs completely
+' unchanged, no identifier-rewrite applied to it.
+derived deviceModelLabel: string = describeDeviceModel()
+
+state showCelebration: boolean = false
+
+private function describeFavorites(count: integer): string {
+  if (count == 1) {
+    return "1 favorite"
+  }
+  return str(count) + " favorites"
+}
+
+private function computeTier(count: integer): string {
+  result = count < 3 ? "starting out" : count < 10 ? "collector" : "super fan"
+  return result
+}
+
+private function describeSafeNotOnNonBoolean(label: string): string {
+  result = !label
+  if (result) {
+    return "unexpected: !" + label + " returned true"
+  }
+  return "!" + label + " (a String, not Boolean) safely returned false"
+}
+
+private function describeOddCount(parityBit: integer): string {
+  if (parityBit == 1) {
+    return "Odd/even: odd"
+  }
+  return "Odd/even: even"
+}
+
+private function describePendingBadge(badge: node): string {
+  if (badge.itemContent.title != invalid) {
+    return badge.itemContent.title
+  }
+  return "No badge pending"
+}
+
+private function describeDeviceModel(): string {
+  ' flash-theater:raw
+  model = CreateObject("roDeviceInfo").GetModel()
+  ' flash-theater:end-raw
+  return "Device model: " + model
+}
+
+public function toggleCelebration() {
+  if (favoriteCount != 0) {
+    state showCelebration = not showCelebration
+  }
+}
+</script>
+
+<component>
+<Rectangle id="background" color="{backgroundColor}" width="{backgroundWidth}" height="{backgroundHeight}">
+  <Rectangle id="pill" color="{highlightColor}" width="{pillWidth}" height="{pillHeight}" translation="{pillTranslation}">
+    <Label id="label" text="{favoritesLabel}" color="{textColor}" translation="{labelTranslation}" />
+    {#if favoriteCount == 0}
+      <Label id="emptyBadge" text="Add your first!" color="{textColor}" translation="{emptyBadgeTranslation}" />
+    {/if}
+  </Rectangle>
+  {#if:destroy showCelebration}
+    <Label id="celebration" text="Nice streak!" color="{textColor}" translation="{celebrationTranslation}" />
+  {/if}
+  <Label id="milestone" text="{milestoneLabel}" color="{textColor}" translation="{milestoneTranslation}" />
+  <Label id="tier" text="{tierLabel}" color="{textColor}" translation="{tierTranslation}" />
+  {#if !isTopTier}
+    <Label id="encouragement" text="Keep going!" color="{textColor}" translation="{encouragementTranslation}" />
+  {/if}
+  <Label id="safeNotDemo" text="{safeNotOnStringLabel}" color="{textColor}" translation="{safeNotDemoTranslation}" />
+  <Label id="oddCountDemo" text="{oddCountLabel}" color="{textColor}" translation="{oddCountDemoTranslation}" />
+  <Label id="pendingBadgeDemo" text="{pendingBadgeLabel}" color="{textColor}" translation="{pendingBadgeTranslation}" />
+  <Label id="deviceModelDemo" text="{deviceModelLabel}" color="{textColor}" translation="{deviceModelTranslation}" />
+</Rectangle>
+</component>

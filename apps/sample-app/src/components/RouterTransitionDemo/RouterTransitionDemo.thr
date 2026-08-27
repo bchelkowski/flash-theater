@@ -1,0 +1,112 @@
+<script>
+' Demonstrates router.markReady() end to end — see GRAMMAR.md's "Router" section and
+' findings/router-transitions.md. Reachable from Shell's own sidebar ("Transition demo"), whose
+' childOutlet is configured with navigate-out:/navigate-in:/back-out:/back-in: slide animations
+' plus loadingComponent:RouterLoadingSpinner (see Shell.thr) — so entering/leaving THIS screen (and
+' every other screen under childOutlet) slides, and childOutlet holds RouterLoadingSpinner up until
+' whichever screen just mounted calls router.markReady().
+'
+' Unlike every other screen under childOutlet (which never call router.markReady() at all — the
+' outlet's own loadingTimeout fallback reveals them instead, itself a real, honest exercise of that
+' fallback path), THIS screen deliberately delays its own reveal behind a REAL network fetch —
+' GetPosts.thr, the exact same request Http {} component RequestDemoScreen.thr already uses —
+' calling router.markReady() only once that fetch actually settles (success OR error, either way).
+' Verify live: navigating here shows the spinner for roughly as long as the real HTTP round-trip
+' takes (not the outlet's own loadingTimeout), and the screen's own content is correctly hidden the
+' whole time (m.currentChild.visible stays false until FlashTheaterRouterOutlet.brs's own
+' _revealMountedChild runs).
+'
+' The fetched posts render as a real, dynamically-created, focusable `{#each}` list (not just a
+' static readout) specifically to exercise deferred back-navigation focus restoration end to end —
+' see findings/router-focus-integration.md: focusing a post row, leaving via Shell's menu, then
+' pressing physical Back re-mounts a brand-new instance of this screen, re-fetches, and restores
+' focus to the row whose id matches once the new list re-renders (or the nearest surviving
+' ancestor, if that exact post is no longer present in the new fetch) — never to `backButton` or
+' some other fallback element while the fetch is still in flight.
+scale field rootWidth: integer = 880
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 300
+scale field buttonHeight: integer = 60
+scale field rowX: integer = 40
+scale field rowWidth: integer = 500
+scale field rowHeight: integer = 36
+scale field listBaseY: integer = 140
+scale state titleTranslation: object = [40, 20]
+scale state resultTranslation: object = [40, 100]
+scale state backButtonTranslation: object = [40, 610]
+scale state buttonLabelInset: object = [16, 16]
+scale state rowLabelInset: object = [12, 8]
+
+state resultText: string = "Loading posts..."
+state hasPosts: boolean = false
+state posts: object = invalid
+
+' Kicks off the real fetch the moment this screen mounts — router.markReady() is called from
+' BOTH callbacks (success and failure), never conditionally, since the outlet's own gate cares
+' only about "is this screen ready to be shown", not whether the fetch itself succeeded — an error
+' state is still a fully rendered, revealable screen.
+public function setup() {
+  task = CreateObject("roSGNode", "GetPosts")
+  task.callFunc("prepareRequest", { userId: 1 })
+  taskManager.run(task)
+  taskManager.onResult(task, onPostsLoaded, onPostsFailed)
+}
+
+' Per-row y is baked directly into each row's own data (no built-in {#each} index variable — see
+' findings/template-each-blocks.md), same pattern ScheduleList.thr's own renumbered() uses.
+' `rowHeight`/`listBaseY` are already-scaled `scale field`s, so summing them here needs no further
+' `scale` wrapping (unlike ScheduleList's raw literal offsets).
+private function makeRow(postId: integer, title: string, index: integer): object {
+  row = {}
+  row.id = "post" + postId.ToStr()
+  row.title = title
+  row.y = listBaseY + (index * rowHeight)
+  return row
+}
+
+private function onPostsLoaded(result: dynamic) {
+  state resultText = "Loaded " + result.count.ToStr() + " posts — router.markReady() called from here"
+  rows = []
+  for (i = 0 to result.posts.Count() - 1) {
+    post = result.posts[i]
+    rows.Push(makeRow(post.id, post.title, i))
+  }
+  state posts = rows
+  state hasPosts = true
+  router.markReady()
+}
+
+private function onPostsFailed(error: dynamic) {
+  state resultText = "Fetch failed: " + error.message + " — router.markReady() still called"
+  router.markReady()
+}
+
+private function selectPost(key: string, press: boolean, post: object) {
+  if (press) {
+    print "[RouterTransitionDemo] selected post: "; post.title
+  }
+}
+
+private function goBack(key: string, press: boolean) {
+  if (press) {
+    router.back()
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="Transition demo — router.markReady() after a real GetPosts fetch" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="resultReadout" text="{resultText}" color="0x66FF99FF" translation="{resultTranslation}" />
+  {#if:destroy hasPosts}
+    {#each posts as post (post.id)}
+      <Rectangle id="postRow" color="0x2A2A2AFF" width="{rowWidth}" height="{rowHeight}" focusable="true" translation="{[rowX, post.y]}" on:key[OK]="{selectPost(post)}">
+        <Label id="postRowLabel" text="{post.title}" color="0xFFFFFFFF" translation="{rowLabelInset}" />
+      </Rectangle>
+    {/each}
+  {/if}
+  <Rectangle id="backButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{backButtonTranslation}" on:key[OK]="{goBack()}">
+    <Label id="backButtonLabel" text="Back" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+</Rectangle>
+</component>

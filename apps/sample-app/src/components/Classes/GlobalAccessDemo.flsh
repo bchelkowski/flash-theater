@@ -1,0 +1,20 @@
+' Dedicated, minimal fixture proving `.flsh` class bodies reach `theme`/`router`/`taskManager` via
+' `GetGlobalAA().global` — see GRAMMAR.md's "Classes" section and
+' findings/class-pipeline-global-singleton-access.md's `GetGlobalAA()` entry for the full design
+' this exercises end to end (not just synthetic in-memory test fixtures). Wired into
+' TaskDemoScreen.thr's own "Class diagnostics" buttons.
+class GlobalAccessDemo {
+  public function themeTextColor(): string {
+    return theme.colors.text
+  }
+
+  public function startBackgroundTask(): string {
+    task = CreateObject("roSGNode", "SlowTask")
+    task.functionName = "doWork"
+    return taskManager.run(task)
+  }
+
+  public function goHome() {
+    router.navigate("/browse")
+  }
+}

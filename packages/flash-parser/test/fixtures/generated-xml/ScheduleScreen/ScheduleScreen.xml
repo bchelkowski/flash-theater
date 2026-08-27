@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- flash-theater:generated — do not edit by hand, source: ScheduleScreen.thr -->
+<component name="ScheduleScreen" extends="Group">
+  <interface>
+    <field id="rootWidth" type="integer" value="880" onChange="on_rootWidthChange" />
+    <field id="rootHeight" type="integer" value="720" onChange="on_rootHeightChange" />
+    <field id="backPromptWidth" type="integer" value="460" onChange="on_backPromptWidthChange" />
+    <field id="backPromptHeight" type="integer" value="50" onChange="on_backPromptHeightChange" />
+    <function name="setup" />
+  </interface>
+  <children>
+    <Rectangle id="root" color="0x151515FF">
+      <Label id="dayLabel" color="0xFFFFFFFF" />
+      <ScheduleList id="list" />
+      <Rectangle id="backPrompt" focusable="true" color="0x3A3A3AFF">
+        <Label id="backPromptLabel" text="OK: back   PLAY: peek Tue" color="0xFFFFFFFF" />
+      </Rectangle>
+    </Rectangle>
+  </children>
+  <script type="text/brightscript" uri="ScheduleScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/FlashTheater/Scale/FlashTheaterScale.brs" />
+</component>

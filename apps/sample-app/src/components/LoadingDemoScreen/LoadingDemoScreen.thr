@@ -1,0 +1,76 @@
+<script>
+' Demonstrates default-focus="true" claiming a genuine VACUUM well after the ordinary
+' init()/setup() cascade already settled — the case a synchronous {#if:destroy}/{#each} reconcile
+' can never exercise, since everything there happens inside one mount pass. Uses setTimeout(...) —
+' full BrightScript Timer node lifecycle (creation, field wiring, ObserveField, start, cleanup)
+' generated and hidden behind the call, see GRAMMAR.md's "Timer statements" section.
+'
+' `ready` starts false; `readyButton` (the declared default-focus target) does not exist at all
+' until the timer fires roughly 1.5s after this screen mounts — the compiler-generated {#if:destroy}
+' create/destroy subs never run automatically on a delay, so nothing about default-focus resolution
+' itself is "async-aware"; the app has to ask, explicitly, once the content genuinely exists.
+'
+' `claimFocusIfVacant(m.top)` is that explicit ask — the runtime's own escape hatch for this exact
+' shape (see runtime-assets/FocusManager's own doc comment on it). It claims THIS component's own
+' default only if nothing anywhere currently holds focus, so it composes correctly with the vacuum
+' rule the router itself uses: verify live BOTH ways —
+'   - Navigate here and leave the remote alone: nothing held focus when the timer fires (this
+'     screen's own mount left a real vacuum, same as any other route's first-ever mount), so
+'     readyButton claims it the moment it appears.
+'   - Navigate here, then immediately move focus back into Shell's own sidebar menu before the
+'     timer fires: the menu already holds focus by then, so readyButton's own appearance does
+'     NOT steal it — exactly the same non-stealing guarantee router.navigate() itself gets.
+'
+' `loadingLabel`/`readyButton` both sit at y=380, lined up with Shell's own "Loading demo" menu
+' row — the same right-from-the-menu convention HomeScreen/ScheduleScreen already use for their
+' own primary entry point. `scale`d throughout — same HD baseline, see Shell.thr's own top comment.
+scale field rootWidth: integer = 880
+scale field rootHeight: integer = 720
+scale field readyButtonWidth: integer = 460
+scale field readyButtonHeight: integer = 50
+scale state titleTranslation: object = [40, 20]
+scale state bodyTranslation: object = [40, 380]
+scale state readyButtonLabelInset: object = [10, 14]
+
+state ready: boolean = false
+
+' router.markReady() here is about the OUTER childOutlet gate only — it fires synchronously, so the
+' spinner childOutlet would otherwise show never appears — and is entirely independent of this
+' screen's OWN internal `ready`/setTimeout(...) delay below, which still takes its full ~1.5s
+' either way: the two "loading" concepts (the outlet deciding when to reveal this whole screen, and
+' this screen's own default-focus-after-a-delay demo) don't interact at all.
+'
+' Also the real, live proof of a fixed statement-printer bug: setTimeout(...)'s own bare-call
+' elision used to leave an invalid stray `ft_timer_1` line behind whenever another statement shared
+' its StatementRegion — this exact shape (a solo setTimeout(...) plus a second statement,
+' router.markReady() here) is what first caught it live on a real device (Install Failure:
+' Compilation Failed). Fixed 2026-08-19 in codegen/statement-printer.ts's
+' lowerTimerStartCallsInText — see findings/timer-statements.md.
+public function setup() {
+  setTimeout(function() {
+    state ready = true
+    m.global.ft_focus.callFunc("claimFocusIfVacant", m.top)
+  }, 1500)
+  router.markReady()
+}
+
+private function goBack(key: string, press: boolean) {
+  if (press) {
+    router.back()
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="Loading demo — default-focus after ~1.5s" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  {#if:destroy not ready}
+    <Label id="loadingLabel" text="Loading..." color="0x888888FF" translation="{bodyTranslation}" />
+  {/if}
+  {#if:destroy ready}
+    <Rectangle id="readyButton" focusable="true" default-focus="true" color="0x00AA55FF" width="{readyButtonWidth}" height="{readyButtonHeight}" translation="{bodyTranslation}" on:key[OK]="{goBack()}">
+      <Label id="readyButtonLabel" text="Ready! OK: back" color="0xFFFFFFFF" translation="{readyButtonLabelInset}" />
+    </Rectangle>
+  {/if}
+</Rectangle>
+</component>

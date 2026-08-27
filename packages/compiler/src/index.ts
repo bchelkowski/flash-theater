@@ -1,0 +1,14 @@
+export { compileThrSource, compileFlshSource } from './compile.js';
+export type { CompiledThrFile, CompiledFlshFile } from './compile.js';
+export { compileApp, emitFlashTheaterGlobalsBrs, FLASH_THEATER_STORE_COMPONENT_NAME, FLASH_THEATER_THEME_COMPONENT_NAME, FLASH_THEATER_FOCUS_MANAGER_COMPONENT_NAME } from './app-compiler.js';
+export type { AppFileInput, CompiledApp, CompiledAppOutput, CompiledClassOutput, CompiledThemeOutput } from './app-compiler.js';
+export { compileTheme } from './codegen/theme-emitter.js';
+export type { CompiledTheme } from './codegen/theme-emitter.js';
+export { compileClass } from './codegen/class-emitter.js';
+export type { CompiledClass } from './codegen/class-emitter.js';
+export { buildClassShape } from './analysis/class-shape.js';
+export type { ClassShape, ClassMemberInfo } from './analysis/class-shape.js';
+export { buildThemeShape, resolveGlobalPath } from './analysis/global-bindings.js';
+export type { GlobalBindingsContext, ThemeShape, ThemeShapeNode, ResolvedThemeVariant, GlobalPathResolution } from './analysis/global-bindings.js';
+export * from './dsl-parser/dsl-ast.js';
+export { runCli } from './cli.js';

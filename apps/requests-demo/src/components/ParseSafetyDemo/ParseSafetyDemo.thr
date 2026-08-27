@@ -1,0 +1,81 @@
+<script>
+' Chapter 4/4 — GRAMMAR.md's "Requests" → "Parsing safety": a parseResponse/parseError hook that
+' throws no longer crashes the Task — it degrades to a synthesized fallback error, and
+' rawResponse.parseSucceeded/parseErrorMessage report what happened. Observed directly here
+' (`task.observeFieldScoped("rawResponse", ...)`, the OLD field-observer style — see GRAMMAR.md's
+' "Consuming a request") for a LOCAL look at the one request this screen itself just sent, alongside
+' `taskManager.onResult(...)` for the already-unwrapped result/error. Migrated as-is (in shape) from
+' apps/async-demo's own ParseSafetyDemo.thr — see findings/requests-demo-app.md for the split. The
+' cross-component `taskManager.onResponseReceived(...)` reporting story (a persistent readout in
+' the old async-demo's MainScene.thr) now belongs to apps/task-manager-demo, not here. Default (top
+' button) sends GetPostOk.thr (shared with chapter 1, /declare-call); customized (bottom button)
+' sends GetPostParseBroken.thr.
+scale field rootWidth: integer = 1920
+scale field rootHeight: integer = 1080
+scale field buttonWidth: integer = 420
+scale field buttonHeight: integer = 70
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+scale state okButtonTranslation: object = [40, 160]
+scale state brokenButtonTranslation: object = [40, 250]
+scale state parseStatusTranslation: object = [40, 360]
+scale state resultTranslation: object = [40, 400]
+scale state buttonLabelInset: object = [20, 22]
+
+state parseStatusText: string = "(not sent yet)"
+state resultText: string = "(not sent yet)"
+
+private function send(componentName: string) {
+  task = CreateObject("roSGNode", componentName)
+  task.observeFieldScoped("rawResponse", "onRawResponse")
+  taskManager.run(task)
+  taskManager.onResult(task, onRequestSucceeded, onRequestFailed)
+}
+
+private function sendOk(key: string, press: boolean) {
+  if (press) {
+    send("GetPostOk")
+  }
+}
+
+private function sendBroken(key: string, press: boolean) {
+  if (press) {
+    send("GetPostParseBroken")
+  }
+}
+
+' Must stay `public` — observeFieldScoped's callback target is a bare string, never rewritten by
+' this compiler (see GetPostParseBroken.thr's own comment / findings/requests-runtime.md); a
+' `private function` here would silently never fire.
+public function onRawResponse(event: dynamic) {
+  raw = event.GetData()
+  if (raw.parseSucceeded) {
+    state parseStatusText = "parse: OK (isSuccess=" + raw.isSuccess.ToStr() + ")"
+  } else {
+    state parseStatusText = "parse: FAILED - " + raw.parseErrorMessage
+  }
+}
+
+private function onRequestSucceeded(result: dynamic) {
+  state resultText = "result.title = " + result.title
+}
+
+private function onRequestFailed(error: dynamic) {
+  state resultText = "error.message = " + error.message
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="4/4 — parseResponse/parseError safety (a throwing hook never crashes the Task)" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="Up/Down to pick a button, OK to send it — top: default (parse OK), bottom: customized (parseError throws)" color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+  <Rectangle id="okButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{okButtonTranslation}" on:key[OK]="{sendOk()}">
+    <Label id="okButtonLabel" text="Send (parse OK)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="brokenButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{brokenButtonTranslation}" on:key[OK]="{sendBroken()}">
+    <Label id="brokenButtonLabel" text="Send (parseError throws)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="parseStatusReadout" text="{parseStatusText}" color="0x66CCFFFF" translation="{parseStatusTranslation}" />
+  <Label id="resultReadout" text="{resultText}" color="0x66FF99FF" translation="{resultTranslation}" />
+</Rectangle>
+</component>

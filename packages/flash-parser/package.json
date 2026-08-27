@@ -1,0 +1,57 @@
+{
+  "name": "flash-parser",
+  "version": "0.0.1",
+  "description": "Lossless CST + typed AST parser for the flash-theater DSL (.thr/.flsh) — the flash-theater counterpart to kopytko-brightscript-parser.",
+  "license": "MIT",
+  "author": "Błażej Chełkowski",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bchelkowski/flash-theater.git",
+    "directory": "packages/flash-parser"
+  },
+  "keywords": [
+    "brightscript",
+    "roku",
+    "scenegraph",
+    "parser",
+    "cst",
+    "ast",
+    "dsl",
+    "compiler"
+  ],
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "mocha",
+    "lint": "eslint \"./src/**/*.ts\"",
+    "clean": "node -e \"require('fs').rmSync('dist', {recursive: true, force: true})\"",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "dependencies": {
+    "kopytko-brightscript-parser": "^1.4.0"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.9.2",
+    "chai": "^6.2.2",
+    "mocha": "^11.7.6",
+    "source-map-support": "^0.5.21",
+    "tsx": "^4.20.3",
+    "typescript": "^6.0.3"
+  }
+}

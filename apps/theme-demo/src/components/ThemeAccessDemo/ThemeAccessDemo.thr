@@ -1,0 +1,64 @@
+<script>
+' Chapter 2/3 — bare `theme.a.b` access. An ordinary BrightScript dot-expression, no new keyword
+' (GRAMMAR.md's "Theme" section) — reachable from a `derived` expression AND directly inline
+' inside a template `{expr}` binding, with no difference in validation between the two positions.
+' Whichever variant is currently active (set by chapter 1 or chapter 3's own switchTheme() calls —
+' this is the same app-wide theme singleton, its state persists across chapter navigation) is what
+' every readout below reflects; navigate here right after switching variants elsewhere to see it.
+'
+' Default example: `bgColorFromDerived` is a `derived` reading `theme.colors.background`, feeding
+' `defaultSwatch`'s `color="{bgColorFromDerived}"` binding — the ordinary, most common shape.
+' Customized example: THREE more theme paths (`colors.text`, `colors.accent`, `spacing.gutter`)
+' are read simultaneously across several bindings — two still `derived`-mediated
+' (`textColorFromDerived`, `accentColorFromDerived`), one read DIRECTLY inline in a template
+' `{expr}` binding with no `derived` in between at all (`directSwatch`'s own
+' `color="{theme.colors.background}"`). `directSwatch` and `defaultSwatch` above read the exact
+' same path and always show the identical color on every render — proving both access styles pull
+' from the same live theme snapshot, not two independently-staggered reads.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field swatchSize: integer = 60
+scale field cardWidth: integer = 1160
+scale field cardHeight: integer = 480
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state cardTranslation: object = [60, 110]
+scale state cardLabelTranslation: object = [40, 30]
+scale state defaultLabelTranslation: object = [40, 90]
+scale state defaultSwatchTranslation: object = [40, 130]
+scale state customizedLabelTranslation: object = [40, 220]
+scale state textReadoutTranslation: object = [40, 260]
+scale state accentSwatchTranslation: object = [40, 300]
+scale state gutterReadoutTranslation: object = [140, 300]
+scale state directLabelTranslation: object = [40, 390]
+scale state directSwatchTranslation: object = [40, 420]
+
+derived bgColorFromDerived: string = theme.colors.background
+derived textColorFromDerived: string = theme.colors.text
+derived accentColorFromDerived: string = theme.colors.accent
+derived textReadoutText: string = "derived textColorFromDerived = theme.colors.text = " + textColorFromDerived
+' A theme leaf can't have `.ToStr()` chained directly onto its own `theme.a.b` dot-chain (the
+' theme-path validator treats a trailing method as a further, undeclared path segment — see
+' ThemeTemplateDemo.thr's own comment on this, and findings/theme-demo-app.md) — read it into its
+' own typed derived first, then call `.ToStr()` on that derived's name instead.
+derived gutterValue: integer = theme.spacing.gutter
+derived gutterReadoutText: string = "spacing.gutter = " + gutterValue.ToStr()
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="2/3 — bare theme.a.b access" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="Read-only — switch variants on chapter 1 or 3 first to see these readouts change" color="0x888888FF" translation="{hintTranslation}" />
+  <Rectangle id="card" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{cardWidth}" height="{cardHeight}" translation="{cardTranslation}">
+    <Label id="cardLabel" text="One derived, one template binding" color="0xCCCCCCFF" translation="{cardLabelTranslation}" />
+    <Label id="defaultLabel" text="default: derived bgColorFromDerived = theme.colors.background, bound to this swatch" color="0x66CCFFFF" translation="{defaultLabelTranslation}" />
+    <Rectangle id="defaultSwatch" color="{bgColorFromDerived}" width="{swatchSize}" height="{swatchSize}" translation="{defaultSwatchTranslation}" />
+    <Label id="customizedLabel" text="customized: multiple theme paths, read simultaneously" color="0x66CCFFFF" translation="{customizedLabelTranslation}" />
+    <Label id="textReadout" text="{textReadoutText}" color="0xAAAAAAFF" translation="{textReadoutTranslation}" />
+    <Rectangle id="accentSwatch" color="{accentColorFromDerived}" width="{swatchSize}" height="{swatchSize}" translation="{accentSwatchTranslation}" />
+    <Label id="gutterReadout" text="{gutterReadoutText}" color="0xAAAAAAFF" translation="{gutterReadoutTranslation}" />
+    <Label id="directLabel" text="directSwatch reads theme.colors.background directly inline below (no derived) — same color as defaultSwatch above" color="0x66CCFFFF" translation="{directLabelTranslation}" />
+    <Rectangle id="directSwatch" color="{theme.colors.background}" width="{swatchSize}" height="{swatchSize}" translation="{directSwatchTranslation}" />
+  </Rectangle>
+</Rectangle>
+</component>

@@ -1,0 +1,15 @@
+<script>
+' Minimal custom loadingComponent for the router-outlet transition demo — see Shell.thr's own
+' childOutlet usage and GRAMMAR.md's "Router" section. FlashTheaterRouterOutlet.brs centers
+' whatever component loadingComponent names on the outlet's own translation point
+' ([width/2, height/2] — see that field's own doc comment on FlashTheaterRouterOutlet.xml); this
+' component's own root offsets itself by half its own box size so the visible box actually lands
+' centered ON that point, rather than with its own top-left corner there. A plain custom .thr
+' component works exactly like Roku's built-in "BusySpinner" for this purpose —
+' loadingComponent accepts either, see GRAMMAR.md.
+</script>
+<component>
+<Rectangle id="root" color="0x2A2A2AFF" width="240" height="64" translation="[-120, -32]">
+  <Label id="label" text="Loading..." color="0xFFFFFFFF" horizAlign="center" vertAlign="center" width="240" height="64" />
+</Rectangle>
+</component>

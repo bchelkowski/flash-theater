@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- flash-theater:generated — do not edit by hand, source: CardsScreen.thr -->
+<component name="CardsScreen" extends="Group">
+  <interface>
+    <field id="rootWidth" type="integer" value="880" onChange="on_rootWidthChange" />
+    <field id="rootHeight" type="integer" value="720" onChange="on_rootHeightChange" />
+    <function name="setup" />
+  </interface>
+  <children>
+    <Rectangle id="root" color="0x101010FF">
+      <Label id="heading" text="Cards demo - OK enters a card, back exits it" color="0xFFFFFFFF" />
+    </Rectangle>
+  </children>
+  <script type="text/brightscript" uri="CardsScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/FlashTheater/Scale/FlashTheaterScale.brs" />
+</component>

@@ -1,0 +1,137 @@
+---
+import DocsLayout from '../../components/DocsLayout.astro';
+import DocsHero from '../../components/DocsHero.astro';
+import CodePanel from '../../components/CodePanel.astro';
+import NotSupported from '../../components/NotSupported.astro';
+import DocsFooterLinks from '../../components/DocsFooterLinks.astro';
+
+const selectEnv = `FLASH_THEATER_ENV=staging npm run build:roku
+# equivalently, passed directly to the compiler itself:
+flash-theater compile --env staging`;
+
+const envConfig = `{
+  "variables": {
+    "apiBaseUrl": { "value": "https://staging.api.example.com" },
+    "apiKey": { "fromEnv": "STAGING_API_KEY" }
+  },
+  "manifestOverrides": {
+    "title": "My App (Staging)"
+  },
+  "exclude": ["images/production-only/**"],
+  "include": ["images/staging-only/**"]
+}`;
+
+const envRead = `derived apiBaseUrlLabel: string = "API: " + env.apiBaseUrl`;
+
+const localConfig = `{
+  "variables": {
+    "apiBaseUrl": { "value": "http://localhost:3000" }
+  }
+}`;
+---
+<DocsLayout title="Environments" slug="environments">
+  <DocsHero icon="🌎">
+    Environments
+    <br />
+    <span class="text-base text-slate-500 font-normal">env.&lt;name&gt;, environments/&lt;name&gt;.config.json, manifestOverrides, --env.</span>
+  </DocsHero>
+
+  <p class="text-slate-300 leading-relaxed mb-6">
+    An <strong class="text-slate-200">environment</strong> is a named, opt-in build profile — different builds of the
+    same app (<code class="text-amber-300">staging</code>/<code class="text-amber-300">production</code>) that need
+    different build-time variables (API keys, service URLs), a patched manifest, or a different set of bundled
+    files, without a second copy of the source tree. With no environment active, a build behaves exactly as it did
+    before this feature existed — this is entirely additive.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Selecting an environment</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">--env &lt;name&gt;</code> selects <code class="text-amber-300">environments/&lt;name&gt;.config.json</code>
+    (a dedicated folder, sibling to <code class="text-amber-300">src/</code>). A <code class="text-amber-300">FLASH_THEATER_ENV</code>
+    environment variable is honored as a fallback whenever <code class="text-amber-300">--env</code> isn't passed —
+    specifically so it flows through <code class="text-amber-300">npm run build:roku</code>'s <code class="text-amber-300">compile &amp;&amp; zip</code>
+    chain with zero <code class="text-amber-300">package.json</code> changes:
+  </p>
+  <CodePanel code={selectEnv} lang="bash" filename="shell" class="mb-8" />
+  <p class="text-slate-400 leading-relaxed mb-8">
+    An active environment writes to <code class="text-amber-300">out-&lt;env&gt;/</code> instead of
+    <code class="text-amber-300">out/</code>. <code class="text-amber-300">flash-theater zip --env &lt;name&gt;</code>
+    (see <a href="getting-started/" class="prose-link">Getting started</a>) then names its
+    output <code class="text-amber-300">dist/&lt;app&gt;-&lt;env&gt;-&lt;version&gt;.zip</code> instead of
+    <code class="text-amber-300">dist/&lt;app&gt;.zip</code> — different environments' builds never clobber each
+    other or the plain build.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">environments/&lt;name&gt;.config.json</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    All four keys are optional, but — unlike the base <code class="text-amber-300">flash-theater.config.json</code> —
+    an unrecognized top-level key is a hard error: <code class="text-amber-300">designResolution</code>/<code class="text-amber-300">srcDir</code>/<code class="text-amber-300">outDir</code>
+    stay base-config-only, never per-environment.
+  </p>
+  <CodePanel code={envConfig} lang="json" filename="environments/staging.config.json" class="mb-4" />
+  <ul class="text-slate-400 leading-relaxed mb-8 list-disc pl-6 space-y-2">
+    <li><code class="text-amber-300">variables</code> — each name resolves to a plain string: a literal (<code class="text-amber-300">value</code>) or a build-time bash/CI variable (<code class="text-amber-300">fromEnv</code>, failing the build if unset). Readable from DSL code as <code class="text-amber-300">env.&lt;name&gt;</code> below.</li>
+    <li><code class="text-amber-300">manifestOverrides</code> — a partial patch on top of the base <code class="text-amber-300">src/manifest</code>: each key is upserted when writing <code class="text-amber-300">out-&lt;env&gt;/manifest</code>. <code class="text-amber-300">src/manifest</code> itself is never touched.</li>
+    <li><code class="text-amber-300">exclude</code> — glob patterns added on top of the base config's own <code class="text-amber-300">exclude</code>, for this environment only.</li>
+    <li><code class="text-amber-300">include</code> — glob patterns exempted from <code class="text-amber-300">exclude</code> (base's or this environment's) for this environment only — lets a base config permanently exclude e.g. <code class="text-amber-300">images/staging-only/**</code> from the plain build, while each environment's own <code class="text-amber-300">include</code> pulls its own subtree back in.</li>
+  </ul>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">env.&lt;name&gt; — reading a declared variable</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Resolved the same structural way <code class="text-amber-300">theme.a.b</code> is — not a schemaless, free-form
+    scan like <code class="text-amber-300">store</code>/<code class="text-amber-300">router</code> — because an
+    environment's whole variable set is known from its own config file at compile time. Using
+    <code class="text-amber-300">env.*</code> with no active environment, or referencing an undeclared name, is an
+    ordinary compile error, not a runtime bug:
+  </p>
+  <CodePanel code={envRead} lang="xml" filename="EnvDemo.thr (excerpt)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Local overrides</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    An optional, git-ignored <code class="text-amber-300">environments/&lt;name&gt;.local.config.json</code>, same
+    shape, sitting beside the committed file — picked up automatically whenever that environment is selected, no
+    extra flag. Lets a developer point <code class="text-amber-300">apiBaseUrl</code> at <code class="text-amber-300">localhost</code>
+    or supply a personal sandbox key without touching the committed config:
+  </p>
+  <CodePanel code={localConfig} lang="json" filename="environments/staging.local.config.json (git-ignored)" class="mb-4" />
+  <p class="text-slate-400 leading-relaxed mb-8">
+    <code class="text-amber-300">variables</code>/<code class="text-amber-300">manifestOverrides</code> are merged
+    key-by-key with the local file winning on any conflict; <code class="text-amber-300">exclude</code>/<code class="text-amber-300">include</code>
+    are concatenated, committed patterns first.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Reference implementation — <code>apps/environments-demo</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-8">
+    Every mechanism on this page has a router-mounted, <code class="text-amber-300">scale</code>d
+    chapter in <code class="text-amber-300">apps/environments-demo</code> — 2 chapters
+    (<code class="text-amber-300">/variable-reads</code> and
+    <code class="text-amber-300">/overrides-and-manifest</code>), reachable with REWIND/FAST-FORWARD
+    once compiled and sideloaded. Unlike every other chapter app, this one has no meaningful "plain"
+    (no active environment) build at all — every chapter reads <code class="text-amber-300">env.*</code>,
+    which is a hard compile error with no active environment — so its own
+    <code class="text-amber-300">package.json</code> defaults <code class="text-amber-300">FLASH_THEATER_ENV</code>
+    to <code class="text-amber-300">dev</code> via a small <code class="text-amber-300">scripts/with-env.mjs</code>
+    wrapper whenever the caller hasn't already set one. Chapter 1 reads three declared variables (a
+    URL-shaped <code class="text-amber-300">apiBaseUrl</code>, a feature-flag-shaped
+    <code class="text-amber-300">enableBetaFeatures</code>, and a <code class="text-amber-300">fromEnv</code>-sourced
+    <code class="text-amber-300">buildLabel</code>) and narrates the closed-set validation errors that can't be
+    demonstrated live (a build that hit either one would never have produced a running app). Chapter 2
+    proves <code class="text-amber-300">manifestOverrides</code> actually patched the shipped manifest by
+    reading the title back at runtime with <code class="text-amber-300">roAppInfo.GetTitle()</code>, proves
+    <code class="text-amber-300">include</code>/<code class="text-amber-300">exclude</code> actually changed which
+    files were packaged by reading two environment-only placeholder files back with
+    <code class="text-amber-300">ReadAsciiFile</code>, and narrates local overrides
+    (<code class="text-amber-300">environments/dev.local.config.json.example</code> is this app's own
+    copy-paste starting point). See <code class="text-amber-300">findings/environments-demo-app.md</code>
+    for what each chapter covers and <code class="text-amber-300">findings/demo-app-conventions.md</code>
+    for the app-structure convention it follows.
+  </p>
+
+  <NotSupported items={[
+    'Non-string variable values (numbers, booleans, nested groups) — every <code class="text-amber-300">env.&lt;name&gt;</code> value is a plain string.',
+    'Per-environment <code class="text-amber-300">designResolution</code>/<code class="text-amber-300">srcDir</code>/<code class="text-amber-300">outDir</code> — those stay base-config-only, app-wide settings.',
+'<code class="text-amber-300">env.*</code> in the site\'s in-browser <code class="text-amber-300">ThrPlayground</code> — there is no real <code class="text-amber-300">process.env</code>/environment-file concept to demo against client-side.',
+  ]} />
+
+  <DocsFooterLinks grammarAnchor="#environments" />
+</DocsLayout>

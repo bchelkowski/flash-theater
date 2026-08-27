@@ -1,0 +1,62 @@
+<script>
+field width: integer = 0
+field height: integer = 0
+field focusPercent: float = 0.0
+field gridHasFocus: boolean = false
+field itemContent: node = invalid
+
+' Named isGridFocused, not isFocused: this is the MarkupGrid/RowList itemComponent convention
+' (SceneGraph itself writes focusPercent on a grid item), which is a DIFFERENT notion of focus from
+' this framework's own focus system — and `isFocused`/`isInFocusChain` are reserved names the
+' compiler synthesizes for exactly that other meaning (see GRAMMAR.md's "Focus system"). Keeping the
+' two apart by name is deliberate: "focused" should never quietly mean two things in one codebase.
+derived isGridFocused: boolean = focusPercent > 0.5
+derived highlightColor: string = pickColor(gridHasFocus, "0x0057FFFF", "0x3A3A3AFF")
+derived highlightOpacity: float = pickOpacity(isGridFocused)
+derived textColor: string = pickColor(isGridFocused, "0xFFFFFFFF", "0x9A9A9AFF")
+derived contentOpacity: float = pickContentOpacity(itemContent)
+derived titleText: string = itemContentTitle(itemContent)
+derived dayNameText: string = itemContentDayName(itemContent)
+
+private function pickColor(condition: boolean, whenTrue: string, whenFalse: string): string {
+  if (condition) {
+    return whenTrue
+  }
+  return whenFalse
+}
+
+private function pickOpacity(condition: boolean): float {
+  if (condition) return 1.0
+  return 0.0
+}
+
+private function pickContentOpacity(content: object): float {
+  if (content = invalid) {
+    return 0.4
+  }
+  if (content.isContentAvailable) {
+    return 1.0
+  }
+  return 0.4
+}
+
+private function itemContentTitle(content: object): string {
+  if (content = invalid) return ""
+  return content.title
+}
+
+private function itemContentDayName(content: object): string {
+  if (content = invalid) return ""
+  return UCase(content.dayName)
+}
+</script>
+
+<component>
+<Rectangle id="background" color="0x1A1A1AFF" width="{width}" height="{height}">
+  <Rectangle id="highlight" width="{width}" height="{height}" color="{highlightColor}" opacity="{highlightOpacity}" />
+  <LayoutGroup id="labelsContainer" horizAlignment="center" vertAlignment="center" translation="{[width / 2, height / 2]}">
+    <Label id="titleLabel" text="{titleText}" color="{textColor}" opacity="{contentOpacity}" />
+    <Label id="dayNameLabel" text="{dayNameText}" color="{textColor}" opacity="{contentOpacity}" />
+  </LayoutGroup>
+</Rectangle>
+</component>

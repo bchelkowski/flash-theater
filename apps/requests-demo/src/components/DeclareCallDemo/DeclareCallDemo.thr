@@ -1,0 +1,94 @@
+<script>
+' Chapter 1/4 — GRAMMAR.md's "Requests" → "Declaring an endpoint" + "Consuming a request". DEFAULT
+' example (top button): creates a plain GetPostOk.thr task (no buildRequest/no customization beyond
+' a basic parseResponse — see that file's own top comment) and consumes it the newer, promise-style
+' way (`taskManager.onResult(task, onSuccess, onError)`). CUSTOMIZED example (bottom button):
+' creates a second GetPostOk task and consumes it via BOTH supported styles side by side — the same
+' promise-style
+' `onResult` AND the old field-observer style (`task.observeFieldScoped("result"/"error", "name")`)
+' — two independent ObserveFieldScoped registrations on the same `result`/`error` fields, both
+' firing off one real request (see GRAMMAR.md's "Consuming a request — two styles, both fully
+' supported": "both styles stay available side by side").
+'
+' The old-style observer callbacks (`onCustomObserveResult`/`onCustomObserveError` below) MUST stay
+' `public` — `observeFieldScoped`'s callback name is a bare string literal, never rewritten by this
+' compiler; a `private function` here would compile to `private_onCustomObserveResult` and the
+' string would silently never match, so the observer would just never fire. See
+' GetPostParseBroken.thr's/ParseSafetyDemo.thr's own comments for the same gotcha.
+scale field rootWidth: integer = 1920
+scale field rootHeight: integer = 1080
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+scale field buttonWidth: integer = 420
+scale field buttonHeight: integer = 70
+scale state defaultButtonTranslation: object = [40, 160]
+scale state customButtonTranslation: object = [40, 250]
+scale state buttonLabelInset: object = [20, 22]
+scale state defaultReadoutTranslation: object = [40, 360]
+scale state customPromiseReadoutTranslation: object = [40, 400]
+scale state customObserveReadoutTranslation: object = [40, 440]
+
+state defaultResultText: string = "(not sent yet)"
+state customPromiseText: string = "(not sent yet)"
+state customObserveText: string = "(not sent yet)"
+
+private function sendDefault(key: string, press: boolean) {
+  if (press) {
+    task = CreateObject("roSGNode", "GetPostOk")
+    taskManager.run(task)
+    taskManager.onResult(task, onDefaultSucceeded, onDefaultFailed)
+  }
+}
+
+private function sendCustomized(key: string, press: boolean) {
+  if (press) {
+    task = CreateObject("roSGNode", "GetPostOk")
+    task.observeFieldScoped("result", "onCustomObserveResult")
+    task.observeFieldScoped("error", "onCustomObserveError")
+    taskManager.run(task)
+    taskManager.onResult(task, onCustomPromiseSucceeded, onCustomPromiseFailed)
+  }
+}
+
+private function onDefaultSucceeded(result: dynamic) {
+  state defaultResultText = "onResult (default): title = " + result.title
+}
+
+private function onDefaultFailed(error: dynamic) {
+  state defaultResultText = "onResult (default) error: " + error.message
+}
+
+private function onCustomPromiseSucceeded(result: dynamic) {
+  state customPromiseText = "onResult (promise-style): title = " + result.title
+}
+
+private function onCustomPromiseFailed(error: dynamic) {
+  state customPromiseText = "onResult (promise-style) error: " + error.message
+}
+
+public function onCustomObserveResult(event: dynamic) {
+  result = event.GetData()
+  state customObserveText = "observeFieldScoped (old-style): title = " + result.title
+}
+
+public function onCustomObserveError(event: dynamic) {
+  error = event.GetData()
+  state customObserveText = "observeFieldScoped (old-style) error: " + error.message
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="1/4 — declaring + calling a request Http {}" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="Up/Down to pick a button, OK to send it — top: default (onResult only), bottom: customized (onResult AND observeFieldScoped)" color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+  <Rectangle id="defaultButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{defaultButtonTranslation}" on:key[OK]="{sendDefault()}">
+    <Label id="defaultButtonLabel" text="Send (default — onResult)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="customButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{customButtonTranslation}" on:key[OK]="{sendCustomized()}">
+    <Label id="customButtonLabel" text="Send (customized — both styles)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="defaultReadout" text="{defaultResultText}" color="0x66FF99FF" translation="{defaultReadoutTranslation}" />
+  <Label id="customPromiseReadout" text="{customPromiseText}" color="0x66CCFFFF" translation="{customPromiseReadoutTranslation}" />
+  <Label id="customObserveReadout" text="{customObserveText}" color="0xFFCC66FF" translation="{customObserveReadoutTranslation}" />
+</Rectangle>
+</component>

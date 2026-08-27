@@ -1,0 +1,17 @@
+{
+  "name": "classes-demo",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Roku showcase for flash-theater's .flsh classes — fields/methods/visibility, extends/override/super, and reaching theme/router/taskManager from a class method — this topic's own dedicated, router-mounted chapter app (see findings/demo-app-conventions.md).",
+  "scripts": {
+    "compile": "flash-theater compile",
+    "zip": "flash-theater zip",
+    "build:roku": "npm run compile && npm run zip",
+    "sideload": "kopytko-roku installer install --zip dist/classes-demo.zip"
+  },
+  "devDependencies": {
+    "flash-theater-compiler": "*",
+    "kopytko-roku-device": "^1.5.1"
+  }
+}

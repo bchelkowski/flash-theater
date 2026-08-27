@@ -1,0 +1,7 @@
+<theme-template default="dark">
+colors: {
+  background: string = "0x1A1A1AFF"
+  highlight: string = "0x0057FFFF"
+  text: string = "0xFFFFFFFF"
+}
+</theme-template>

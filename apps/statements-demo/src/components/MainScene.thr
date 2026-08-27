@@ -1,0 +1,54 @@
+<script>
+' This app's root Scene, compiled from .thr (like every other chapter app's — see
+' apps/animation-demo/src/components/MainScene.thr for the pattern this copies). Router-mounted
+' chapters, one per statements/expressions mechanism from site/src/pages/docs/statements.astro —
+' see findings/demo-app-conventions.md for why every demo app now uses `router`+`scale` instead of
+' ad-hoc {#if:destroy}/manual-focus-claim flat-screen switching. `router.navigate()`'s own
+' default-focus proposal+claim and per-navigation vacuum mean this file has no
+' `claimFocusIfVacant`/`unregisterSubtree` calls anywhere.
+'
+' Chapter-advance keys — `on:key[rewind]`/`on:key[fastforward]`, same convention as every other
+' chapter app. Physical Back is the router's own automatic back-key handling (see GRAMMAR.md's
+' "Back key — automatic, no wiring needed"), no `on:key[back]` handler written anywhere here.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale state hintTranslation: object = [40, 660]
+
+field chapterPaths: array = [
+  "conditionals", "safe-operators", "chain-safety-and-loops", "anonymous-functions-and-raw"
+]
+state activeChapterIndex: integer = 0
+
+derived hintText: string = "Chapter " + (activeChapterIndex + 1).ToStr() + "/4 — REWIND / FAST-FORWARD to switch, BACK to return"
+
+private function nextChapter(key: string, press: boolean) {
+  if (press and activeChapterIndex < chapterPaths.Count() - 1) {
+    state activeChapterIndex = activeChapterIndex + 1
+    router.navigate("/" + chapterPaths[activeChapterIndex])
+  }
+}
+
+private function prevChapter(key: string, press: boolean) {
+  if (press and activeChapterIndex > 0) {
+    state activeChapterIndex = activeChapterIndex - 1
+    router.navigate("/" + chapterPaths[activeChapterIndex])
+  }
+}
+
+public function setup() {
+  router.setRouting([
+    { path: "conditionals", component: "ConditionalsDemo" },
+    { path: "safe-operators", component: "SafeOperatorsDemo" },
+    { path: "chain-safety-and-loops", component: "ChainSafetyAndLoopsDemo" },
+    { path: "anonymous-functions-and-raw", component: "AnonymousFunctionsAndRawDemo" }
+  ])
+  router.navigate("/" + chapterPaths[0])
+}
+</script>
+
+<component extends="Scene" on:key[fastforward]="{nextChapter()}" on:key[rewind]="{prevChapter()}">
+<Rectangle id="root" color="0x101010FF" width="{rootWidth}" height="{rootHeight}">
+  <FlashTheaterRouterOutlet id="outlet" width="{rootWidth}" height="{rootHeight}" />
+  <Label id="hint" text="{hintText}" color="0x888888FF" translation="{hintTranslation}" />
+</Rectangle>
+</component>

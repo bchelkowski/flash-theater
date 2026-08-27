@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- flash-theater:generated — do not edit by hand, source: RichCard.thr -->
+<component name="RichCard" extends="Group">
+  <interface>
+    <field id="cardWidth" type="integer" value="500" onChange="on_cardWidthChange" />
+    <field id="cardHeight" type="integer" value="110" onChange="on_cardHeightChange" />
+    <field id="buttonWidth" type="integer" value="200" onChange="on_buttonWidthChange" />
+    <field id="buttonHeight" type="integer" value="40" onChange="on_buttonHeightChange" />
+    <field id="buttonLabelInset" type="array" onChange="on_buttonLabelInsetChange" />
+    <field id="cardTitle" type="string" value="&quot;&quot;" onChange="on_cardTitleChange" />
+  </interface>
+  <children>
+    <Rectangle id="cardRoot" color="0x1A1A1AFF">
+      <Label id="titleLabel" color="0xFFFFFFFF" />
+      <Label id="statusLabel" color="0x66FF99FF" />
+      <Rectangle id="btnLeft" color="0x2A2A2AFF">
+        <Label id="btnLeftLabel" text="Left" color="0xFFFFFFFF" />
+      </Rectangle>
+      <Rectangle id="btnRight" color="0x2A2A2AFF">
+        <Label id="btnRightLabel" text="Right" color="0xFFFFFFFF" />
+      </Rectangle>
+    </Rectangle>
+  </children>
+  <script type="text/brightscript" uri="RichCard.brs" />
+  <script type="text/brightscript" uri="pkg:/components/FlashTheater/Scale/FlashTheaterScale.brs" />
+</component>

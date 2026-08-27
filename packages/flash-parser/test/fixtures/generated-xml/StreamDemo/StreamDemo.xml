@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- flash-theater:generated — do not edit by hand, source: StreamDemo.thr -->
+<component name="StreamDemo" extends="Group">
+  <interface>
+    <field id="rootWidth" type="integer" value="880" onChange="on_rootWidthChange" />
+    <field id="rootHeight" type="integer" value="720" onChange="on_rootHeightChange" />
+    <field id="buttonWidth" type="integer" value="300" onChange="on_buttonWidthChange" />
+    <field id="buttonHeight" type="integer" value="60" onChange="on_buttonHeightChange" />
+    <function name="setup" />
+  </interface>
+  <children>
+    <Rectangle id="root" color="0x151515FF">
+      <Label id="title" text="Stream demo — emit/subscribe, script and class instances" color="0xFFFFFFFF" />
+      <Rectangle id="emitButton" focusable="true" color="0x2A2A2AFF">
+        <Label id="emitButtonLabel" text="Emit on dataLoaded" color="0xFFFFFFFF" />
+      </Rectangle>
+      <Rectangle id="publisherButton" focusable="true" color="0x2A2A4AFF">
+        <Label id="publisherButtonLabel" text="Change publisher" color="0xFFFFFFFF" />
+      </Rectangle>
+      <Rectangle id="refreshButton" focusable="true" color="0x2A4A2AFF">
+        <Label id="refreshButtonLabel" text="Refresh subscriber readout" color="0xFFFFFFFF" />
+      </Rectangle>
+      <Label id="dataLoadedReadout" color="0x66FF99FF" />
+      <Label id="publisherReadout" color="0xFFCC66FF" />
+      <Label id="subscriberReadout" color="0x66CCFFFF" />
+    </Rectangle>
+  </children>
+  <script type="text/brightscript" uri="StreamDemo.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Classes/Publisher.brs" />
+  <script type="text/brightscript" uri="pkg:/components/FlashTheater/Stream/FlashTheaterStream.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Classes/Subscriber.brs" />
+  <script type="text/brightscript" uri="pkg:/components/FlashTheater/Scale/FlashTheaterScale.brs" />
+</component>

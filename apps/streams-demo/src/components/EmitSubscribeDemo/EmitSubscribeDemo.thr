@@ -1,0 +1,108 @@
+<script>
+' Chapter 1/3 — `stream <name>: <Type>` declaration, `.emit(value)`/`.subscribe(callback)`, all at
+' script level (no `.flsh` classes involved yet — see chapters 2/3 for that). See GRAMMAR.md's
+' "`stream`" section and findings/streams.md.
+'
+' Default example (lateJoinStream): emits a value FIRST, entirely before anything is subscribed,
+' then subscribes afterward — proving `.subscribe`'s BehaviorSubject-style replay is SYNCHRONOUS
+' and STATEFUL: a subscriber that arrives after at least one `.emit()` sees the current value
+' immediately, inside `.subscribe` itself, with no separate "read the current value" call needed.
+' "Step 1: emit" and "Step 2: subscribe (late)" are deliberately two SEPARATE button presses (not
+' one combined action) so the replay is visibly a consequence of subscribing late, not just an
+' artifact of both happening in the same function call.
+'
+' Customized addition (bridgeStream): the idiomatic bridge pattern GRAMMAR.md/findings/streams.md
+' describe — subscribed exactly ONCE, in `setup()`, and the callback writes the received value into
+' an already-declared `state` (`state bridgeText = ...`), so that write then rides the full,
+' pre-existing template-cascade machinery unchanged. "Emit 3x in a row" proves the subscriber's
+' callback fires for EVERY emission, not just the first — `bridgeFireCount` increments on each one.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 420
+scale field buttonHeight: integer = 50
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state emitLateButtonTranslation: object = [40, 120]
+scale state subscribeLateButtonTranslation: object = [40, 180]
+scale state bridgeOnceButtonTranslation: object = [40, 240]
+scale state bridgeMultipleButtonTranslation: object = [40, 300]
+scale state lateEmitReadoutTranslation: object = [40, 380]
+scale state lateSubscribeReadoutTranslation: object = [40, 410]
+scale state bridgeReadoutTranslation: object = [40, 460]
+scale state bridgeFireCountReadoutTranslation: object = [40, 490]
+scale state buttonLabelInset: object = [16, 12]
+
+stream lateJoinStream: string
+stream bridgeStream: string
+
+state hasSubscribedLate: boolean = false
+state lateEmitText: string = "lateJoinStream: not emitted yet"
+state lateSubscribeText: string = "late subscriber: not subscribed yet"
+
+state bridgeText: string = "bridgeStream (bridged into state): none yet"
+state bridgeFireCount: integer = 0
+
+derived bridgeFireCountLabel: string = "bridge subscriber's callback fired " + bridgeFireCount.ToStr() + " time(s)"
+
+public function setup() {
+  ' Subscribed once, here, before any emission — the idiomatic bridge pattern. Every future
+  ' `bridgeStream.emit(...)` re-runs this same callback, writing straight into `state`.
+  bridgeStream.subscribe(function (value: string) {
+    state bridgeText = "bridgeStream (bridged into state): " + value
+    state bridgeFireCount = bridgeFireCount + 1
+  })
+}
+
+private function emitLate(key: string, press: boolean) {
+  if (press) {
+    lateJoinStream.emit("late-value")
+    state lateEmitText = "lateJoinStream: emitted 'late-value' (no subscriber yet)"
+  }
+}
+
+private function subscribeLate(key: string, press: boolean) {
+  if (press and not hasSubscribedLate) {
+    state hasSubscribedLate = true
+    lateJoinStream.subscribe(function (value: string) {
+      state lateSubscribeText = "late subscriber immediately saw: " + value
+    })
+  }
+}
+
+private function emitBridgeOnce(key: string, press: boolean) {
+  if (press) {
+    bridgeStream.emit("single-emit")
+  }
+}
+
+private function emitBridgeMultiple(key: string, press: boolean) {
+  if (press) {
+    bridgeStream.emit("multi-emit-1")
+    bridgeStream.emit("multi-emit-2")
+    bridgeStream.emit("multi-emit-3")
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="1/3 — stream declaration + .emit/.subscribe" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="UP/DOWN between buttons, OK to run — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Rectangle id="emitLateButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{emitLateButtonTranslation}" on:key[OK]="{emitLate()}">
+    <Label id="emitLateButtonLabel" text="Step 1: emit lateJoinStream (before subscribing)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="subscribeLateButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{subscribeLateButtonTranslation}" on:key[OK]="{subscribeLate()}">
+    <Label id="subscribeLateButtonLabel" text="Step 2: subscribe now (late) — see the replay" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="bridgeOnceButton" focusable="true" color="0x2A2A4AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{bridgeOnceButtonTranslation}" on:key[OK]="{emitBridgeOnce()}">
+    <Label id="bridgeOnceButtonLabel" text="Bridge: emit bridgeStream once" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="bridgeMultipleButton" focusable="true" color="0x2A2A4AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{bridgeMultipleButtonTranslation}" on:key[OK]="{emitBridgeMultiple()}">
+    <Label id="bridgeMultipleButtonLabel" text="Bridge: emit 3x in a row" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="lateEmitReadout" text="{lateEmitText}" color="0x66FF99FF" translation="{lateEmitReadoutTranslation}" />
+  <Label id="lateSubscribeReadout" text="{lateSubscribeText}" color="0x66FF99FF" translation="{lateSubscribeReadoutTranslation}" />
+  <Label id="bridgeReadout" text="{bridgeText}" color="0xFFCC66FF" translation="{bridgeReadoutTranslation}" />
+  <Label id="bridgeFireCountReadout" text="{bridgeFireCountLabel}" color="0xFFCC66FF" translation="{bridgeFireCountReadoutTranslation}" />
+</Rectangle>
+</component>

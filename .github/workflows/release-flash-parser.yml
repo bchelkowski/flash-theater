@@ -1,0 +1,230 @@
+name: Release flash-parser
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+  id-token: write
+  actions: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/flash-parser
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Configure git
+        run: |
+          git config user.name "Błażej Chełkowski"
+          git config user.email "bchelkow@gmail.com"
+
+      - name: Install dependencies
+        working-directory: ${{ github.workspace }}
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Bump version
+        id: version
+        run: |
+          npm version ${{ inputs.bump }} --no-git-tag-version
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Bumped to $VERSION"
+
+      - name: Generate changelog entry
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          DATE=$(date +%Y-%m-%d)
+          SCOPE="flash-parser"
+          PREV_TAG=$(git tag --list 'flash-parser-v*' --sort=-v:refname | head -1)
+
+          if [ -n "$PREV_TAG" ]; then
+            SUBJECTS=$(git log "$PREV_TAG"..HEAD --pretty=format:"%s" --no-merges)
+          else
+            SUBJECTS=$(git log --pretty=format:"%s" --no-merges)
+          fi
+
+          # Every grep below is wrapped with `|| true`: GitHub Actions runs run:
+          # steps as `bash -eo pipefail`, and grep exits 1 when a commit-type
+          # category has zero matches (the normal case for most releases) —
+          # without this, set -e/pipefail would abort the whole step the
+          # instant one category came up empty. Patterns exclude the `!`
+          # breaking-change marker (matched separately by BREAKING below) so a
+          # breaking commit is never double-listed under both sections.
+          pick() {
+            echo "$SUBJECTS" \
+              | { grep -E "^$1\($SCOPE\):" || true; } \
+              | sed -E "s/^$1\($SCOPE\): (.)/- \u\1/"
+          }
+
+          BREAKING=$(echo "$SUBJECTS" | { grep -E "^\w+\($SCOPE\)!:" || true; } \
+            | sed -E "s/^\w+\($SCOPE\)!: (.)/- \u\1/")
+          ADDED=$(pick "feat")
+          FIXED=$(pick "fix")
+          CHANGED=$(echo "$SUBJECTS" | { grep -E "^(refactor|perf)\($SCOPE\):" || true; } \
+            | sed -E "s/^(refactor|perf)\($SCOPE\): (.)/- \u\2/")
+          MAINTENANCE=$(pick "chore")
+
+          ENTRY_FILE=$(mktemp)
+          echo "## [$VERSION] - $DATE" >> "$ENTRY_FILE"
+          if [ -n "$BREAKING" ]; then
+            echo "" >> "$ENTRY_FILE"
+            echo "### Breaking Changes" >> "$ENTRY_FILE"
+            echo "$BREAKING" >> "$ENTRY_FILE"
+          fi
+          if [ -n "$ADDED" ]; then
+            echo "" >> "$ENTRY_FILE"
+            echo "### Added" >> "$ENTRY_FILE"
+            echo "$ADDED" >> "$ENTRY_FILE"
+          fi
+          if [ -n "$FIXED" ]; then
+            echo "" >> "$ENTRY_FILE"
+            echo "### Fixed" >> "$ENTRY_FILE"
+            echo "$FIXED" >> "$ENTRY_FILE"
+          fi
+          if [ -n "$CHANGED" ]; then
+            echo "" >> "$ENTRY_FILE"
+            echo "### Changed" >> "$ENTRY_FILE"
+            echo "$CHANGED" >> "$ENTRY_FILE"
+          fi
+          if [ -n "$MAINTENANCE" ]; then
+            echo "" >> "$ENTRY_FILE"
+            echo "### Maintenance" >> "$ENTRY_FILE"
+            echo "$MAINTENANCE" >> "$ENTRY_FILE"
+          fi
+          if [ "$(wc -l < "$ENTRY_FILE")" -eq 1 ]; then
+            echo "" >> "$ENTRY_FILE"
+            echo "- Release $VERSION" >> "$ENTRY_FILE"
+          fi
+
+          echo "entry<<EOF" >> "$GITHUB_OUTPUT"
+          cat "$ENTRY_FILE" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          rm "$ENTRY_FILE"
+
+      - name: Update CHANGELOG.md
+        env:
+          ENTRY: ${{ steps.changelog.outputs.entry }}
+        run: |
+          cd "$GITHUB_WORKSPACE"
+
+          if [ -f packages/flash-parser/CHANGELOG.md ]; then
+            awk -v entry="$ENTRY" '
+              /^# Changelog/ { print; getline; print; print ""; print entry; next }
+              { print }
+            ' packages/flash-parser/CHANGELOG.md > /tmp/changelog.tmp
+            mv /tmp/changelog.tmp packages/flash-parser/CHANGELOG.md
+          else
+            echo -e "# Changelog\n\n$ENTRY\n" > packages/flash-parser/CHANGELOG.md
+          fi
+
+      - name: Commit, tag, and push
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="flash-parser-v${VERSION}"
+          git add packages/flash-parser/package.json packages/flash-parser/CHANGELOG.md
+          git commit -m "chore(flash-parser): release v${VERSION}"
+          git tag "$TAG" -m "flash-parser v${VERSION}"
+          git push origin HEAD --tags
+
+      - name: Create GitHub Release
+        # Pinned to a commit SHA, not the mutable @v3 tag: this action runs
+        # with contents: write right next to npm publish --provenance, and
+        # it's the one third-party (non-GitHub-owned) action in this
+        # pipeline — a hijacked tag here has real blast radius. v3.0.2.
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228
+        with:
+          tag_name: flash-parser-v${{ steps.version.outputs.version }}
+          name: flash-parser v${{ steps.version.outputs.version }}
+          body: ${{ steps.changelog.outputs.entry }}
+          generate_release_notes: false
+
+      - name: Publish to npm
+        run: npm publish --access public --provenance
+
+      - name: Update packages/compiler's dependency to the new version
+        working-directory: ${{ github.workspace }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # No registry-propagation wait needed: this is an npm-workspaces
+          # monorepo, so "flash-parser" resolves to the local workspace
+          # package (packages/flash-parser, already bumped to $VERSION by
+          # the "Bump version" step above in this same job) whenever its
+          # own version satisfies what's requested — this install never
+          # actually reaches the registry. See findings/release-and-ci.md.
+          cd packages/compiler && npm install "flash-parser@${VERSION}"
+
+      - name: Commit and push compiler dependency update
+        id: compiler-bump
+        working-directory: ${{ github.workspace }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git add packages/compiler/package.json package-lock.json
+          if git diff --cached --quiet; then
+            echo "No compiler changes"
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "chore(compiler): bump flash-parser to v${VERSION}"
+            git push origin HEAD
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # packages/compiler's own npm-published version is NOT bumped by the
+      # step above — it only updates the dependency declaration in git. At
+      # 0.0.x, npm's caret range (^0.0.1 => >=0.0.1 <0.0.2, verified via
+      # node's semver package) pins the dependency to an EXACT version, so
+      # the already-published flash-theater-compiler would never pick up
+      # this new flash-parser release — not even on a fresh `npm install` —
+      # until flash-theater-compiler itself is republished with the updated
+      # range. Dispatching a patch release here closes that gap
+      # automatically instead of relying on a human to remember. See
+      # findings/release-and-ci.md.
+      - name: Trigger flash-theater-compiler patch release
+        if: steps.compiler-bump.outputs.bumped == 'true'
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run release-compiler.yml --ref "${{ github.ref_name }}" -f bump=patch
+
+  deploy-pages:
+    name: Deploy GitHub Pages
+    # site/parser.astro shows a live v{version} pill read from this
+    # package's own package.json at build time — redeploy so it picks up
+    # the version this release just bumped to (the release commit above
+    # touches packages/*/package.json, not site/**, so the push-triggered
+    # path filter in gh-pages.yml would otherwise never fire for a release).
+    needs: release
+    uses: ./.github/workflows/gh-pages.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write

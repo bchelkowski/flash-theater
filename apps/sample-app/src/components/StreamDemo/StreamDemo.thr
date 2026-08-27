@@ -1,0 +1,91 @@
+<script>
+import Publisher from "components/Classes/Publisher.flsh"
+import Subscriber from "components/Classes/Subscriber.flsh"
+
+' Demonstrates the `stream` primitive end to end — see GRAMMAR.md's "`stream`" section and
+' findings/streams.md. Reachable from Shell's own sidebar menu ("Stream demo").
+'
+' Three scenarios, confirmed live (not just that it compiles):
+'  - Script-level: this component's own `dataLoaded` stream, emitted and subscribed to entirely
+'    from its own script — the ordinary case.
+'  - Component-to-class: this component's own script subscribes DIRECTLY to `Publisher`'s own
+'    `onChanged` stream field, exactly like reading any other public member on a class instance —
+'    `m.publisher.onChanged.subscribe(...)`, no special mechanism needed.
+'  - Class-to-class: `Subscriber.subscribeTo(publisher)` subscribes one class instance to
+'    another's own stream field entirely from class code — this component's script never sees that
+'    value flow through it at all; "Refresh subscriber readout" only pulls a snapshot of what
+'    Subscriber already privately received.
+'
+' `scale`d throughout — same HD baseline as every other screen, see Shell.thr's own top comment.
+scale field rootWidth: integer = 880
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 300
+scale field buttonHeight: integer = 60
+scale state titleTranslation: object = [40, 20]
+scale state emitButtonTranslation: object = [40, 100]
+scale state publisherButtonTranslation: object = [40, 180]
+scale state refreshButtonTranslation: object = [40, 260]
+scale state buttonLabelInset: object = [16, 16]
+scale state dataLoadedReadoutTranslation: object = [40, 360]
+scale state publisherReadoutTranslation: object = [40, 400]
+scale state subscriberReadoutTranslation: object = [40, 440]
+
+stream dataLoaded: string
+
+state dataLoadedText: string = "dataLoaded: none yet"
+state publisherFromComponentText: string = "publisher (component subscribed): none yet"
+state subscriberText: string = "subscriber (class-to-class): none yet"
+
+public function setup() {
+  ' Reveals this screen immediately instead of waiting out childOutlet's own loadingTimeout safety
+  ' net — see Shell.thr's own top comment and findings/router-transitions.md.
+  router.markReady()
+  dataLoaded.subscribe(function (value: string) {
+    state dataLoadedText = "dataLoaded: " + value
+  })
+
+  m.publisher = Publisher()
+  m.publisher.onChanged.subscribe(function (value: string) {
+    state publisherFromComponentText = "publisher (component subscribed): " + value
+  })
+
+  m.subscriber = Subscriber()
+  m.subscriber.subscribeTo(m.publisher)
+}
+
+private function emitDataLoaded(key: string, press: boolean) {
+  if (press) {
+    dataLoaded.emit("payload-ready")
+  }
+}
+
+private function changePublisher(key: string, press: boolean) {
+  if (press) {
+    m.publisher.change("hello-from-publisher")
+  }
+}
+
+private function refreshSubscriberReadout(key: string, press: boolean) {
+  if (press) {
+    state subscriberText = "subscriber (class-to-class): " + m.subscriber.lastReceived()
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="Stream demo — emit/subscribe, script and class instances" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Rectangle id="emitButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{emitButtonTranslation}" on:key[OK]="{emitDataLoaded()}">
+    <Label id="emitButtonLabel" text="Emit on dataLoaded" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="publisherButton" focusable="true" color="0x2A2A4AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{publisherButtonTranslation}" on:key[OK]="{changePublisher()}">
+    <Label id="publisherButtonLabel" text="Change publisher" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="refreshButton" focusable="true" color="0x2A4A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{refreshButtonTranslation}" on:key[OK]="{refreshSubscriberReadout()}">
+    <Label id="refreshButtonLabel" text="Refresh subscriber readout" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="dataLoadedReadout" text="{dataLoadedText}" color="0x66FF99FF" translation="{dataLoadedReadoutTranslation}" />
+  <Label id="publisherReadout" text="{publisherFromComponentText}" color="0xFFCC66FF" translation="{publisherReadoutTranslation}" />
+  <Label id="subscriberReadout" text="{subscriberText}" color="0x66CCFFFF" translation="{subscriberReadoutTranslation}" />
+</Rectangle>
+</component>

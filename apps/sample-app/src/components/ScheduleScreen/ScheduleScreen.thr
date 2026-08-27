@@ -1,0 +1,83 @@
+<script>
+' The "schedule" child of Shell — reuses ScheduleList (the same real component
+' GRAMMAR.md's own {#each}/bind: worked examples already use). Demonstrates:
+'   - router.params.* — dayParam reads the param HomeScreen.thr passed via
+'     router.navigate("/browse/schedule", { day: ... }).
+'   - The automatic setup() hook (see runtime-assets/RouterOutlet/FlashTheaterRouterOutlet.brs) —
+'     ScheduleList needs an explicit load() call before it has any content/focusable rows at all
+'     (same requirement this app's original demo already had); a router-mounted component has no
+'     other way to run one-time post-construction logic, since nothing external calls
+'     scene.callFunc("setup") the way source/Main.brs does for MainScene itself.
+'   - router.updateBackJourneyData(...) + router.back() together (goBack) — see HomeScreen.thr's
+'     own welcomeText for the other half of this round trip.
+'   - router.navigate(path, params, skipInHistory) — the three-argument form (peekTuesday):
+'     switches the displayed day WITHOUT pushing a new history entry, so a later "back" press
+'     returns straight to HomeScreen, never stopping at the Tuesday view. Verify live: OK -> PLAY
+'     -> back reaches HomeScreen in exactly one back-key press, not two.
+'   - A default-focus="true" element that DOES NOT EXIST YET at init() time — `lateDefault` below
+'     lives inside {#if:destroy ready}, and `ready` only flips in setup(), i.e. after init() has
+'     already registered `backPrompt`. This is the ordering that used to silently break: a nested
+'     child component's own reconcile (ScheduleList's, triggered by load() on the line above)
+'     would fire while this screen was still being constructed, see that nothing held focus, grab
+'     an arbitrary registrant belonging to a DIFFERENT component, and record it as this screen's
+'     "last focused" — which permanently outranked the declared default. Owner-scoped recovery
+'     (recoverFocusFor) fixed it. Verify live: entering this screen focuses `lateDefault` (green),
+'     never `backPrompt`. See findings/focus-system.md.
+'
+' Local template coordinates are relative to the content pane — see HomeScreen.thr's own comment.
+' `list`'s own root is a fixed 300x360, occupying local (40-340, 60-420). backPrompt/lateDefault
+' start at x=380, a clear 40px past the list's own right edge — never overlaps it — and sit
+' deliberately at the same Y positions as Shell's own two menu rows (220/300): a real cross-axis
+' overlap, not merely a diagonal one, is what navigate() requires for "right" to reach straight
+' into this screen from either menu item (see runtime-assets/FocusManager's bestCandidate()).
+' `scale`d throughout — same HD baseline as every other screen, see Shell.thr's own top comment.
+scale field rootWidth: integer = 880
+scale field rootHeight: integer = 720
+scale field backPromptWidth: integer = 460
+scale field backPromptHeight: integer = 50
+scale state headingTranslation: object = [40, 20]
+scale state listTranslation: object = [40, 200]
+scale state backPromptTranslation: object = [380, 220]
+scale state lateDefaultTranslation: object = [380, 300]
+scale state promptLabelInset: object = [10, 14]
+
+derived dayParam: string = router.params.day
+derived headerText: string = "Schedule for " + dayParam
+state ready: boolean = false
+
+public function setup() {
+  m.list.callFunc("load")
+  state ready = true
+  ' Reveals this screen immediately instead of waiting out childOutlet's own loadingTimeout safety
+  ' net — see Shell.thr's own top comment and findings/router-transitions.md.
+  router.markReady()
+}
+
+private function goBack(key: string, press: boolean) {
+  if (press) {
+    router.updateBackJourneyData({ lastDay: dayParam })
+    router.back()
+  }
+}
+
+private function peekTuesday(key: string, press: boolean) {
+  if (press) {
+    router.navigate("/browse/schedule", { day: "Tue" }, true)
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="dayLabel" text="{headerText}" color="0xFFFFFFFF" translation="{headingTranslation}" />
+  <ScheduleList id="list" translation="{listTranslation}" />
+  <Rectangle id="backPrompt" focusable="true" color="0x3A3A3AFF" width="{backPromptWidth}" height="{backPromptHeight}" translation="{backPromptTranslation}" on:key[OK]="{goBack()}" on:key[play]="{peekTuesday()}">
+    <Label id="backPromptLabel" text="OK: back   PLAY: peek Tue" color="0xFFFFFFFF" translation="{promptLabelInset}" />
+  </Rectangle>
+  {#if:destroy ready}
+    <Rectangle id="lateDefault" focusable="true" default-focus="true" color="0x00AA55FF" width="{backPromptWidth}" height="{backPromptHeight}" translation="{lateDefaultTranslation}" on:key[OK]="{goBack()}">
+      <Label id="lateDefaultLabel" text="Loaded after setup()" color="0xFFFFFFFF" translation="{promptLabelInset}" />
+    </Rectangle>
+  {/if}
+</Rectangle>
+</component>

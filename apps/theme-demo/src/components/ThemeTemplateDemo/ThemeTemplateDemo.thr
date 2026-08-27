@@ -1,0 +1,96 @@
+<script>
+' Chapter 1/3 — <theme-template>/<theme name="..."> declaration + partial-override validation.
+' The app's theme lives in ../Theme/ — Theme.thr (the template, default="ocean", 2 groups:
+' colors {background/text/accent}, spacing {gutter/cardPadding}), Ocean.thr (a FULL override —
+' all 5 leaves), and Sunset.thr (a PARTIAL override — only colors.background/accent; colors.text
+' and both spacing.* leaves are omitted, so they fall back to Theme.thr's own template defaults,
+' never to another variant's values — see GRAMMAR.md's "Theme" section's fallback rule).
+'
+' Default example: the app boots with "ocean" active (Theme.thr's own default="ocean" attribute)
+' — every readout below reflects ocean's own values, since it overrides all 5 leaves.
+' Customized example: pressing "Show sunset" calls switchTheme("sunset") and re-renders the same
+' readouts — background/accent visibly change (sunset's own values), while text/gutter/cardPadding
+' stay exactly what they were under Theme.thr's own template defaults (0xCCCCCCFF/24/12), NOT
+' ocean's (0xEAF4FFFF/40/20), proving the fallback targets the template, not the previously-active
+' variant. `activeVariantName` is tracked locally (a plain `state`, set alongside each
+' switchTheme() call) purely for this readout — the theme node itself exposes no way to read back
+' which variant name is currently active (see chapter 3 for switchTheme's own full grammar).
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 420
+scale field buttonHeight: integer = 50
+scale field swatchSize: integer = 60
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state oceanButtonTranslation: object = [40, 110]
+scale state sunsetButtonTranslation: object = [40, 170]
+scale state buttonLabelInset: object = [16, 12]
+scale state activeVariantTranslation: object = [40, 240]
+scale state backgroundSwatchTranslation: object = [40, 280]
+scale state accentSwatchTranslation: object = [120, 280]
+scale state backgroundReadoutTranslation: object = [40, 360]
+scale state textReadoutTranslation: object = [40, 390]
+scale state accentReadoutTranslation: object = [40, 420]
+scale state gutterReadoutTranslation: object = [40, 450]
+scale state cardPaddingReadoutTranslation: object = [40, 480]
+scale state fallbackNoteTranslation: object = [40, 540]
+
+state activeVariantName: string = "ocean"
+
+derived activeVariantText: string = "active variant (tracked locally): " + activeVariantName
+derived backgroundValue: string = theme.colors.background
+derived textValue: string = theme.colors.text
+derived accentValue: string = theme.colors.accent
+' Theme leaves can't have a method (`.ToStr()`) chained directly onto the `theme.a.b` dot-chain —
+' the compiler's theme-path validator (`analysis/global-bindings.ts`'s `resolveThemePath`) walks
+' every segment after "theme" looking for a declared group/leaf member, so `theme.spacing.gutter
+' .ToStr()` is rejected with `expression/theme-path-through-leaf` ("indexes through spacing.gutter,
+' which is a leaf value, not a group") — `.ToStr` gets collected as if it were a further theme
+' path segment, not recognized as a method call. Reading the leaf into its own typed `derived`
+' first (below), then calling `.ToStr()` on THAT derived's name instead of on `theme.*` directly,
+' sidesteps it entirely, since `gutterValue`/`cardPaddingValue` are ordinary derived references at
+' that point, not theme paths. See findings/theme-demo-app.md.
+derived gutterValue: integer = theme.spacing.gutter
+derived cardPaddingValue: integer = theme.spacing.cardPadding
+derived backgroundReadoutText: string = "colors.background = " + backgroundValue
+derived textReadoutText: string = "colors.text = " + textValue
+derived accentReadoutText: string = "colors.accent = " + accentValue
+derived gutterReadoutText: string = "spacing.gutter = " + gutterValue.ToStr()
+derived cardPaddingReadoutText: string = "spacing.cardPadding = " + cardPaddingValue.ToStr()
+
+private function showOcean(key: string, press: boolean) {
+  if (press) {
+    m.global.ft_theme.callFunc("switchTheme", "ocean")
+    state activeVariantName = "ocean"
+  }
+}
+
+private function showSunset(key: string, press: boolean) {
+  if (press) {
+    m.global.ft_theme.callFunc("switchTheme", "sunset")
+    state activeVariantName = "sunset"
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="1/3 — theme-template + theme variants" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="OK on a button to switch — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Rectangle id="oceanButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{oceanButtonTranslation}" on:key[OK]="{showOcean()}">
+    <Label id="oceanButtonLabel" text="Show ocean (full override, the default variant)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="sunsetButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{sunsetButtonTranslation}" on:key[OK]="{showSunset()}">
+    <Label id="sunsetButtonLabel" text="Show sunset (partial override)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="activeVariantReadout" text="{activeVariantText}" color="0xAAAAAAFF" translation="{activeVariantTranslation}" />
+  <Rectangle id="backgroundSwatch" color="{backgroundValue}" width="{swatchSize}" height="{swatchSize}" translation="{backgroundSwatchTranslation}" />
+  <Rectangle id="accentSwatch" color="{accentValue}" width="{swatchSize}" height="{swatchSize}" translation="{accentSwatchTranslation}" />
+  <Label id="backgroundReadout" text="{backgroundReadoutText}" color="0x66CCFFFF" translation="{backgroundReadoutTranslation}" />
+  <Label id="textReadout" text="{textReadoutText}" color="0x66CCFFFF" translation="{textReadoutTranslation}" />
+  <Label id="accentReadout" text="{accentReadoutText}" color="0x66CCFFFF" translation="{accentReadoutTranslation}" />
+  <Label id="gutterReadout" text="{gutterReadoutText}" color="0x66CCFFFF" translation="{gutterReadoutTranslation}" />
+  <Label id="cardPaddingReadout" text="{cardPaddingReadoutText}" color="0x66CCFFFF" translation="{cardPaddingReadoutTranslation}" />
+  <Label id="fallbackNote" text="sunset overrides only colors.background/accent — text and spacing keep Theme.thr's own template defaults" color="0x666666FF" translation="{fallbackNoteTranslation}" />
+</Rectangle>
+</component>

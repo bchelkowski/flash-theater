@@ -1,0 +1,35 @@
+<script>
+' A minimal, NON-focusable Timer-owning leaf — used by FocusedTeardownDemo.thr as a nested child of
+' its own DIRECTLY-focusable `widget` Rectangle. Deliberately not focusable itself: nesting a
+' SEPARATELY-owned focusable node (TimerLeafWidget's own root is focusable) inside another focusable
+' wrapper reproduces findings/focus-router-free-and-nested-gaps.md's own "opaque nested custom
+' component" gap instead of the ordering gap this fixture exists to test — the destroy-mode block's
+' own unregister/recoverFocusFor lines only ever see a focusable id declared DIRECTLY in the
+' enclosing component's own template, never one hidden behind a separate .thr component boundary. So
+' `widget` itself (the focusable, visible-to-template-analysis Rectangle) is what recoverFocusFor
+' actually reaches; this widget only supplies the ft_unmount-cascade-reachable Timer content.
+' See apps/animation-demo's own TickReadout.thr for the sibling fixture proving the ANIMATED
+' (`out:`) case.
+'
+' Kept as `public function startDemo()`, NOT renamed to `setup()` — a plain nested child, never
+' itself router-mounted (see FocusedTeardownDemo.thr's own top comment).
+scale field width: integer = 340
+scale field height: integer = 36
+scale state readoutTranslation: object = [8, 6]
+
+state tickCount: integer = 0
+
+derived tickLabel: string = "ticks: " + tickCount.ToStr()
+
+public function startDemo() {
+  m.tickTimer = setInterval(function() {
+    state tickCount = tickCount + 1
+  }, 300)
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x1A1A1AFF" width="{width}" height="{height}">
+  <Label id="readout" text="{tickLabel}" color="0xFFFFFFFF" translation="{readoutTranslation}" />
+</Rectangle>
+</component>

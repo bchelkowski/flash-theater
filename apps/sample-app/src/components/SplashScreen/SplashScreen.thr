@@ -1,0 +1,64 @@
+<script>
+' The app's own true cold-boot screen — the FIRST route MainScene.thr ever navigates to, mounted
+' before Shell (and its sidebar menu) exist at all. This is a genuine vacuum: nothing anywhere in
+' the whole app holds focus when this screen mounts, which is the one thing
+' LoadingDemoScreen.thr's own nested demo (reachable from Shell's sidebar menu — see that file's
+' own top comment) can never exercise, since Shell's own menu already holds focus the moment it
+' mounts, before this screen's sibling route ever gets a chance to leave a real vacuum behind.
+'
+' Same setTimeout(...) use as LoadingDemoScreen.thr — simulates a load. `claimFocusIfVacant(m.top)`
+' is the explicit ask that fills the vacuum once `enterButton` (this screen's own
+' default-focus="true") actually exists — nothing about default-focus resolution is itself
+' "async-aware"; see runtime-assets/FocusManager's own doc comment on claimFocusIfVacant.
+'
+' Verify live: cold-boot the app, leave the remote alone for ~1.5s, and confirm OK on "Enter app"
+' genuinely works (not just IsInFocusChain() reporting true) — the same one-hop-from-a-live-native-
+' callback shape as every other real focus grab in this app. See findings/focus-system.md.
+'
+' `scale`d throughout — see Shell.thr's own top comment for why HD is this app's real baseline.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field enterButtonWidth: integer = 300
+scale field enterButtonHeight: integer = 50
+scale state titleTranslation: object = [490, 300]
+scale state bodyTranslation: object = [490, 360]
+scale state enterButtonLabelInset: object = [100, 14]
+
+state ready: boolean = false
+
+' Declaration-level raw BrightScript passthrough — a sibling of field/derived/function, appended
+' unrewritten to the very end of the generated init(), after everything else init() already sets
+' up. A natural fit for the app's own cold-boot screen: a real device-info debug log line, a
+' BrightScript idiom (CreateObject) this DSL has no sugar for. See
+' findings/raw-brightscript-passthrough.md.
+' flash-theater:raw
+print "Flash Theater sample app booting on " + CreateObject("roDeviceInfo").GetModel()
+' flash-theater:end-raw
+
+public function setup() {
+  setTimeout(function() {
+    state ready = true
+    m.global.ft_focus.callFunc("claimFocusIfVacant", m.top)
+  }, 1500)
+}
+
+private function enterApp(key: string, press: boolean) {
+  if (press) {
+    router.navigate("/browse")
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x050505FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="Flash Theater Sample" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  {#if:destroy not ready}
+    <Label id="loadingLabel" text="Loading..." color="0x888888FF" translation="{bodyTranslation}" />
+  {/if}
+  {#if:destroy ready}
+    <Rectangle id="enterButton" focusable="true" default-focus="true" color="0x00AA55FF" width="{enterButtonWidth}" height="{enterButtonHeight}" translation="{bodyTranslation}" on:key[OK]="{enterApp()}">
+      <Label id="enterButtonLabel" text="Enter app" color="0xFFFFFFFF" translation="{enterButtonLabelInset}" />
+    </Rectangle>
+  {/if}
+</Rectangle>
+</component>

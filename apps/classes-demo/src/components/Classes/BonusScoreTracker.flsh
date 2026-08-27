@@ -1,0 +1,23 @@
+import ScoreTracker from "./ScoreTracker.flsh"
+
+' `extends`/`override`/`super(...)` — the overriding constructor's FIRST statement is exactly one
+' `super(...)` call (anything before it is `dsl/super-call-not-first`), and both overridden methods
+' below are marked `override` (an unmarked shadow of `add`/`describe` would be
+' `class/missing-override`). `add`/`describe` both reference `m.score` — a field declared PRIVATE
+' on the BASE class (ScoreTracker) — proving an inherited private member is reachable from a
+' subclass's own override, rewritten to `m.private_score` exactly like it would be inside
+' ScoreTracker itself.
+class BonusScoreTracker extends ScoreTracker {
+  override constructor(start: integer, bonusMultiplier: integer) {
+    super(start)
+    private bonusMultiplier: integer = bonusMultiplier
+  }
+
+  override public function add(points: integer) {
+    m.score = m.score + (points * m.bonusMultiplier)
+  }
+
+  override public function describe(): string {
+    return "Score (x" + str(m.bonusMultiplier) + " bonus): " + str(m.score)
+  }
+}

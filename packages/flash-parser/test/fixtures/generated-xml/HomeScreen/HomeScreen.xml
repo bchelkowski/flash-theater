@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- flash-theater:generated — do not edit by hand, source: HomeScreen.thr -->
+<component name="HomeScreen" extends="Group">
+  <interface>
+    <field id="rootWidth" type="integer" value="880" onChange="on_rootWidthChange" />
+    <field id="rootHeight" type="integer" value="720" onChange="on_rootHeightChange" />
+    <field id="itemWidth" type="integer" value="300" onChange="on_itemWidthChange" />
+    <field id="itemHeight" type="integer" value="120" onChange="on_itemHeightChange" />
+    <field id="promptWidth" type="integer" value="620" onChange="on_promptWidthChange" />
+    <field id="promptHeight" type="integer" value="60" onChange="on_promptHeightChange" />
+  </interface>
+  <children>
+    <Rectangle id="root" color="0x101010FF">
+      <ScheduleDateMenuItem id="item" />
+      <Rectangle id="prompt" focusable="true" color="0x3A3A3AFF">
+        <Label id="promptLabel" color="0xFFFFFFFF" />
+      </Rectangle>
+    </Rectangle>
+  </children>
+  <script type="text/brightscript" uri="HomeScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/FlashTheater/Scale/FlashTheaterScale.brs" />
+</component>

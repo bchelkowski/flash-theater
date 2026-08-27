@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="AnonymousFunctionNestedFixture" extends="Group">
+  <interface>
+    <field id="threshold" type="integer" value="0" />
+    <field id="ft_routeReady" type="boolean" value="false" />
+    <function name="filterItems" />
+    <function name="ft_unmount" />
+  </interface>
+  <children>
+    <LayoutGroup id="root" />
+  </children>
+  <script type="text/brightscript" uri="AnonymousFunctionNestedFixture.brs" />
+</component>

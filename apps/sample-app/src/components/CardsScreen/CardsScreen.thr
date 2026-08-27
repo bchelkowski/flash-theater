@@ -1,0 +1,55 @@
+<script>
+' Two stacked RichCard.thr instances, each its own compiled component (its own owner in
+' FlashTheaterFocusManager's registry) — demonstrates card-level UP/DOWN navigation between
+' them (ordinary cross-owner LRUD, same mechanism ScheduleList's own rows use) composed with
+' each card's own OK-to-enter/back-to-exit drill-in (RichCard.thr's own top comment).
+'
+' card1 sits at y=460, lined up with Shell's own "Cards demo" menu row, for the usual
+' RIGHT-from-the-menu entry convention every other screen in this app already uses
+' (HomeScreen/ScheduleScreen/LoadingDemoScreen all Y-align their own entry point the same way).
+'
+' `scale`d throughout, same as Shell.thr and RichCard.thr — this screen's own root size and the
+' per-card x/y offsets are all authored for this app's HD design resolution (see
+' flash-theater.config.json). The per-card position is computed in makeCard() below, inside an
+' {#each} item factory — a template `{expr}` binding can't be `scale`d directly (only a
+' declaration or a function-body assignment can), so the scaled x/y is computed once via the
+' `scale <local> = <expr>` statement form and stored directly on the card's own data, same
+' pattern `pressCount` uses in RichCard.thr.
+
+scale field rootWidth: integer = 880
+scale field rootHeight: integer = 720
+scale state headingTranslation: object = [40, 20]
+
+state ready: boolean = false
+state cards: object = invalid
+
+public function setup() {
+  state cards = [makeCard(1, "Card One"), makeCard(2, "Card Two")]
+  state ready = true
+  ' Reveals this screen immediately instead of waiting out childOutlet's own loadingTimeout safety
+  ' net — see Shell.thr's own top comment and findings/router-transitions.md.
+  router.markReady()
+}
+
+private function makeCard(idNum: integer, title: string): object {
+  card = {}
+  card.id = "c" + idNum.ToStr()
+  card.title = title
+  scale x = 40
+  scale y = 460 + (idNum - 1) * 130
+  card.x = x
+  card.y = y
+  return card
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x101010FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="heading" text="Cards demo - OK enters a card, back exits it" color="0xFFFFFFFF" translation="{headingTranslation}" />
+  {#if:destroy ready}
+    {#each cards as card (card.id)}
+      <RichCard id="card" cardTitle="{card.title}" translation="{[card.x, card.y]}" />
+    {/each}
+  {/if}
+</Rectangle>
+</component>

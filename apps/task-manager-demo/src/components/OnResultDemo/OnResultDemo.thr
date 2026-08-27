@@ -1,0 +1,86 @@
+<script>
+' Chapter 3/4 — taskManager.onResult(task, onSuccess, [onError]) — promise-style consumption of a
+' Task's own `result`/`error` fields, sugar over `observeFieldScoped` (see GRAMMAR.md's "Task
+' manager" section and findings/task-manager-onresult.md). NEW chapter — apps/async-demo never had
+' a dedicated onResult deep-dive; it only demonstrated onResult against a `request Http {}` Task
+' (RequestDemoScreen.thr's "Load posts (onResult)" button). This chapter demonstrates it against a
+' plain hand-authored Task instead (SlowTask.thr, extended with `result`/`error`/`shouldFail`
+' fields for exactly this purpose — see that file's own top comment) — proving `onResult(...)`
+' works against ANY Task that writes its own `result`/`error` fields, not just a request-generated
+' one.
+'
+' Default example: "Run task (succeeds)" — SlowTask finishes normally, writing `m.top.result`;
+' `onSuccess` fires with the already-unwrapped value (no `event.GetData()` needed, unlike the older
+' `observeFieldScoped` style — see RunCancelDemo.thr's `onTaskStateChange` for a contrasting
+' example of that older style still in use elsewhere in this app).
+'
+' Customized example: "Run task (fails)" sets `task.shouldFail = true` before `run(...)` — SlowTask
+' writes `m.top.error` instead, and `onError` fires with that value. Both buttons drive the SAME
+' `taskManager.onResult(task, onSuccess, onError)` call shape — only the task's own `shouldFail`
+' input field differs — to make clear `onResult`'s fire-once "settle" semantics apply identically
+' to either outcome, not just the happy path.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 420
+scale field buttonHeight: integer = 50
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state successButtonTranslation: object = [40, 120]
+scale state errorButtonTranslation: object = [40, 180]
+scale state resultReadoutTranslation: object = [40, 250]
+scale state errorReadoutTranslation: object = [40, 280]
+scale state buttonLabelInset: object = [16, 12]
+
+state resultText: string = "Not run yet"
+state errorText: string = ""
+
+private function loadSuccessful(key: string, press: boolean) {
+  if (press) {
+    task = CreateObject("roSGNode", "SlowTask")
+    task.functionName = "doWork"
+    task.label = "onResult-ok"
+    task.durationSeconds = 1
+    taskManager.run(task)
+    taskManager.onResult(task, onSlowTaskSucceeded, onSlowTaskFailed)
+  }
+}
+
+private function loadFailing(key: string, press: boolean) {
+  if (press) {
+    task = CreateObject("roSGNode", "SlowTask")
+    task.functionName = "doWork"
+    task.label = "onResult-error"
+    task.durationSeconds = 1
+    task.shouldFail = true
+    taskManager.run(task)
+    taskManager.onResult(task, onSlowTaskSucceeded, onSlowTaskFailed)
+  }
+}
+
+' `result` here is already exactly what SlowTask.thr's own `doWork()` wrote to `m.top.result` — no
+' `event.GetData()` unwrapping needed.
+private function onSlowTaskSucceeded(result: dynamic) {
+  state resultText = "onSuccess: " + result.label + " finished after " + result.durationSeconds.ToStr() + "s"
+  state errorText = ""
+}
+
+private function onSlowTaskFailed(error: dynamic) {
+  state errorText = "onError: " + error.message
+  state resultText = "Not run yet"
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="3/4 — taskManager.onResult(task, onSuccess, onError)" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="UP/DOWN between buttons, OK to run — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Rectangle id="successButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{successButtonTranslation}" on:key[OK]="{loadSuccessful()}">
+    <Label id="successButtonLabel" text="Run task (succeeds — onSuccess fires)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="errorButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{errorButtonTranslation}" on:key[OK]="{loadFailing()}">
+    <Label id="errorButtonLabel" text="Run task (fails — onError fires)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="resultReadout" text="{resultText}" color="0x66FF99FF" translation="{resultReadoutTranslation}" />
+  <Label id="errorReadout" text="{errorText}" color="0xFF6666FF" translation="{errorReadoutTranslation}" />
+</Rectangle>
+</component>

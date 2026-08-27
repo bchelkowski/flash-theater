@@ -1,0 +1,55 @@
+<script>
+' This app's root Scene, compiled from .thr (like every other chapter app's — see
+' apps/animation-demo/src/components/MainScene.thr for the pattern this copies). Router-mounted
+' chapters, one per environments mechanism — see findings/demo-app-conventions.md for why every
+' demo app uses `router`+`scale`, and findings/environments-demo-app.md for this app's own notes.
+'
+' Unlike every other chapter app, this whole app has no meaningful "plain" (no active environment)
+' build — every chapter reads env.*, which is a hard compile error with no active environment
+' (`expression/env-requires-active-environment`). This app's own package.json (compile/zip/
+' build:roku scripts) defaults FLASH_THEATER_ENV to "dev" via scripts/with-env.mjs whenever the
+' caller hasn't already set one — root `npm run build:roku` calls
+' `npm run build:roku --workspace apps/environments-demo` with no --env of its own, same as every
+' other app in that chain, and still succeeds because of that default. Pass
+' FLASH_THEATER_ENV=prod yourself (from this app's own directory, or through the root script) to
+' get the other environment's build instead.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale state hintTranslation: object = [40, 690]
+
+field chapterPaths: array = [
+  "variable-reads", "overrides-and-manifest"
+]
+state activeChapterIndex: integer = 0
+
+derived hintText: string = "Chapter " + (activeChapterIndex + 1).ToStr() + "/2 — REWIND / FAST-FORWARD to switch, BACK to return"
+
+private function nextChapter(key: string, press: boolean) {
+  if (press and activeChapterIndex < chapterPaths.Count() - 1) {
+    state activeChapterIndex = activeChapterIndex + 1
+    router.navigate("/" + chapterPaths[activeChapterIndex])
+  }
+}
+
+private function prevChapter(key: string, press: boolean) {
+  if (press and activeChapterIndex > 0) {
+    state activeChapterIndex = activeChapterIndex - 1
+    router.navigate("/" + chapterPaths[activeChapterIndex])
+  }
+}
+
+public function setup() {
+  router.setRouting([
+    { path: "variable-reads", component: "EnvVariableReadsDemo" },
+    { path: "overrides-and-manifest", component: "OverridesAndManifestDemo" }
+  ])
+  router.navigate("/" + chapterPaths[0])
+}
+</script>
+
+<component extends="Scene" on:key[fastforward]="{nextChapter()}" on:key[rewind]="{prevChapter()}">
+<Rectangle id="root" color="0x101010FF" width="{rootWidth}" height="{rootHeight}">
+  <FlashTheaterRouterOutlet id="outlet" width="{rootWidth}" height="{rootHeight}" />
+  <Label id="hint" text="{hintText}" color="0x888888FF" translation="{hintTranslation}" />
+</Rectangle>
+</component>

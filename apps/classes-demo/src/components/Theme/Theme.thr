@@ -1,0 +1,7 @@
+<theme-template default="classic">
+colors: {
+  background: string = "0x151515FF"
+  accent: string = "0x66CCFFFF"
+  text: string = "0xFFFFFFFF"
+}
+</theme-template>

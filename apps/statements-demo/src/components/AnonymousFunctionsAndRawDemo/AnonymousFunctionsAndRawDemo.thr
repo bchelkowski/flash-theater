@@ -1,0 +1,111 @@
+<script>
+' Chapter 4/4 — anonymous function expressions (both tiers) plus the raw BrightScript passthrough
+' escape hatch. See GRAMMAR.md's "Anonymous function expressions" and "Raw BrightScript
+' passthrough" sections for the full grammar this exercises.
+'
+' Default: "Schedule greeting" (OK) is Tier 1 — the anonymous function is the WHOLE right-hand side
+' of a plain bare assignment (`greet = function () { ... }`), then that local is passed to
+' `setTimeout` as a plain callback reference — the anonymous function is DEFINED via Tier 1, then
+' USED as a callback.
+'
+' Customized: "Keep evens" (OK) is Tier 2 — the anonymous function is NESTED directly inside a call
+' argument (`filterNumbers(numbers, function (n: integer): boolean { ... })`), proving it's a real
+' primary-expression production reachable anywhere an ordinary expression is legal, not just
+' top-level-assignment sugar (the same shape as GRAMMAR.md's own `filterDays`/`removeToday`
+' reference example). "Describe device" (OK) additionally demonstrates the raw BrightScript
+' passthrough escape hatch — `CreateObject("roDeviceInfo").GetModel()` has no DSL sugar of its own,
+' so it's written by hand inside a `' flash-theater:raw` / `' flash-theater:end-raw` block, copied
+' into the generated .brs completely unchanged (no identifier-rewrite).
+'
+' Neither anonymous function above closes over this component's own local variables (matches real
+' BrightScript semantics) — only field/derived/state/function references and `m` resolve inside
+' their bodies; `greet`'s own body only ever writes a `state`, never reads a local from
+' `scheduleGreeting`.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 420
+scale field buttonHeight: integer = 50
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state scheduleButtonTranslation: object = [40, 110]
+scale state greetingReadoutTranslation: object = [40, 170]
+scale state evensButtonTranslation: object = [40, 240]
+scale state evensReadoutTranslation: object = [40, 300]
+scale state deviceButtonTranslation: object = [40, 360]
+scale state deviceReadoutTranslation: object = [40, 420]
+scale state buttonLabelInset: object = [16, 12]
+
+state greetingText: string = "(not scheduled yet)"
+state evensResult: string = "(not filtered yet)"
+state deviceText: string = "(not read yet)"
+
+' Tier 1: the whole right-hand side of a plain bare assignment is the anonymous function itself.
+' The resulting local, `greet`, is then passed to `setTimeout` as an ordinary callback reference.
+private function scheduleGreeting(key: string, press: boolean) {
+  if (press) {
+    state greetingText = "scheduling..."
+    greet = function () {
+      state greetingText = "Hello from a Tier 1 anonymous function!"
+    }
+    setTimeout(greet, 500)
+  }
+}
+
+private function filterNumbers(numbers: object, predicate: Function): object {
+  kept = []
+  for (i = 0 to numbers.Count() - 1) {
+    if (predicate(numbers[i])) {
+      kept.Push(numbers[i])
+    }
+  }
+  return kept
+}
+
+' Tier 2: the anonymous function is nested directly inside filterNumbers' own call argument —
+' a real primary expression, not just whole-right-hand-side sugar.
+private function keepEvens(key: string, press: boolean) {
+  if (press) {
+    numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    evens = filterNumbers(numbers, function (n: integer): boolean {
+      return n MOD 2 == 0
+    })
+    joined = ""
+    for each (n in evens) {
+      joined = joined + n.ToStr() + " "
+    }
+    state evensResult = "evens: " + joined
+  }
+}
+
+private function describeDevice(): string {
+  ' flash-theater:raw
+  result = "model: " + CreateObject("roDeviceInfo").GetModel()
+  ' flash-theater:end-raw
+  return result
+}
+
+private function loadDeviceInfo(key: string, press: boolean) {
+  if (press) {
+    state deviceText = describeDevice()
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="4/4 — anonymous functions + raw passthrough" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="UP/DOWN between buttons, OK to trigger — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Rectangle id="scheduleButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{scheduleButtonTranslation}" on:key[OK]="{scheduleGreeting()}">
+    <Label id="scheduleButtonLabel" text="Schedule greeting (Tier 1: whole-RHS anon fn)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="greetingReadout" text="{greetingText}" color="0x66FF99FF" translation="{greetingReadoutTranslation}" />
+  <Rectangle id="evensButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{evensButtonTranslation}" on:key[OK]="{keepEvens()}">
+    <Label id="evensButtonLabel" text="Keep evens (Tier 2: anon fn as call arg)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="evensReadout" text="{evensResult}" color="0x66CCFFFF" translation="{evensReadoutTranslation}" />
+  <Rectangle id="deviceButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{deviceButtonTranslation}" on:key[OK]="{loadDeviceInfo()}">
+    <Label id="deviceButtonLabel" text="Describe device (raw passthrough)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="deviceReadout" text="{deviceText}" color="0x66CCFFFF" translation="{deviceReadoutTranslation}" />
+</Rectangle>
+</component>

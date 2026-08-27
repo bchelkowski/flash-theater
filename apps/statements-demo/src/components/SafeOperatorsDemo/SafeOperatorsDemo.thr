@@ -1,0 +1,100 @@
+<script>
+' Chapter 2/4 — crash-safe ==/!= (ft_equals), crash-safe relational </>/<=/>= (ft_relationalGuard),
+' and crash-safe unary ! (ft_not). See GRAMMAR.md's "Comparison and relational operators" and "Safe
+' NOT (!)" for the full grammar this exercises.
+'
+' Default example: "Add item" (OK) grows a counter; `describeCount()` uses plain `==` to pick a
+' singular/plural label (a bare BrightScript `=` would never crash here — count is always an
+' integer — but this is still the idiomatic DSL spelling), `hasItems` is a `derived` built on `!=`,
+' `isOverLimit` is a `derived` built on a normal, non-throwing `>` relational comparison, and
+' "Toggle hint" flips a boolean `state` with `!`.
+'
+' Customized addition: "Trigger mismatch" (OK) deliberately compares a STRING to the integer
+' `itemCount` with `>` — a genuine, incompatible-type ordering comparison. Unlike `==`/`!=` (which
+' has an obviously-safe fallback value, `false`, for a mismatch) there's no sensible fallback value
+' for "is X greater than Y" when X and Y aren't comparable, so `ft_relationalGuard` THROWS instead
+' of guessing — the one operator in this whole family that can still crash if left uncaught. Caught
+' here with `try`/`catch`, displaying the thrown `e.code`/`e.message` directly.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 420
+scale field buttonHeight: integer = 50
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state addButtonTranslation: object = [40, 110]
+scale state toggleHintButtonTranslation: object = [40, 170]
+scale state statusReadoutTranslation: object = [40, 240]
+scale state limitReadoutTranslation: object = [40, 270]
+scale state hintReadoutTranslation: object = [40, 300]
+scale state mismatchButtonTranslation: object = [40, 360]
+scale state mismatchReadoutTranslation: object = [40, 430]
+scale state buttonLabelInset: object = [16, 12]
+
+state itemCount: integer = 0
+state showEmptyHint: boolean = true
+state mismatchResult: string = "(not tried yet)"
+
+derived hasItems: boolean = itemCount != 0
+derived isOverLimit: boolean = itemCount > 5
+derived hintReadout: string = "showEmptyHint=" + showEmptyHint.ToStr() + " (toggled with !)"
+
+private function describeCount(count: integer): string {
+  if (count == 0) {
+    return "no items yet"
+  }
+  if (count == 1) {
+    return "1 item"
+  }
+  return count.ToStr() + " items"
+}
+
+derived statusReadout: string = "hasItems=" + hasItems.ToStr() + "  " + describeCount(itemCount)
+derived limitReadout: string = "isOverLimit (count > 5) = " + isOverLimit.ToStr()
+
+private function addItem(key: string, press: boolean) {
+  if (press) {
+    state itemCount = itemCount + 1
+  }
+}
+
+private function toggleHint(key: string, press: boolean) {
+  if (press) {
+    state showEmptyHint = !showEmptyHint
+  }
+}
+
+' Deliberately triggers ft_relationalGuard's throw path: a String compared to an Integer with `>`
+' is a genuine, incompatible-type ordering comparison — no safe fallback value exists for it, so
+' this THROWS a structured { code, message } error instead of returning a guessed true/false.
+private function triggerMismatch(key: string, press: boolean) {
+  if (press) {
+    badValue = "seven"
+    try {
+      isBigger = badValue > itemCount
+      state mismatchResult = "no throw?! isBigger=" + isBigger.ToStr()
+    } catch (e) {
+      state mismatchResult = "caught " + e.code + ": " + e.message
+    }
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="2/4 — crash-safe ==/!=/</>/<=/>=/!" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="UP/DOWN between buttons, OK to trigger — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Rectangle id="addButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{addButtonTranslation}" on:key[OK]="{addItem()}">
+    <Label id="addButtonLabel" text="Add item" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="toggleHintButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{toggleHintButtonTranslation}" on:key[OK]="{toggleHint()}">
+    <Label id="toggleHintButtonLabel" text="Toggle hint (! on a boolean state)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="statusReadoutLabel" text="{statusReadout}" color="0x66FF99FF" translation="{statusReadoutTranslation}" />
+  <Label id="limitReadoutLabel" text="{limitReadout}" color="0x66FF99FF" translation="{limitReadoutTranslation}" />
+  <Label id="hintReadoutLabel" text="{hintReadout}" color="0xFFCC66FF" translation="{hintReadoutTranslation}" />
+  <Rectangle id="mismatchButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{mismatchButtonTranslation}" on:key[OK]="{triggerMismatch()}">
+    <Label id="mismatchButtonLabel" text="Trigger mismatch (string > itemCount)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="mismatchReadout" text="{mismatchResult}" color="0xFF6666FF" translation="{mismatchReadoutTranslation}" />
+</Rectangle>
+</component>

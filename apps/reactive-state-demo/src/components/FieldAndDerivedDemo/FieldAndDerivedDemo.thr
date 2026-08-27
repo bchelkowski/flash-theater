@@ -1,0 +1,91 @@
+<script>
+' Chapter 1/4 — `field` (public, externally-settable, typed) + `derived` (auto-recomputed,
+' statically-inferred dependencies). See GRAMMAR.md's "field"/"derived" sections and
+' site/src/pages/docs/reactive-state.astro.
+'
+' Default: itemLabel/itemCount/unitPrice (field) drive totalPrice/summaryLabel (derived) — a
+' straightforward field/derived pair driving a template binding, similar in spirit to
+' apps/sample-app's own FavoriteCounter.thr's `favoritesLabel`.
+'
+' Customized: bulkOrderLabel demonstrates a derived chain the compiler CAN fully statically
+' type-check end to end (a comparison — always boolean — feeding a same-script function call,
+' checked against that function's own declared return type). shoutingItemLabel demonstrates
+' derived's own `unknown` escape hatch: UCase(...) is a BrightScript builtin call, which
+' analysis/derived-type-check.ts can never statically resolve, so it infers `unknown` and stays
+' silent rather than false-positiving against the declared `string` type — see GRAMMAR.md's
+' "derived" section for the exact inference boundary (literals, field/state/derived refs,
+' arithmetic/comparison/boolean ops, and same-script/ClassName(...).method() calls are checked;
+' any other member/dot access or a builtin call is not).
+'
+' A `field`'s value can only ever be set from OUTSIDE the component (a parent XML attribute, or
+' node.setField()) — there is no DSL syntax for writing to one from inside its own code (see
+' findings/reactivity-state.md's shadowing entry, demonstrated properly in StateDemo.thr, chapter
+' 2) — so this chapter's fields stay at their compile-time defaults for the whole session; the
+' interactive button below only toggles a local `state` note, it never mutates a field.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 460
+scale field buttonHeight: integer = 50
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state itemLabelTranslation: object = [40, 110]
+scale state summaryTranslation: object = [40, 140]
+scale state bulkOrderTranslation: object = [40, 170]
+scale state shoutingTranslation: object = [40, 200]
+scale state noteButtonTranslation: object = [40, 250]
+scale state noteButtonLabelInset: object = [16, 12]
+scale state noteTextTranslation: object = [40, 320]
+
+field itemLabel: string = "Widgets"
+field itemCount: integer = 3
+field unitPrice: float = 2.5
+
+' Checkable: arithmetic on two field refs (integer * float -> a numeric type, compatible with the
+' declared `float`).
+derived totalPrice: float = itemCount * unitPrice
+' Checkable: string concatenation of field refs + string literals -> `string`.
+derived summaryLabel: string = itemLabel + " x" + str(itemCount) + " = $" + str(totalPrice)
+
+' Checkable: a comparison always infers `boolean`, regardless of the operands' own types.
+derived isBulkOrder: boolean = itemCount > 10
+' Checkable: a call to a function declared in THIS script, checked against its own return-type
+' clause (here, `string`).
+derived bulkOrderLabel: string = describeBulkOrder(isBulkOrder)
+
+' NOT checkable: UCase(...) is a BrightScript builtin call, so the whole expression infers
+' `unknown` — the declared `string` type here is never actually verified against the expression,
+' it is simply always accepted (unknown is compatible with anything).
+derived shoutingItemLabel: string = UCase(itemLabel)
+
+state showTypeNote: boolean = false
+
+private function describeBulkOrder(isBulk: boolean): string {
+  if (isBulk) {
+    return "isBulkOrder: yes (>10 items — a checkable comparison feeding a checkable function call)"
+  }
+  return "isBulkOrder: no (<=10 items — a checkable comparison feeding a checkable function call)"
+}
+
+private function toggleTypeNote(key: string, press: boolean) {
+  if (press) {
+    state showTypeNote = not showTypeNote
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="1/4 — field + derived" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="OK toggles the type-inference note below — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Label id="itemLabelText" text="{itemLabel}" color="0xAAAAAAFF" translation="{itemLabelTranslation}" />
+  <Label id="summaryText" text="{summaryLabel}" color="0x66CCFFFF" translation="{summaryTranslation}" />
+  <Label id="bulkOrderText" text="{bulkOrderLabel}" color="0x66FF99FF" translation="{bulkOrderTranslation}" />
+  <Label id="shoutingText" text="{shoutingItemLabel}" color="0xFFCC66FF" translation="{shoutingTranslation}" />
+  <Rectangle id="noteButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{noteButtonTranslation}" on:key[OK]="{toggleTypeNote()}">
+    <Label id="noteButtonLabel" text="Toggle type-inference note" color="0xFFFFFFFF" translation="{noteButtonLabelInset}" />
+  </Rectangle>
+  {#if:destroy showTypeNote}
+    <Label id="noteText" text="totalPrice/summaryLabel/isBulkOrder/bulkOrderLabel are all statically type-checked; shoutingItemLabel's UCase(...) call is not — the checker infers unknown and never flags it." color="0x888888FF" translation="{noteTextTranslation}" />
+  {/if}
+</Rectangle>
+</component>

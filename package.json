@@ -1,0 +1,42 @@
+{
+  "name": "flash-theater",
+  "version": "0.0.1",
+  "private": true,
+  "description": "flash-theater — a precompiler for Roku/BrightScript/SceneGraph. Currently compiles a single .thr component to .xml/.brs, running on a real Roku device.",
+  "license": "MIT",
+  "author": "Błażej Chełkowski",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bchelkowski/flash-theater.git"
+  },
+  "keywords": [
+    "brightscript",
+    "roku",
+    "scenegraph",
+    "compiler",
+    "precompiler",
+    "dsl"
+  ],
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace packages/flash-parser && npm run build --workspace packages/compiler",
+    "test": "npm run build --workspace packages/flash-parser && npm run test --workspace packages/flash-parser && npm run test --workspace packages/compiler",
+    "lint": "node scripts/generate-map.mjs --check && eslint \"packages/*/src/**/*.ts\" \"packages/*/bin/**/*.ts\" \"packages/*/test/**/*.ts\"",
+    "map": "node scripts/generate-map.mjs",
+    "build:roku": "npm run build --workspace packages/flash-parser && npm run build --workspace packages/compiler && npm install && npm run build:roku --workspace apps/sample-app && npm run build:roku --workspace apps/focus-demo && npm run build:roku --workspace apps/animation-demo && npm run build:roku --workspace apps/task-manager-demo && npm run build:roku --workspace apps/requests-demo && npm run build:roku --workspace apps/timers-demo && npm run build:roku --workspace apps/reactive-state-demo && npm run build:roku --workspace apps/router-demo && npm run build:roku --workspace apps/template-and-binding-demo && npm run build:roku --workspace apps/statements-demo && npm run build:roku --workspace apps/streams-demo && npm run build:roku --workspace apps/theme-demo && npm run build:roku --workspace apps/classes-demo && npm run build:roku --workspace apps/environments-demo"
+  },
+  "devDependencies": {
+    "eslint": "^10.7.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.64.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
+  }
+}

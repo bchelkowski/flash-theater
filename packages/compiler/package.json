@@ -1,0 +1,71 @@
+{
+  "name": "flash-theater-compiler",
+  "version": "0.0.1",
+  "description": "The .thr → .xml/.brs compiler for the flash-theater language.",
+  "license": "MIT",
+  "author": "Błażej Chełkowski",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bchelkowski/flash-theater.git",
+    "directory": "packages/compiler"
+  },
+  "keywords": [
+    "brightscript",
+    "roku",
+    "scenegraph",
+    "compiler",
+    "precompiler",
+    "dsl",
+    "cli"
+  ],
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./compile": {
+      "types": "./dist/src/compile.d.ts",
+      "default": "./dist/src/compile.js"
+    },
+    "./dsl-ast": {
+      "types": "./dist/src/dsl-parser/dsl-ast.d.ts",
+      "default": "./dist/src/dsl-parser/dsl-ast.js"
+    }
+  },
+  "bin": {
+    "flash-theater": "dist/bin/flash-theater.js"
+  },
+  "files": [
+    "dist",
+    "runtime-assets",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "mocha",
+    "lint": "eslint \"./src/**/*.ts\"",
+    "clean": "node -e \"require('fs').rmSync('dist', {recursive: true, force: true})\"",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.18",
+    "flash-parser": "^0.0.1",
+    "kopytko-brightscript-parser": "^1.4.0"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.9.2",
+    "chai": "^6.2.2",
+    "mocha": "^11.7.6",
+    "source-map-support": "^0.5.21",
+    "tsx": "^4.20.3",
+    "typescript": "^6.0.3"
+  }
+}

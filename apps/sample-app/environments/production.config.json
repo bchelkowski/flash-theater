@@ -1,0 +1,11 @@
+{
+  "variables": {
+    "apiBaseUrl": { "value": "https://api.example.com" },
+    "buildLabel": { "value": "release" }
+  },
+  "manifestOverrides": {
+    "title": "Flash Theater Sample"
+  },
+  "exclude": ["images/staging-only/**"],
+  "include": ["images/production-only/**", "components/EnvDemo/**"]
+}

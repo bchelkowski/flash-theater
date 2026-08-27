@@ -1,0 +1,58 @@
+<script>
+' Chapter 3/7 — the vacuum rule, self-contained: two buttons appear at different times, each
+' claiming focus into a genuine vacancy via claimFocusIfVacant (the same escape hatch
+' apps/sample-app's LoadingDemoScreen.thr uses for "default-focus after a delay"). If the user
+' does nothing, StageOne claims the vacuum at ~600ms; StageTwo's own later claim at ~2000ms
+' should NOT steal focus away from StageOne, since StageOne already holds it by then — the vacuum
+' rule only ever applies into an actual vacancy, never takes focus from something alive. Verify
+' the other branch too: press OK on StageOne once it appears (moving real focus there
+' deliberately), then watch StageTwo appear later and still fail to steal it — same guarantee,
+' user-driven instead of timer-driven.
+state stageOneReady: boolean = false
+state stageTwoReady: boolean = false
+state stageOnePresses: integer = 0
+
+private function pressStageOne(key: string, press: boolean) {
+  if (press) {
+    state stageOnePresses = stageOnePresses + 1
+  }
+}
+
+public function setup() {
+  setTimeout(function() {
+    state stageOneReady = true
+    m.global.ft_focus.callFunc("claimFocusIfVacant", m.top)
+  }, 600)
+  setTimeout(function() {
+    state stageTwoReady = true
+    m.global.ft_focus.callFunc("claimFocusIfVacant", m.top)
+  }, 2000)
+}
+
+scale field rootWidth: integer = 1920
+scale field rootHeight: integer = 1080
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+scale field stageWidth: integer = 500
+scale field stageHeight: integer = 140
+scale state stageOneTranslation: object = [40, 200]
+scale state stageTwoTranslation: object = [40, 380]
+scale state stageLabelInset: object = [16, 16]
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="3/7 — the vacuum rule: automatic focus only ever fills a real vacancy" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="StageOne claims focus at ~0.6s — StageTwo appears at ~2s but must NOT steal it" color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+  {#if:destroy stageOneReady}
+  <Rectangle id="stageOne" focusable="true" color="0x2A6A4AFF" width="{stageWidth}" height="{stageHeight}" translation="{stageOneTranslation}" on:key[OK]="{pressStageOne()}">
+    <Label id="stageOneLabel" text="StageOne (appeared ~0.6s) — a genuine vacuum, so it claims focus" color="0xFFFFFFFF" translation="{stageLabelInset}" wrap="true" width="{stageWidth - 32}" />
+  </Rectangle>
+  {/if}
+  {#if:destroy stageTwoReady}
+  <Rectangle id="stageTwo" focusable="true" color="0x2A2A6AFF" width="{stageWidth}" height="{stageHeight}" translation="{stageTwoTranslation}">
+    <Label id="stageTwoLabel" text="StageTwo (appeared ~2s) — StageOne already holds focus, so this never steals it" color="0xFFFFFFFF" translation="{stageLabelInset}" wrap="true" width="{stageWidth - 32}" />
+  </Rectangle>
+  {/if}
+</Rectangle>
+</component>

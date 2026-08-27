@@ -1,0 +1,150 @@
+<script>
+import GlobalAccessDemo from "../Classes/GlobalAccessDemo.flsh"
+
+' Demonstrates the global taskManager singleton end to end — see GRAMMAR.md's "Task manager"
+' section and findings/task-manager-core.md for the full design. Reachable from Shell's own sidebar
+' menu ("Task demo").
+'
+' maxConcurrent is lowered to 2 (from the default 50), and the alert thresholds are lowered to
+' 2/4 (from the default 30/50), so both the queueing AND the alerting behavior are visible without
+' needing anywhere near 30-50 real tasks — "Start 5 tasks" creates five normal-priority
+' SlowTask.thr instances at once; only 2 ever run concurrently, the other 3 queue (each task takes
+' ~3s, see SlowTask.thr's own doWork()) and immediately push queuedCount past both thresholds.
+' "Start 1 (high)" demonstrates priority: pressed while the queue is already full of normal-
+' priority work, its task starts as soon as EITHER running slot frees, ahead of any
+' still-queued normal-priority task — verify live via queryAppUi/console timing (see
+' findings/task-manager-core.md), not visible from the aggregate counts alone.
+'
+' `runningCount`/`queuedCount` are plain, non-reactive snapshot reads (no `watch` support for an
+' arbitrary global field, unlike store/theme) — this screen polls them into its own `state` via
+' setInterval(...). `alertLevel` is different: `taskManager.onAlertChanged(onQueueAlert)`
+' subscribes directly (no polling needed) — it's the one taskManager field meant to be observed
+' this way. `m.taskIds` (a plain array, not a DSL `state` — this DSL's field/state types don't
+' include array/object, see token-stream-parser.ts's FIELD_TYPES) remembers every id
+' `taskManager.run(...)` has returned so "Cancel last" has something to call
+' `taskManager.cancel(...)` with, whether that task is still queued or already running.
+'
+' `scale`d throughout — same HD baseline as every other screen, see Shell.thr's own top comment.
+scale field rootWidth: integer = 880
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 300
+scale field buttonHeight: integer = 60
+scale state titleTranslation: object = [40, 20]
+scale state startButtonTranslation: object = [40, 100]
+scale state startHighButtonTranslation: object = [40, 180]
+scale state cancelButtonTranslation: object = [40, 260]
+scale state classDiagButtonTranslation: object = [400, 100]
+scale state classGoHomeButtonTranslation: object = [400, 180]
+scale state buttonLabelInset: object = [16, 16]
+scale state classButtonLabelInset: object = [16, 8]
+scale state runningReadoutTranslation: object = [40, 360]
+scale state queuedReadoutTranslation: object = [40, 400]
+scale state alertReadoutTranslation: object = [40, 440]
+scale state classDiagReadoutTranslation: object = [40, 480]
+
+state runningCount: integer = 0
+state queuedCount: integer = 0
+state alertLevel: string = "none"
+state classDiagText: string = "Class diagnostics: not run yet"
+
+derived runningLabel: string = "Running: " + runningCount.ToStr()
+derived queuedLabel: string = "Queued: " + queuedCount.ToStr()
+derived alertLabel: string = "Alert: " + alertLevel
+
+public function setup() {
+  ' Reveals this screen immediately instead of waiting out childOutlet's own loadingTimeout safety
+  ' net — see Shell.thr's own top comment and findings/router-transitions.md.
+  router.markReady()
+  taskManager.setMaxConcurrent(2)
+  taskManager.setAlertThresholds({warning: 2, critical: 4})
+  taskManager.onAlertChanged(onQueueAlert)
+
+  m.taskIds = []
+  m.pollTimer = setInterval(function() {
+    state runningCount = taskManager.runningCount
+    state queuedCount = taskManager.queuedCount
+  }, 500)
+}
+
+private function onQueueAlert(level: string) {
+  state alertLevel = level
+}
+
+private function startFive(key: string, press: boolean) {
+  if (press) {
+    for (i = 1 to 5) {
+      task = CreateObject("roSGNode", "SlowTask")
+      task.functionName = "doWork"
+      id = taskManager.run(task)
+      m.taskIds.Push(id)
+    }
+  }
+}
+
+private function startHighPriority(key: string, press: boolean) {
+  if (press) {
+    task = CreateObject("roSGNode", "SlowTask")
+    task.functionName = "doWork"
+    id = taskManager.run(task, "high")
+    m.taskIds.Push(id)
+  }
+}
+
+private function cancelLast(key: string, press: boolean) {
+  if (press) {
+    if (m.taskIds.Count() > 0) {
+      lastId = m.taskIds.Pop()
+      taskManager.cancel(lastId)
+    }
+  }
+}
+
+' Proves GlobalAccessDemo (a plain .flsh class, no SceneGraph context of its own) reaches both
+' theme and taskManager via GetGlobalAA().global — see GRAMMAR.md's "Classes" section and
+' findings/class-pipeline-global-singleton-access.md's GetGlobalAA() entry. The started task is
+' tracked in m.taskIds exactly like a directly-started one, so "Cancel last" can cancel it too.
+private function runClassDiagnostics(key: string, press: boolean) {
+  if (press) {
+    demo = GlobalAccessDemo()
+    id = demo.startBackgroundTask()
+    m.taskIds.Push(id)
+    state classDiagText = "task=" + id + " theme.colors.text=" + demo.themeTextColor()
+  }
+}
+
+' Proves a router.navigate(...) call triggered from INSIDE a class method — one plain-call hop
+' (instance.method()) from this handler, not a callFunc hop — still gets a working, key-routed
+' focus hand-off after the navigation. Live-verify: pressing this should land on HomeScreen with
+' real focus (arrow keys work immediately), not a screen with dead input.
+private function goHomeViaClass(key: string, press: boolean) {
+  if (press) {
+    demo = GlobalAccessDemo()
+    demo.goHome()
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="Task manager demo — max 2 concurrent, alert at 2/4 queued" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Rectangle id="startButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{startButtonTranslation}" on:key[OK]="{startFive()}">
+    <Label id="startButtonLabel" text="Start 5 tasks" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="startHighButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{startHighButtonTranslation}" on:key[OK]="{startHighPriority()}">
+    <Label id="startHighButtonLabel" text="Start 1 (high)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="cancelButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{cancelButtonTranslation}" on:key[OK]="{cancelLast()}">
+    <Label id="cancelButtonLabel" text="Cancel last" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="classDiagButton" focusable="true" color="0x2A2A4AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{classDiagButtonTranslation}" on:key[OK]="{runClassDiagnostics()}">
+    <Label id="classDiagButtonLabel" text="Class: start task + read theme" color="0xFFFFFFFF" translation="{classButtonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="classGoHomeButton" focusable="true" color="0x2A2A4AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{classGoHomeButtonTranslation}" on:key[OK]="{goHomeViaClass()}">
+    <Label id="classGoHomeButtonLabel" text="Class: go home (tests focus)" color="0xFFFFFFFF" translation="{classButtonLabelInset}" />
+  </Rectangle>
+  <Label id="runningReadout" text="{runningLabel}" color="0x66FF99FF" translation="{runningReadoutTranslation}" />
+  <Label id="queuedReadout" text="{queuedLabel}" color="0xFFCC66FF" translation="{queuedReadoutTranslation}" />
+  <Label id="alertReadout" text="{alertLabel}" color="0xFF6666FF" translation="{alertReadoutTranslation}" />
+  <Label id="classDiagReadout" text="{classDiagText}" color="0x66CCFFFF" translation="{classDiagReadoutTranslation}" />
+</Rectangle>
+</component>

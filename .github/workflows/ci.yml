@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+# Least-privilege default: this workflow only reads the repo and runs
+# local scripts, and pull_request (not pull_request_target) already runs
+# fork PRs with a read-only token and no secrets — but an explicit block
+# is worth having anyway once this repo accepts external PRs.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, map, and tests
+    runs-on: ubuntu-latest
+    # Bounds a hung/malicious PR (infinite loop, blocked network call) to a
+    # fixed runner slot instead of GitHub's 360-minute default — this is the
+    # only workflow externally triggerable via pull_request.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Fails when MAP.md is stale or a source directory has no purpose in
+      # scripts/map-areas.json; also runs ESLint over packages/*'s src/bin/test.
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      # Compiles + zips every apps/* chapter app — the real proof a compiler change
+      # didn't break end-to-end codegen, not just the unit/golden suites above.
+      - name: Compile all Roku demo apps
+        run: npm run build:roku
+
+  site:
+    name: Build docs site
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      # The site's own Vite build reaches directly into packages/compiler/src
+      # and packages/flash-parser/src via astro.config.mjs's aliases (so the
+      # playground always reflects the latest compiler, not a stale publish).
+      # Node module resolution for those files' own imports (e.g.
+      # validate-generated-brs.ts's `kopytko-brightscript-parser`) walks up
+      # from packages/compiler/src/ looking for node_modules — never into
+      # site/node_modules, a sibling directory, not an ancestor — so the root
+      # workspace has to be installed too, not just site/'s own deps. See
+      # findings/release-and-ci.md.
+      - name: Install root workspace dependencies
+        run: npm ci
+
+      - name: Install dependencies
+        working-directory: site
+        run: npm ci
+
+      - name: Build
+        working-directory: site
+        run: npm run build

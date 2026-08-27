@@ -1,0 +1,16 @@
+import MyClass from "./base.flsh"
+
+class MyExtendedClass extends MyClass {
+  override constructor(a: string, b: integer, c: integer) {
+    super(a, b)
+    private c: integer = c
+  }
+
+  override public function myPublicMethod(count: integer): string {
+    return m.myPrivateMethod2(count)
+  }
+
+  private function myPrivateMethod2(count: integer): string {
+    return str(count + m.b + m.c) + " " + m.a
+  }
+}

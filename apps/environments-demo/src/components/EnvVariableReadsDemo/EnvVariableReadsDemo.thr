@@ -1,0 +1,88 @@
+<script>
+' Chapter 1/2 — env.<name> reads (see GRAMMAR.md's "Environments" section and
+' findings/environments.md). Every value below is baked into THIS specific compiled build at
+' compile time from whichever environments/<name>.config.json was active
+' (`flash-theater compile --env <name>` / `FLASH_THEATER_ENV=<name>`) — there is no runtime toggle
+' for "which environment," unlike every other chapter app's own mechanic. This whole app can only
+' ever be compiled WITH an environment active in the first place: `env.*` with no active
+' environment is a hard compile error (`expression/env-requires-active-environment`), so
+' apps/environments-demo/package.json's own compile/zip/build:roku scripts default
+' FLASH_THEATER_ENV to "dev" when the caller doesn't set one — see scripts/with-env.mjs.
+'
+' Two different variable "shapes" (both still plain strings — env.<name> is always a string, see
+' GRAMMAR.md's own "Not (yet) supported"):
+'   - apiBaseUrl   — a URL-shaped literal ("value"), differs per environment.
+'   - enableBetaFeatures — a feature-flag-shaped literal ("value") — still a string ("true"/
+'     "false"), not a real boolean; read it back with `== "true"` if you need to branch on it.
+' Plus a THIRD variant not required by the task but worth showing since apps/sample-app's own
+' EnvDemo.thr already proved it: buildLabel is sourced via `{ "fromEnv": "..." }` — a real
+' build-time/CI environment variable (ENVIRONMENTS_DEMO_BUILD_LABEL), not a literal in the config
+' file at all. with-env.mjs does NOT default this one — compiling with no active environment is
+' the only way to hit `env-requires-active-environment`, but compiling WITH an environment active
+' and an unset `fromEnv` variable is a different, separate compile error
+' (`environment-config/missing-env-var`) that this app's own environments/dev.config.json and
+' environments/prod.config.json both declare, same as apps/sample-app's own precedent — if you see
+' that error locally, `export ENVIRONMENTS_DEMO_BUILD_LABEL=dev-local` (or the PowerShell
+' equivalent) before compiling.
+'
+' Closed-set compile-time validation (see findings/environments.md's "`env` validates like
+' `theme`, not like `store`/`router`") — NOT demonstrable live at runtime (both are compile
+' errors, so a build exercising either would never produce a running app in the first place):
+'   - `env.thisNameIsNotDeclaredAnywhere` (a name absent from the active environment's own
+'     "variables") -> `expression/unknown-env-variable`.
+'   - Any `env.*` read at all, anywhere in the app, when compiled with NO --env/FLASH_THEATER_ENV
+'     active -> `expression/env-requires-active-environment`.
+' Try it yourself: temporarily rename `apiBaseUrl` to `apiBaseUrlTypo` on the line below, or run
+' `flash-theater compile` (no --env) from this app's own directory bypassing the npm script — both
+' fail exactly as described above.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state apiBaseUrlTranslation: object = [40, 130]
+scale state betaFlagTranslation: object = [40, 160]
+scale state buildLabelTranslation: object = [40, 190]
+scale state validationButtonTranslation: object = [40, 250]
+scale field validationButtonWidth: integer = 560
+scale field validationButtonHeight: integer = 50
+scale state validationTextTranslation: object = [40, 320]
+scale state validationTextWidth: integer = 900
+
+derived apiBaseUrlLine: string = "env.apiBaseUrl: " + env.apiBaseUrl
+derived betaFlagLine: string = "env.enableBetaFeatures: " + env.enableBetaFeatures
+derived buildLabelLine: string = "env.buildLabel (fromEnv): " + env.buildLabel
+
+' Ternary is only legal as the entire right-hand side of a plain assignment/state write, never
+' inside a derived/state DECLARATION's own default (see GRAMMAR.md's "Ternary" section) — these
+' two are plain if/else writes inside toggleValidationDetails below instead.
+state showValidationDetails: boolean = false
+state validationButtonText: string = "Show validation rules"
+state validationDetailsText: string = ""
+
+private function toggleValidationDetails(key: string, press: boolean) {
+  if (press) {
+    state showValidationDetails = !showValidationDetails
+    if (showValidationDetails) {
+      state validationButtonText = "Hide validation rules"
+      state validationDetailsText = "unknown-env-variable: an env.name where name is not declared in the ACTIVE environment's own variables list is a compile error, not a runtime undefined read. env-requires-active-environment: any env.name read at all, anywhere in the app, compiled with no active environment, is also a compile error. Neither can be demonstrated live here, for the obvious reason: a build that hit either one would never have produced a running app to press this button in."
+    } else {
+      state validationButtonText = "Show validation rules"
+      state validationDetailsText = ""
+    }
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="1/2 — env.<name> reads" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="OK to toggle validation-rule notes — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Label id="apiBaseUrlReadout" text="{apiBaseUrlLine}" color="0x66CCFFFF" translation="{apiBaseUrlTranslation}" />
+  <Label id="betaFlagReadout" text="{betaFlagLine}" color="0x66CCFFFF" translation="{betaFlagTranslation}" />
+  <Label id="buildLabelReadout" text="{buildLabelLine}" color="0x66CCFFFF" translation="{buildLabelTranslation}" />
+  <Rectangle id="validationButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{validationButtonWidth}" height="{validationButtonHeight}" translation="{validationButtonTranslation}" on:key[OK]="{toggleValidationDetails()}">
+    <Label id="validationButtonLabel" text="{validationButtonText}" color="0xFFFFFFFF" translation="[16, 12]" />
+  </Rectangle>
+  <Label id="validationDetails" text="{validationDetailsText}" color="0xFFCC66FF" translation="{validationTextTranslation}" width="{validationTextWidth}" wrap="true" />
+</Rectangle>
+</component>

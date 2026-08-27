@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="OnKeyEachFixture" extends="Group">
+  <interface>
+    <field id="schedule" type="node" onChange="on_scheduleChange" />
+    <field id="ft_routeReady" type="boolean" value="false" />
+    <function name="fallback" />
+    <function name="ft_unmount" />
+  </interface>
+  <children>
+    <Rectangle id="root">
+      <Group id="ft_each_1" />
+    </Rectangle>
+  </children>
+  <script type="text/brightscript" uri="OnKeyEachFixture.brs" />
+</component>

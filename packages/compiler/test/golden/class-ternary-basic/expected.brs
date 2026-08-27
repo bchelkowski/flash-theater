@@ -1,0 +1,56 @@
+function Bumper(enabled as boolean) as Object
+  prototype = {}
+
+  private_constructor = function (self as Object, enabled as boolean) as Object
+    self.private_enabled = enabled
+    return self
+  end function
+
+  prototype.bump = sub(count as integer)
+    if (m?.private_enabled) then
+      ft_ternary_1 = Invalid
+      if (ft_relationalGuard(count, 0, ">")) then
+        ft_ternary_1 = "small"
+      else
+        ft_ternary_1 = "none"
+      end if
+      ft_ternary_2 = Invalid
+      if (ft_relationalGuard(count, 10, ">")) then
+        ft_ternary_2 = "big"
+      else
+        ft_ternary_2 = ft_ternary_1
+      end if
+      label = ft_ternary_2
+    end if
+  end sub
+
+  prototype.computeNested = function(cond1 as boolean, cond2 as boolean, a as integer, b as integer, c as integer) as integer
+    ft_ternary_1 = Invalid
+    if (cond2) then
+      ft_ternary_1 = a
+    else
+      ft_ternary_1 = b
+    end if
+    ft_ternary_2 = Invalid
+    if (cond1) then
+      ft_ternary_2 = (ft_ternary_1)
+    else
+      ft_ternary_2 = c
+    end if
+    value = ft_ternary_2
+    return value
+  end function
+
+  prototype.computeEmbedded = function(cond as boolean, a as integer, b as integer) as integer
+    ft_ternary_1 = Invalid
+    if (cond) then
+      ft_ternary_1 = a
+    else
+      ft_ternary_1 = b
+    end if
+    value = 1 + (ft_ternary_1)
+    return value
+  end function
+
+  return private_constructor(prototype, enabled)
+end function

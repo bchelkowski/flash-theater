@@ -1,0 +1,11 @@
+' Chapter 2/3 (class-stream) — a `.flsh` class declaring a `stream` field
+' (`public stream onChanged: <Type>`), reachable from whoever holds the instance. `change(...)`
+' emits into its own stream field exactly like a script-level `stream` emits into itself — see
+' GRAMMAR.md's "`stream`" section, "Also declarable directly on a `.flsh` class".
+class Broadcaster {
+  public stream onChanged: string
+
+  public function change(value: string) {
+    m.onChanged.emit(value)
+  }
+}

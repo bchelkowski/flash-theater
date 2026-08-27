@@ -1,0 +1,47 @@
+<script>
+' Chapter 3/8 — parallel composition: scale and opacity pulse together, both steps running
+' concurrently. See GRAMMAR.md's "animation" section.
+animation together {
+  target: card
+  parallel: true
+  steps: [
+    { scale: [1, 1.3, 1], duration: 0.5 },
+    { opacity: [1, 0.4, 1], duration: 0.5 }
+  ]
+}
+
+private function play(key: string, press: boolean) {
+  if (press) {
+    together.start()
+  }
+}
+
+' Static layout below is `scale`d so this screen looks the same at any declared ui_resolutions
+' tier — see findings/scale.md. `together`'s own scale/opacity keyframes above are already
+' resolution-independent relative multipliers, so they need no scaling of their own.
+scale field rootWidth: integer = 1920
+scale field rootHeight: integer = 1080
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+scale field triggerWidth: integer = 300
+scale field triggerHeight: integer = 60
+scale state triggerTranslation: object = [40, 140]
+scale state triggerLabelTranslation: object = [16, 16]
+scale field cardWidth: integer = 300
+scale field cardHeight: integer = 300
+scale state cardTranslation: object = [810, 390]
+scale state cardLabelTranslation: object = [24, 24]
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="3/8 — parallel composition" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="Scale and opacity pulse together — both steps run concurrently" color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+  <Rectangle id="trigger" focusable="true" default-focus="true" color="0x2A2A6AFF" width="{triggerWidth}" height="{triggerHeight}" translation="{triggerTranslation}" on:key[OK]="{play()}">
+    <Label id="triggerLabel" text="Press OK to play" color="0xFFFFFFFF" translation="{triggerLabelTranslation}" />
+  </Rectangle>
+  <Rectangle id="card" color="0x6A4A2AFF" width="{cardWidth}" height="{cardHeight}" translation="{cardTranslation}">
+    <Label id="cardLabel" text="Pulse card" color="0xFFFFFFFF" translation="{cardLabelTranslation}" />
+  </Rectangle>
+</Rectangle>
+</component>

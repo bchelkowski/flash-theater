@@ -1,0 +1,78 @@
+<script>
+' Chapter 1/4 — the nested "list" half of navigate-and-params, the default ("") child of that route
+' (see MainScene.thr's own children: [...]). Demonstrates:
+'   - router.navigate(path, params) — plain default usage: OK on either item navigates to
+'     "/navigate-and-params/detail" with a real params AA ({id, title}), read back on the other side
+'     via router.params.* (see ParamsDetailScreen.thr).
+'   - router.updateBackJourneyData(...) + router.backJourneyData.* — the more subtle, less obvious
+'     mechanic this chapter exists to showcase. welcomeText below reads
+'     router.backJourneyData.lastVisitedTitle, which is `invalid` on this route's first-ever
+'     activation and the last-chosen item's own title once the user has visited the detail screen
+'     and pressed "back" to return — proving backJourneyData genuinely survives a full
+'     destroy-and-recreate round trip through router history, not just a same-instance field.
+'     goToAlpha()/goToBeta() below write it onto THIS route (itself) right before navigating
+'     forward — updateBackJourneyData(...) attaches to the CURRENT route (GRAMMAR.md), so writing it
+'     here, before this route is left behind on the stack, is what makes it survive to be read back
+'     when this same route becomes active again. Writing it from ParamsDetailScreen.thr's own
+'     goBack() instead (an earlier version of this chapter did exactly that) attaches it to the
+'     DETAIL route's own entry, which router.back() immediately pops — never read by anything,
+'     live-device-caught (see findings/router-demo-app.md). Matches the already-working reference
+'     pattern: apps/sample-app's HomeScreen.thr's own goToSchedule().
+'
+' This screen's own default-focus="true" is what the vacuum rule actually lands on when the chapter
+' is first entered — NavigateAndParamsDemo.thr (this screen's own parent route) is a thin wrapper
+' with no focusable content of its own (see that file's own top comment).
+'
+' No router.markReady() call here — this screen is mounted through NavigateAndParamsDemo.thr's own
+' NESTED outlet, which has no loadingComponent configured (unlike MainScene.thr's top-level outlet),
+' so there's no gate here for markReady() to satisfy; calling it would be a harmless no-op.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field itemWidth: integer = 560
+scale field itemHeight: integer = 60
+scale state titleTranslation: object = [40, 30]
+scale state subtitleTranslation: object = [40, 75]
+scale state welcomeTranslation: object = [40, 130]
+scale state itemATranslation: object = [40, 200]
+scale state itemBTranslation: object = [40, 280]
+scale state itemLabelInset: object = [16, 18]
+
+derived welcomeText: string = pickWelcomeText(router.backJourneyData.lastVisitedTitle)
+
+' Shallow, non-crash-prone comparison against a possibly-invalid schemaless read — same shape as
+' apps/sample-app's HomeScreen.thr own pickWelcomeText(router.backJourneyData.visitedSchedule).
+private function pickWelcomeText(lastVisitedTitle: dynamic): string {
+  if (lastVisitedTitle = invalid) {
+    return "OK on either item below to navigate with real params"
+  }
+  return "Welcome back from " + lastVisitedTitle + " -- backJourneyData survived the round trip"
+}
+
+private function goToAlpha(key: string, press: boolean) {
+  if (press) {
+    router.updateBackJourneyData({ lastVisitedTitle: "Alpha" })
+    router.navigate("/navigate-and-params/detail", { id: 1, title: "Alpha" })
+  }
+}
+
+private function goToBeta(key: string, press: boolean) {
+  if (press) {
+    router.updateBackJourneyData({ lastVisitedTitle: "Beta" })
+    router.navigate("/navigate-and-params/detail", { id: 2, title: "Beta" })
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x101010FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="1/4 -- router.navigate / params / backJourneyData" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="List -> Detail -> Back, a real round trip through router history" color="0x888888FF" translation="{subtitleTranslation}" />
+  <Label id="welcome" text="{welcomeText}" color="0x66FF99FF" translation="{welcomeTranslation}" />
+  <Rectangle id="itemAlpha" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{itemWidth}" height="{itemHeight}" translation="{itemATranslation}" on:key[OK]="{goToAlpha()}">
+    <Label id="itemAlphaLabel" text="Alpha (id: 1) -- OK to view detail" color="0xFFFFFFFF" translation="{itemLabelInset}" />
+  </Rectangle>
+  <Rectangle id="itemBeta" focusable="true" color="0x2A2A2AFF" width="{itemWidth}" height="{itemHeight}" translation="{itemBTranslation}" on:key[OK]="{goToBeta()}">
+    <Label id="itemBetaLabel" text="Beta (id: 2) -- OK to view detail" color="0xFFFFFFFF" translation="{itemLabelInset}" />
+  </Rectangle>
+</Rectangle>
+</component>

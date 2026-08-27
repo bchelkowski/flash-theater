@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="ConditionalToggleFixture" extends="Group">
+  <interface>
+    <field id="favoriteCount" type="integer" value="0" onChange="on_favoriteCountChange" />
+    <field id="ft_routeReady" type="boolean" value="false" />
+    <function name="ft_unmount" />
+  </interface>
+  <children>
+    <Rectangle id="root">
+      <Label id="countLabel" />
+      <Group id="ft_if_1">
+        <Label id="badge" text="Has favorites" />
+      </Group>
+    </Rectangle>
+  </children>
+  <script type="text/brightscript" uri="ConditionalToggleFixture.brs" />
+</component>

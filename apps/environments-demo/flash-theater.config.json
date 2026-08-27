@@ -1,0 +1,4 @@
+{
+  "designResolution": "hd",
+  "exclude": ["images/dev-only/**", "images/prod-only/**"]
+}

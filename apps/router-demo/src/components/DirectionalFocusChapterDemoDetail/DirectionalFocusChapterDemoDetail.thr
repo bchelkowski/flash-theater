@@ -1,0 +1,37 @@
+<script>
+' Chapter 2/4 — the "next step" DirectionalFocusChapterDemo.thr navigates forward to (a sibling
+' top-level route, "directional-focus-detail", NOT part of chapterPaths/REWIND-FAST-FORWARD advance
+' — see MainScene.thr's own setRouting()). Pressing OK on backPrompt here calls router.back(), which
+' is what makes the return trip to DirectionalFocusChapterDemo.thr a genuine BACK JOURNEY
+' (router.isBackJourney = true), the exact case that screen's own setup() branches on.
+'
+' backPrompt relies on plain default-focus="true" (not an explicit focus(<id>) call) — this screen
+' has only one focusable element and nothing else ever competes for the vacuum; the explicit-override
+' showcase lives on the OTHER half of this round trip (DirectionalFocusChapterDemo.thr).
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field promptWidth: integer = 620
+scale field promptHeight: integer = 60
+scale state titleTranslation: object = [40, 30]
+scale state backPromptTranslation: object = [40, 220]
+scale state promptLabelInset: object = [16, 20]
+
+public function setup() {
+  router.markReady()
+}
+
+private function goBack(key: string, press: boolean) {
+  if (press) {
+    router.back()
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x101010FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="2/4 -- directional focus: detail step" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Rectangle id="backPrompt" focusable="true" default-focus="true" color="0x3A3A3AFF" width="{promptWidth}" height="{promptHeight}" translation="{backPromptTranslation}" on:key[OK]="{goBack()}">
+    <Label id="backPromptLabel" text="OK: back to Directional Focus chapter (as a BACK journey)" color="0xFFFFFFFF" translation="{promptLabelInset}" />
+  </Rectangle>
+</Rectangle>
+</component>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- flash-theater:generated — do not edit by hand, source: LoadingDemoScreen.thr -->
+<component name="LoadingDemoScreen" extends="Group">
+  <interface>
+    <field id="rootWidth" type="integer" value="880" onChange="on_rootWidthChange" />
+    <field id="rootHeight" type="integer" value="720" onChange="on_rootHeightChange" />
+    <field id="readyButtonWidth" type="integer" value="460" onChange="on_readyButtonWidthChange" />
+    <field id="readyButtonHeight" type="integer" value="50" onChange="on_readyButtonHeightChange" />
+    <function name="setup" />
+    <function name="onLoadTimerFire" />
+  </interface>
+  <children>
+    <Rectangle id="root" color="0x151515FF">
+      <Label id="title" text="Loading demo — default-focus after ~1.5s" color="0xFFFFFFFF" />
+    </Rectangle>
+  </children>
+  <script type="text/brightscript" uri="LoadingDemoScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/FlashTheater/Scale/FlashTheaterScale.brs" />
+</component>

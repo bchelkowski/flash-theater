@@ -1,0 +1,137 @@
+---
+import DocsLayout from '../../components/DocsLayout.astro';
+import DocsHero from '../../components/DocsHero.astro';
+import CodePanel from '../../components/CodePanel.astro';
+import NotSupported from '../../components/NotSupported.astro';
+import DocsFooterLinks from '../../components/DocsFooterLinks.astro';
+
+const SCRIPT_OPEN = '<' + 'script>';
+const SCRIPT_CLOSE = '<' + '/script>';
+
+const declaration = `${SCRIPT_OPEN}
+request Http {
+  method: "GET",
+  url: "https://jsonplaceholder.typicode.com/posts"
+}
+
+private function buildRequest(requestData: object): object {
+  return { query: { "userId": requestData.userId } }
+}
+
+private function parseResponse(response: object): object {
+  return { count: response.data.Count() }
+}
+
+private function parseError(response: object): object {
+  return { message: "HTTP " + response.httpStatusCode.ToStr() }
+}
+${SCRIPT_CLOSE}
+
+<component extends="Task">
+</component>`;
+
+const calling = `task = CreateObject("roSGNode", "GetPosts")
+task.callFunc("prepareRequest", { userId: 1 })   ' resolves buildRequest BEFORE the Task thread starts
+taskManager.run(task)
+taskManager.onResult(task, onPostsLoaded, onPostsFailed)`;
+
+const cachingExample = `request Http {
+  method: "GET",
+  url: "https://api.example.com/catalog"
+  ' caches automatically, following the server's own Cache-Control — no "cache" key needed
+}
+
+request Http {
+  method: "GET",
+  url: "https://api.example.com/live-price",
+  cache: false   ' force caching OFF — always a real network request
+}
+
+request Http {
+  method: "GET",
+  url: "https://api.example.com/legacy-endpoint",
+  cache: { ttlSeconds: 300 }   ' force this exact lifetime, ignoring Cache-Control
+}`;
+---
+<DocsLayout title="Requests" slug="requests">
+  <DocsHero icon="🌐">
+    Requests
+    <br />
+    <span class="text-base text-slate-500 font-normal">request Http {}, response caching, safe build/parse hooks.</span>
+  </DocsHero>
+
+  <p class="text-slate-300 leading-relaxed mb-6">
+    <code class="text-amber-300">request Http {'{}'}</code> declares a whole <code class="text-amber-300">.thr</code>
+    component (<code class="text-amber-300">extends="Task"</code> required) as a single HTTP endpoint — one
+    component per endpoint.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Declaring an endpoint</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Static config (<code class="text-amber-300">method</code>/<code class="text-amber-300">url</code>/<code class="text-amber-300">headers</code>/<code class="text-amber-300">query</code>/<code class="text-amber-300">body</code>)
+    covers the fixed shape; anything that varies per call flows through the optional
+    <code class="text-amber-300">buildRequest</code>/<code class="text-amber-300">parseResponse</code>/<code class="text-amber-300">parseError</code> hooks.
+  </p>
+  <CodePanel code={declaration} lang="xml" filename="GetPosts.thr" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Calling it</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    When a component declares <code class="text-amber-300">buildRequest</code>, it also gets a generated
+    <code class="text-amber-300">prepareRequest(requestData)</code> — call it <strong class="text-slate-200">before</strong>
+    <code class="text-amber-300">taskManager.run(task)</code>, on the calling thread, so nothing inside
+    <code class="text-amber-300">buildRequest</code> ever risks a cross-thread rendezvous.
+  </p>
+  <CodePanel code={calling} lang="xml" filename="RequestDemoScreen.thr (excerpt)" class="mb-8" />
+  <p class="text-slate-500 text-sm leading-relaxed mb-8">
+    See <a href="task-manager/" class="prose-link">Task manager</a> for <code class="text-amber-300">onResult</code>
+    and the app-wide <code class="text-amber-300">onRequestSent</code>/<code class="text-amber-300">onResponseReceived</code>
+    interceptors. Both a promise-style (<code class="text-amber-300">onResult</code>) and an old-style
+    (<code class="text-amber-300">observeFieldScoped("result"/"error", ...)</code>) consumption style are fully
+    supported side by side.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Response caching — on by default</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    GET-only, backed by Roku's own <code class="text-amber-300">cachefs:/</code>. A request with no
+    <code class="text-amber-300">cache</code> key at all still caches, purely following the server's own
+    <code class="text-amber-300">Cache-Control</code> header — <code class="text-amber-300">cache</code> is only an
+    override.
+  </p>
+  <CodePanel code={cachingExample} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Crash safety</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Every hook — <code class="text-amber-300">buildRequest</code>, <code class="text-amber-300">parseResponse</code>,
+    <code class="text-amber-300">parseError</code> — is wrapped in a <code class="text-amber-300">try</code>/<code class="text-amber-300">catch</code> by
+    the compiler. A buggy hook degrades to a synthesized fallback error (or the static base config, for
+    <code class="text-amber-300">buildRequest</code>) instead of crashing the Task — surfaced via
+    <code class="text-amber-300">resolvedOptions.buildSucceeded</code>/<code class="text-amber-300">rawResponse.parseSucceeded</code> for
+    telemetry.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Reference implementation — <code>apps/requests-demo</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-8">
+    Every mechanism on this page has a router-mounted, <code class="text-amber-300">scale</code>d
+    chapter in <code class="text-amber-300">apps/requests-demo</code> — 4 chapters
+    (<code class="text-amber-300">/declare-call</code> through <code class="text-amber-300">/parse-safety</code>),
+    reachable with REWIND/FAST-FORWARD once compiled and sideloaded. Each chapter shows a default,
+    no-customization example alongside a deliberately different, customized one — e.g.
+    <code class="text-amber-300">DeclareCallDemo.thr</code>'s default button (promise-style
+    <code class="text-amber-300">onResult</code> only) next to its customized button (the same
+    request consumed via <code class="text-amber-300">onResult</code> AND the old-style
+    <code class="text-amber-300">observeFieldScoped("result"/"error", ...)</code>, side by side).
+    This is the live, compiling reference for the whole page — see
+    <code class="text-amber-300">findings/requests-demo-app.md</code> for what each chapter covers and
+    <code class="text-amber-300">findings/demo-app-conventions.md</code> for the app-structure convention it follows.
+  </p>
+
+  <NotSupported items={[
+    'Only <code class="text-amber-300">request Http {}</code> is supported — any other <code class="text-amber-300">Kind</code> is a compile error.',
+    'No retry logic, no cancellation, no request timeout — a hung transfer blocks only its own Task thread.',
+    'No ETag/conditional-GET revalidation, no <code class="text-amber-300">Expires</code> header parsing — only <code class="text-amber-300">Cache-Control: max-age</code>.',
+    '<code class="text-amber-300">cache</code> is not overridable per call via <code class="text-amber-300">buildRequest</code> — it\'s a property of the endpoint, not the call site.',
+    'Bareword object keys inside a hook body\'s return value get case-folded by BrightScript at runtime — always quote a <code class="text-amber-300">headers</code>/<code class="text-amber-300">query</code> key that must match an API case-exactly.',
+  ]} />
+
+  <DocsFooterLinks grammarAnchor="#requests" />
+</DocsLayout>

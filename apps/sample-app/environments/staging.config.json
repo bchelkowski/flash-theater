@@ -1,0 +1,11 @@
+{
+  "variables": {
+    "apiBaseUrl": { "value": "https://staging.api.example.com" },
+    "buildLabel": { "fromEnv": "SAMPLE_APP_BUILD_LABEL" }
+  },
+  "manifestOverrides": {
+    "title": "Flash Theater Sample (Staging)"
+  },
+  "exclude": ["images/production-only/**"],
+  "include": ["images/staging-only/**", "components/EnvDemo/**"]
+}

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="VisibilityFixture" extends="Group">
+  <interface>
+    <field id="enabled" type="boolean" value="false" onChange="on_enabledChange" />
+    <field id="ft_routeReady" type="boolean" value="false" />
+    <function name="formatStatus" />
+    <function name="ft_unmount" />
+  </interface>
+  <children>
+    <LayoutGroup id="root">
+      <Label id="statusLabel" />
+      <Label id="debugLabel" />
+    </LayoutGroup>
+  </children>
+  <script type="text/brightscript" uri="VisibilityFixture.brs" />
+</component>

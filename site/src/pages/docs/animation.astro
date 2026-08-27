@@ -1,0 +1,148 @@
+---
+import DocsLayout from '../../components/DocsLayout.astro';
+import DocsHero from '../../components/DocsHero.astro';
+import CodePanel from '../../components/CodePanel.astro';
+import NotSupported from '../../components/NotSupported.astro';
+import DocsFooterLinks from '../../components/DocsFooterLinks.astro';
+
+const declareAndTrigger = `animation bounce {
+  target: card
+  duration: 0.4
+  easeFunction: "outExpo"
+  scale: [1, 1.15, 1]
+}
+
+private function play(key: string, press: boolean) {
+  if (press) {
+    bounce.start()
+  }
+}`;
+
+const onFinishExample = `private function play(key: string, press: boolean) {
+  if (press) {
+    bounce.start()
+    bounce.onFinish(onBounceDone)
+  }
+}
+
+private function onBounceDone() {
+  state bounceCount = bounceCount + 1
+}`;
+
+const composition = `animation introSequence {
+  target: card
+  sequential: true
+  steps: [
+    { opacity: [0, 1], duration: 0.3 },
+    { translation: { key: [0, 1], keyValue: [[0, 40], [0, 0]] }, duration: 0.4 }
+  ]
+}`;
+
+const transitionPreset = `{#if showPanel}
+<Rectangle id="panel" transition:fade="{{duration: 0.3}}" focusable="true"
+           on:key[OK]="{togglePanel()}">
+  <Label id="panelLabel" text="Panel — press OK to hide (fades out)" />
+</Rectangle>
+{/if}`;
+
+const customTransition = `{#if:destroy showCard}
+  <Poster id="card" in:bounce out:fade="{{duration: 0.15}}" />
+{/if}`;
+
+const animateField = `<Poster id="poster" opacity="{posterOpacity}" animate:opacity="{{duration: 0.4}}" />`;
+---
+<DocsLayout title="Animation" slug="animation">
+  <DocsHero icon="🎬">
+    Animation
+    <br />
+    <span class="text-base text-slate-500 font-normal">animation {'{}'} declarations, transition:/in:/out:, animate:.</span>
+  </DocsHero>
+
+  <p class="text-slate-300 leading-relaxed mb-6">
+    Three layers, all compiling straight to Roku's native <code class="text-amber-300">Animation</code>/<code class="text-amber-300">SequentialAnimation</code>/<code class="text-amber-300">ParallelAnimation</code>
+    nodes — no shared runtime helper library, no JS-side animation loop.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Layer 1 — declarations and trigger sugar</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    A named, reusable animation, triggered imperatively with <code class="text-amber-300">.start()</code>/<code class="text-amber-300">.stop()</code>/<code class="text-amber-300">.pause()</code>/<code class="text-amber-300">.resume()</code>/<code class="text-amber-300">.finish()</code>.
+    Known field shorthands: <code class="text-amber-300">opacity</code>, <code class="text-amber-300">rotation</code>,
+    <code class="text-amber-300">translation</code>, <code class="text-amber-300">scale</code>, <code class="text-amber-300">color</code> —
+    plus a <code class="text-amber-300">field: {'{ name, as, ... }'}</code> escape hatch for anything else.
+  </p>
+  <CodePanel code={declareAndTrigger} lang="xml" filename="BounceButtonDemo.thr (excerpt)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3"><code>.onFinish(callback)</code> — animation-finished hook</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Runs every time <code class="text-amber-300">bounce</code> reports <code class="text-amber-300">state = "stopped"</code> —
+    unlike <code class="text-amber-300">taskManager.onResult</code>'s fire-once shape, this fires on <em>every</em> completion,
+    since an animation like a bounce button's is commonly retriggered. The callback can be a bound function reference or an
+    inline anonymous function; registering it again just replaces the previous one. Rejected on an animation declaring
+    <code class="text-amber-300">repeat: true</code> anywhere in its own step tree — <code class="text-amber-300">state</code>
+    never reports <code class="text-amber-300">"stopped"</code> for a looping animation, so the callback would never fire.
+  </p>
+  <CodePanel code={onFinishExample} lang="xml" filename="BounceButtonDemo.thr (excerpt)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Composition</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">sequential: true</code> or <code class="text-amber-300">parallel: true</code> plus a
+    <code class="text-amber-300">steps: [...]</code> array — arbitrarily nestable.
+  </p>
+  <CodePanel code={composition} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Layer 2 — <code>transition:</code>/<code>in:</code>/<code>out:</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Enter/exit animation for a <a href="template-and-binding/" class="prose-link">{'{#if}'}/{'{#if:destroy}'}</a> block's
+    content. <code class="text-amber-300">&lt;name&gt;</code> is a built-in preset (<code class="text-amber-300">fade</code>/<code class="text-amber-300">fly</code>/<code class="text-amber-300">slide</code>/<code class="text-amber-300">scale</code>)
+    or a script-declared animation — visibility/removal is deferred until the exit animation actually finishes.
+  </p>
+  <CodePanel code={transitionPreset} lang="xml" filename="TogglePresetDemo.thr (excerpt)" class="mb-4" />
+  <CodePanel code={customTransition} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Layer 3 — <code>animate:&lt;field&gt;</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Auto-animates a reactive cascade's own write to a matching dynamic attribute, instead of an instant snap. The
+    element's initial value at mount still snaps instantly — only a later, cascade-triggered write animates.
+  </p>
+  <CodePanel code={animateField} lang="xml" filename="AnimateAttrDemo.thr (excerpt)" class="mb-8" />
+  <p class="text-slate-500 text-sm leading-relaxed mb-8">
+    <code class="text-amber-300">posterOpacity</code> here is a plain <code class="text-amber-300">state</code>,
+    flipped explicitly between two levels — a <a href="statements/" class="prose-link">ternary</a> can't be used
+    directly inside a dynamic attribute's own expression, only as the whole right-hand side of an assignment or
+    state write.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Also usable on <code>&lt;FlashTheaterRouterOutlet&gt;</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-8">
+    <code class="text-amber-300">navigate-out:</code>/<code class="text-amber-300">navigate-in:</code>/<code class="text-amber-300">back-out:</code>/<code class="text-amber-300">back-in:</code> attach
+    a preset or declared animation to a router outlet's own mount/unmount swap, the same value grammar as
+    <code class="text-amber-300">transition:</code>/<code class="text-amber-300">in:</code>/<code class="text-amber-300">out:</code> above — see
+    <a href="router/#router-outlet-transitions" class="prose-link">Router — Router-outlet transitions</a>.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Reference implementation — <code>apps/animation-demo</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-8">
+    Every mechanism on this page has a router-mounted, <code class="text-amber-300">scale</code>d
+    chapter in <code class="text-amber-300">apps/animation-demo</code> — 8 chapters
+    (<code class="text-amber-300">/declared</code> through <code class="text-amber-300">/outlet-transitions</code>),
+    reachable with REWIND/FAST-FORWARD once compiled and sideloaded. Each chapter shows a default,
+    no-customization example alongside a deliberately different, customized one — e.g.
+    <code class="text-amber-300">BounceButtonDemo.thr</code>'s OK-triggered <code class="text-amber-300">bounce</code>
+    (defaults) next to its Replay-triggered <code class="text-amber-300">customized</code> animation
+    (a different <code class="text-amber-300">easeFunction</code>, the <code class="text-amber-300">color</code>
+    shorthand, and the <code class="text-amber-300">field</code>/<code class="text-amber-300">as</code> escape
+    hatch, all in one declaration). This is the live, compiling reference for the whole page — see
+    <code class="text-amber-300">findings/animation-demo-app.md</code> for what each chapter covers and
+    <code class="text-amber-300">findings/demo-app-conventions.md</code> for the app-structure convention it follows.
+  </p>
+
+  <NotSupported items={[
+    'No <code class="text-amber-300">.flsh</code> class-body animation form — animations are tied to a template\'s element ids, which a class has none of.',
+    '<code class="text-amber-300">repeat: true</code> is rejected on an <code class="text-amber-300">out:</code>/exit transition, and on a <code class="text-amber-300">.onFinish(...)</code> target — a repeating animation never reports "stopped" on its own, so the block would never actually hide, and the callback would never fire.',
+    '<code class="text-amber-300">fly</code>/<code class="text-amber-300">slide</code> presets reject a target with a <em>dynamic</em> <code class="text-amber-300">translation</code> — use a custom <code class="text-amber-300">animation {}</code> declaration instead.',
+    '<code class="text-amber-300">scale</code> animations are not reflected in the focus system\'s LRUD geometry — a card animating its own scale won\'t resize its hit-testing footprint.',
+    'A toggle-mode (<code class="text-amber-300">&#123;#if&#125;</code>, non-destroy) block\'s focusable content is only unregistered on hide if the block declares an <code class="text-amber-300">out:</code> animation — a block with no transition, or an <code class="text-amber-300">in:</code>-only transition, leaves its focusable content registered indefinitely (a registry-hygiene concern; it can no longer actually receive focus, since <code class="text-amber-300">navigate()</code>\'s own visibility check already excludes it).',
+  ]} />
+
+  <DocsFooterLinks grammarAnchor="#animation" />
+</DocsLayout>

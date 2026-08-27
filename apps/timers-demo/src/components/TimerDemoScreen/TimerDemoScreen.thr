@@ -1,0 +1,137 @@
+<script>
+' Chapter 1/3 — setTimeout(...)/setInterval(...)/clearTimeout(...)/clearInterval(...) basics. See
+' GRAMMAR.md's "Timer statements" section and findings/timer-statements.md.
+'
+' `public function setup()`, NOT `startDemo()` — this screen is now router-mounted (see
+' MainScene.thr), so it gets an automatic `setup()` call the moment the router mounts it
+' (GRAMMAR.md's "Router" section: "a router-mounted component gets an automatic setup() call").
+' The old apps/async-demo shape (a plain `startDemo()`, called explicitly by MainScene right after
+' construction, since that app had no router at all) no longer applies here — see
+' findings/timers-demo-app.md for the full startDemo()->setup() conversion writeup.
+'
+' The interval starts immediately in setup() (not behind a button) so switching chapters away from
+' this screen is a real, always-exercised proof that the automatic component-unmount hook (see
+' findings/component-unmount-hook.md) genuinely stops a still-ticking interval: let it tick a few
+' times, switch chapters, switch back, and confirm `tickCount` did NOT advance while this screen was
+' unmounted (impossible to prove from the tick readout alone once rebuilt from scratch — this needs
+' a live-device console/log check per findings/component-unmount-hook.md's own "risks needing
+' live-device verification" list, still open for this router-mounted shape specifically — see
+' findings/timers-demo-app.md).
+'
+' Three distinct Timer code paths, all reachable from this one chapter:
+' - "Fire setTimeout" — the one-shot case, left to fire naturally.
+' - "Cancel pending timeout" — clearTimeout(...) on a ONE-SHOT timer specifically, cancelling it
+'   before it ever fires. A genuinely different code path from clearInterval below (a fresh handle
+'   each press, no `repeat`), not demonstrated anywhere else in this app.
+' - "Start/Stop interval" — manual clearInterval/setInterval re-arming, independent of the automatic
+'   unmount-time cleanup above.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 300
+scale field buttonHeight: integer = 60
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+scale state fireButtonTranslation: object = [40, 170]
+scale state cancelButtonTranslation: object = [380, 170]
+scale state toggleButtonTranslation: object = [40, 250]
+scale state tickReadoutTranslation: object = [40, 330]
+scale state timeoutReadoutTranslation: object = [40, 370]
+scale state buttonLabelInset: object = [16, 16]
+
+state tickCount: integer = 0
+state intervalRunning: boolean = false
+state timeoutStatus: string = "setTimeout: not fired yet"
+state timeoutPending: boolean = false
+
+derived tickLabel: string = "Interval ticks: " + tickCount.ToStr() + runningSuffix(intervalRunning)
+derived toggleButtonText: string = toggleLabel(intervalRunning)
+
+private function runningSuffix(running: boolean): string {
+  if (running) {
+    return " (running)"
+  }
+  return " (stopped)"
+}
+
+private function toggleLabel(running: boolean): string {
+  if (running) {
+    return "Stop interval"
+  }
+  return "Start interval"
+}
+
+public function setup() {
+  startInterval()
+}
+
+private function startInterval() {
+  if (not intervalRunning) {
+    m.tickTimer = setInterval(function() {
+      state tickCount = tickCount + 1
+      ' Raw BrightScript passthrough inside an anonymous function body — a real wall-clock idiom
+      ' (roDateTime) with no DSL sugar, copied into generated .brs completely unchanged. See
+      ' findings/raw-brightscript-passthrough.md.
+      ' flash-theater:raw
+      print "[TimerDemoScreen] tick at "; CreateObject("roDateTime").ToISOString()
+      ' flash-theater:end-raw
+    }, 500)
+    state intervalRunning = true
+  }
+}
+
+private function stopInterval() {
+  if (intervalRunning) {
+    clearInterval(m.tickTimer)
+    state intervalRunning = false
+  }
+}
+
+private function toggleInterval(key: string, press: boolean) {
+  if (press) {
+    if (intervalRunning) {
+      stopInterval()
+    } else {
+      startInterval()
+    }
+  }
+}
+
+private function fireTimeout(key: string, press: boolean) {
+  if (press) {
+    state timeoutStatus = "setTimeout: pending (fires in 3s)..."
+    state timeoutPending = true
+    m.pendingTimeout = setTimeout(function() {
+      state timeoutStatus = "setTimeout: fired!"
+      state timeoutPending = false
+    }, 3000)
+  }
+}
+
+private function cancelTimeout(key: string, press: boolean) {
+  if (press) {
+    if (timeoutPending) {
+      clearTimeout(m.pendingTimeout)
+      state timeoutStatus = "setTimeout: cancelled before it fired"
+      state timeoutPending = false
+    }
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="1/3 — setTimeout / setInterval / clearTimeout / clearInterval basics" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="Fire/Cancel a one-shot timeout, or start/stop a recurring interval" color="0x888888FF" translation="{subtitleTranslation}" />
+  <Rectangle id="fireButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{fireButtonTranslation}" on:key[OK]="{fireTimeout()}">
+    <Label id="fireButtonLabel" text="Fire setTimeout (3s)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="cancelButton" focusable="true" color="0x4A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{cancelButtonTranslation}" on:key[OK]="{cancelTimeout()}">
+    <Label id="cancelButtonLabel" text="Cancel pending timeout" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="toggleButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{toggleButtonTranslation}" on:key[OK]="{toggleInterval()}">
+    <Label id="toggleButtonLabel" text="{toggleButtonText}" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="tickReadout" text="{tickLabel}" color="0x66FF99FF" translation="{tickReadoutTranslation}" />
+  <Label id="timeoutReadout" text="{timeoutStatus}" color="0xFFCC66FF" translation="{timeoutReadoutTranslation}" />
+</Rectangle>
+</component>

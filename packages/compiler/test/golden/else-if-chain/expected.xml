@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="ElseIfChainFixture" extends="Group">
+  <interface>
+    <field id="score" type="integer" value="0" onChange="on_scoreChange" />
+    <field id="ft_routeReady" type="boolean" value="false" />
+    <function name="sign" />
+    <function name="ft_unmount" />
+  </interface>
+  <children>
+    <LayoutGroup id="root">
+      <Label id="out" />
+    </LayoutGroup>
+  </children>
+  <script type="text/brightscript" uri="ElseIfChainFixture.brs" />
+</component>

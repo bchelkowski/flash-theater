@@ -1,0 +1,22 @@
+<script>
+field enabled: boolean = true
+state count: integer = 0
+
+derived label: string = describe(count)
+
+private function describe(value: integer): string {
+  return "count: " + str(value)
+}
+
+public function bump() {
+  if (enabled) {
+    state count = count + 1
+  }
+}
+</script>
+
+<component>
+<LayoutGroup id="root">
+  <Label id="out" text="{label}" />
+</LayoutGroup>
+</component>

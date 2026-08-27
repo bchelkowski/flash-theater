@@ -1,0 +1,13 @@
+<script>
+' A minimal nested child for FocusStateDemo.thr's "customized" panel — its own single button is
+' the thing that actually holds focus while the PARENT reports isInFocusChain (not isFocused).
+scale field buttonWidth: integer = 260
+scale field buttonHeight: integer = 60
+scale state buttonLabelInset: object = [16, 18]
+</script>
+
+<component>
+<Rectangle id="childButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}">
+  <Label id="childButtonLabel" text="Child's own button" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+</Rectangle>
+</component>

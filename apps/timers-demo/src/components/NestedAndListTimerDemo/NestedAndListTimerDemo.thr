@@ -1,0 +1,112 @@
+<script>
+' Chapter 2/3 — two scenarios the basic-lifecycle chapter doesn't exercise, both closing real gaps
+' flagged in findings/component-unmount-hook.md:
+'
+' 1. A genuinely multi-level-deep component-unmount cascade: MiddleWrapper.thr sits between this
+'    screen's own `{#if:destroy}` and the Timer-owning TimerLeafWidget.thr, so tearing it down (the
+'    "Toggle nested widget" button) exercises `ft_unmount` recursing through TWO component
+'    boundaries, not the one-level-deep shape chapter 1 already proves.
+' 2. `{#each}` item removal — a Timer-owning TimerLeafWidget.thr rendered as a list item, removed by
+'    shrinking `widgets` (the "Remove last list widget" button). Before each-block-emitter.ts's own
+'    unmount cascade existed, a removed item's own pending timer would keep ticking forever with no
+'    way to observe or stop it (the node is detached, but nothing ever told it to stop).
+'
+' `public function setup()`, NOT `startDemo()` — this screen is now router-mounted, so it gets an
+' automatic `setup()` call the moment the router mounts it, same conversion as chapter 1 (see that
+' file's own top comment, and findings/timers-demo-app.md for the full writeup). `MiddleWrapper`
+' itself, and `TimerLeafWidget` nested inside it, are NOT router-mounted — they're plain nested
+' children two/three component-levels below this chapter's own router mount point, so they still
+' need THIS component's own explicit `callFunc("startDemo")` forwarding, exactly as before the
+' conversion; only the TOP-LEVEL routed component's own entry point changed shape.
+'
+' The nested widget (scenario 1) auto-starts via `startDemo()` forwarding the instant it (re)mounts
+' — see MiddleWrapper.thr's own top comment for why: reaching two component-levels deep by ordinary
+' LRUD navigation isn't this demo's concern, and an always-ticking nested widget is a more realistic
+' shape for what `{#if:destroy}` + a nested Timer-owning component actually looks like in practice.
+' The list widgets (scenario 2) are each their own focusable OK-to-start/stop button instead (see
+' TimerLeafWidget.thr's own top comment) — press OK on one to start it ticking BEFORE removing it,
+' so the ticking-stops proof is actually meaningful (there's nothing to observe stopping if it was
+' never running).
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 360
+scale field buttonHeight: integer = 60
+scale state titleTranslation: object = [40, 40]
+scale state hintTranslation: object = [40, 90]
+scale state toggleMiddleButtonTranslation: object = [40, 160]
+scale state middleTranslation: object = [40, 240]
+scale state removeButtonTranslation: object = [40, 380]
+scale state buttonLabelInset: object = [16, 16]
+
+state showMiddle: boolean = true
+state widgets: array = []
+
+' `showMiddle` defaults to true, so `middle` already exists by the time this runs (the
+' {#if:destroy} create sub is part of this component's own synchronous init-time reactive cascade,
+' strictly before the router's own automatic `setup()` call can reach it). `widgets` is populated
+' here too, not as the `state` declaration's own literal default — same reason CardsScreen.thr's own
+' `makeCard()` computes its per-item x/y inside a function body rather than the {#each} template
+' expression: a template `{expr}` binding (here, each item's own `translation="{[w.x, w.y]}"`) can
+' never be `scale`d directly, only a declaration or a function-body assignment can, so the scaled y
+' offset has to be computed once via the `scale <local> = <expr>` statement form and stored directly
+' on each widget's own data (see `makeWidget` below).
+public function setup() {
+  state widgets = [makeWidget("w1", 0), makeWidget("w2", 1), makeWidget("w3", 2)]
+  m.middle.callFunc("startDemo")
+}
+
+private function makeWidget(idStr: string, index: integer): object {
+  widget = {}
+  widget.id = idStr
+  scale x = 40
+  scale y = 460 + index * 80
+  widget.x = x
+  widget.y = y
+  return widget
+}
+
+private function toggleMiddle(key: string, press: boolean) {
+  if (press) {
+    state showMiddle = not showMiddle
+    ' Forward startDemo() again on a false->true transition — the {#if:destroy} create sub just
+    ' ran (synchronously, as part of the state write above), so m.middle already refers to the
+    ' freshly (re)constructed instance.
+    if (showMiddle) {
+      m.middle.callFunc("startDemo")
+    }
+  }
+}
+
+private function removeLastWidget(key: string, press: boolean) {
+  if (press) {
+    if (widgets.Count() > 0) {
+      newList = []
+      for (i = 0 to widgets.Count() - 2) {
+        newList.Push(widgets[i])
+      }
+      state widgets = newList
+    }
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="2/3 — nested + list timer cleanup" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="OK on a widget starts/stops it — then tear down its owner and watch ticking stop" color="0x888888FF" translation="{hintTranslation}" />
+
+  <Rectangle id="toggleMiddleButton" focusable="true" default-focus="true" color="0x2A2A4AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{toggleMiddleButtonTranslation}" on:key[OK]="{toggleMiddle()}">
+    <Label id="toggleMiddleButtonLabel" text="Toggle nested widget" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  {#if:destroy showMiddle}
+  <MiddleWrapper id="middle" translation="{middleTranslation}" />
+  {/if}
+
+  <Rectangle id="removeButton" focusable="true" color="0x4A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{removeButtonTranslation}" on:key[OK]="{removeLastWidget()}">
+    <Label id="removeButtonLabel" text="Remove last list widget" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  {#each widgets as w (w.id)}
+  <TimerLeafWidget id="listWidget" translation="{[w.x, w.y]}" />
+  {/each}
+</Rectangle>
+</component>

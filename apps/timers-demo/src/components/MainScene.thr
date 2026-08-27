@@ -1,0 +1,53 @@
+<script>
+' This app's root Scene, compiled from .thr (like apps/animation-demo's/apps/focus-demo's own
+' MainScene) — router-mounted chapters, one per Timer-statements mechanism, split out of
+' apps/async-demo's own TimerDemoScreen/NestedAndListTimerDemo/FocusedTeardownDemo (which used to
+' be three of that app's flat, {#if:destroy}-toggled demos) per findings/demo-app-conventions.md.
+' See findings/timers-demo-app.md for the conversion narrative — no manual focus-claim bookkeeping
+' anywhere in this file; `router.navigate()`'s own default-focus proposal+claim and per-navigation
+' vacuum supersede all of that, and physical Back walks chapter history automatically.
+'
+' Chapter-advance keys match every other *-demo app: on:key[fastforward]/on:key[rewind] (confirmed
+' live in this repo before — the ECP key names Rev/Fwd do NOT match the onKeyEvent key string
+' directly, unlike most other keys, see apps/animation-demo's own MainScene.thr comment).
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale state hintTranslation: object = [40, 660]
+
+field chapterPaths: array = [
+  "basic-lifecycle", "nested-and-list", "focus-teardown-ordering"
+]
+state activeChapterIndex: integer = 0
+
+derived hintText: string = "Chapter " + (activeChapterIndex + 1).ToStr() + "/3 — REWIND / FAST-FORWARD to switch, BACK to return"
+
+private function nextChapter(key: string, press: boolean) {
+  if (press and activeChapterIndex < chapterPaths.Count() - 1) {
+    state activeChapterIndex = activeChapterIndex + 1
+    router.navigate("/" + chapterPaths[activeChapterIndex])
+  }
+}
+
+private function prevChapter(key: string, press: boolean) {
+  if (press and activeChapterIndex > 0) {
+    state activeChapterIndex = activeChapterIndex - 1
+    router.navigate("/" + chapterPaths[activeChapterIndex])
+  }
+}
+
+public function setup() {
+  router.setRouting([
+    { path: "basic-lifecycle", component: "TimerDemoScreen" },
+    { path: "nested-and-list", component: "NestedAndListTimerDemo" },
+    { path: "focus-teardown-ordering", component: "FocusedTeardownDemo" }
+  ])
+  router.navigate("/" + chapterPaths[0])
+}
+</script>
+
+<component extends="Scene" on:key[fastforward]="{nextChapter()}" on:key[rewind]="{prevChapter()}">
+<Rectangle id="root" color="0x101010FF" width="{rootWidth}" height="{rootHeight}">
+  <FlashTheaterRouterOutlet id="outlet" width="{rootWidth}" height="{rootHeight}" />
+  <Label id="hint" text="{hintText}" color="0x888888FF" translation="{hintTranslation}" />
+</Rectangle>
+</component>

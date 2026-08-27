@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="FlashTheaterStore" extends="Node">
+  <interface>
+    <function name="set" />
+  </interface>
+  <script type="text/brightscript" uri="Store.brs" />
+</component>

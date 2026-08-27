@@ -1,0 +1,55 @@
+<script>
+' The smallest possible Timer-owning leaf — reused by NestedAndListTimerDemo.thr in two different
+' shapes: nested two component-levels deep behind a `{#if:destroy}` (via MiddleWrapper.thr, proving
+' the component-unmount hook's own recursive cascade actually reaches a Timer several `ft_unmount`
+' hops away — see findings/component-unmount-hook.md's own "genuinely multi-level-deep cascade" open
+' item), and rendered as a `{#each}` list item (proving each-block-emitter.ts's own item-removal
+' unmount cascade — see findings/component-unmount-hook.md's own "{#each} is NOT covered" item,
+' since closed).
+'
+' Two ways to start: `public function startDemo()` (called explicitly by whatever mounts this
+' widget — MiddleWrapper.thr forwards its own `startDemo()` call straight through to its one nested
+' `leaf`; kept as `startDemo()`, not renamed to `setup()`, since this is a plain nested child, never
+' itself router-mounted — see MiddleWrapper.thr's own top comment), or pressing OK directly (this
+' widget is its own focusable button — used by NestedAndListTimerDemo.thr's `{#each}` list, where
+' each item is reachable by ordinary LRUD navigation and there's no natural "just constructed" hook
+' to auto-start from).
+scale field width: integer = 360
+scale field height: integer = 70
+scale state readoutTranslation: object = [16, 16]
+
+state tickCount: integer = 0
+state running: boolean = false
+
+derived tickLabel: string = "ticks: " + tickCount.ToStr()
+
+public function startDemo() {
+  startTicking()
+}
+
+private function startTicking() {
+  if (not running) {
+    m.tickTimer = setInterval(function() {
+      state tickCount = tickCount + 1
+    }, 300)
+    state running = true
+  }
+}
+
+private function toggleTicking(key: string, press: boolean) {
+  if (press) {
+    if (running) {
+      clearInterval(m.tickTimer)
+      state running = false
+    } else {
+      startTicking()
+    }
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" focusable="true" color="0x2A2A2AFF" width="{width}" height="{height}" on:key[OK]="{toggleTicking()}">
+  <Label id="readout" text="{tickLabel}" color="0xFFFFFFFF" translation="{readoutTranslation}" />
+</Rectangle>
+</component>

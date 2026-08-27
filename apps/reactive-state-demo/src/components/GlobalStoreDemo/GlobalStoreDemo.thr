@@ -1,0 +1,54 @@
+<script>
+' Chapter 3/4 — the schemaless global `store`: `read` (one-time snapshot) vs. `watch` (reactive,
+' recomputed on every write to that top-level key) vs. `store(<key>) = <expr>` (the only write
+' form, flat/top-level-key-only, never nested). See GRAMMAR.md's "Global store" section and
+' site/src/pages/docs/reactive-state.astro.
+'
+' `demoCount` is seeded to 0 by MainScene.thr's own setup() before this chapter (or any other
+' component) ever reads it — same store-seed-before-first-read ordering
+' apps/sample-app/src/components/MainScene.thr already establishes for `favoriteCount`.
+'
+' `watchLabel`/`readLabel` below read the SAME store key two different ways, side by side:
+' pressing "Bump store(demoCount)" writes the store, which immediately recomputes
+' `demoCountWatch` (and therefore `watchLabel`) — but `demoCountRead` (and therefore `readLabel`)
+' was only ever assigned once, in this component's own generated init(), and never changes again
+' for the rest of this component's lifetime, however many times the store is written afterward.
+' That is the entire one-time-snapshot-vs-reactive distinction, shown live, side by side.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 460
+scale field buttonHeight: integer = 50
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state watchTranslation: object = [40, 110]
+scale state readTranslation: object = [40, 140]
+scale state bumpButtonTranslation: object = [40, 190]
+scale state buttonLabelInset: object = [16, 12]
+
+watch demoCountWatch = store(demoCount)
+read demoCountRead = store(demoCount)
+
+derived watchLabel: string = "watch (reactive, live): " + str(demoCountWatch)
+derived readLabel: string = "read (one-time snapshot, frozen at mount): " + str(demoCountRead)
+
+private function bumpStore(key: string, press: boolean) {
+  if (press) {
+    ' The only legal write form — a whole top-level key, replaced via the bare `watch` binding's
+    ' own current value (never `store(demoCount)` again inline on the right-hand side — store(...)
+    ' only ever appears in exactly the three positions GRAMMAR.md's "Global store" section names).
+    store(demoCount) = demoCountWatch + 1
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="3/4 — global store: read vs. watch" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="OK bumps store(demoCount) — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Label id="watchText" text="{watchLabel}" color="0x66FF99FF" translation="{watchTranslation}" />
+  <Label id="readText" text="{readLabel}" color="0xFFCC66FF" translation="{readTranslation}" />
+  <Rectangle id="bumpButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{bumpButtonTranslation}" on:key[OK]="{bumpStore()}">
+    <Label id="bumpButtonLabel" text="Bump store(demoCount)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+</Rectangle>
+</component>

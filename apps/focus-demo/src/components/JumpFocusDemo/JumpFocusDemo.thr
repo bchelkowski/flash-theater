@@ -1,0 +1,60 @@
+<script>
+' Chapter 7/7 — jumpFocus(<direction>, <count>, <press>): RowList-style multi-item focus jumps,
+' the reserved-keyword counterpart to the automatic single-step LRUD navigate() fallthrough (see
+' GRAMMAR.md's "Focus system" section). Two side-by-side lists with different jump sizes (5 and 2)
+' show the option surface; the right list is also shorter than its own jump size, so a held REWIND
+' from its own bottom row visibly lands exactly on the top row instead of overshooting.
+'
+' FAST-FORWARD/REWIND normally switch chapters — MainScene's own component-level
+' on:key[fastforward]/on:key[rewind] — but that binding is unconditional and would otherwise
+' always win once it's reached. This chapter resolves the clash with pure composition, no compiler
+' special-casing: the header Label below carries no on:key[fastforward]/[rewind] of its own, so
+' while it holds focus those two keys fall straight through to MainScene's chapter-switch handler,
+' same as everywhere else in this app. Each list is now its OWN component (JumpRowList.thr), which
+' binds on:key[fastforward]/[rewind] once on its own template root — pressing UP from either
+' list's own top row returns focus to the header, restoring ordinary chapter-switching.
+'
+' Device-found bug this fixed: both lists used to be plain elements directly in THIS component's
+' own template, wrapped only in a plain `<Group>` for the on:key binding. A plain `<Group>` gives
+' `on:key` a real ancestor-chain boundary to bubble through, but NOT a `navigate()`/`navigateBy()`
+' boundary — those only ever consult registry `owner` identity (the enclosing COMPONENT instance),
+' never template/DOM nesting, and every row plus the header shared ONE owner (this component's own
+' `m.top`). Confirmed live: a held REWIND from a list's own topmost row escaped straight to the
+' header, since the header was a valid same-owner geometric candidate the moment no row remained
+' above. Extracting each list into its own component instance (JumpRowList.thr) gives it a
+' genuinely distinct owner, so `navigateBy()`'s own same-owner-only hop restriction (see
+' FlashTheaterFocusManager.brs) actually contains it now — confirmed live after the fix.
+state selectedDefaultLabel: string = "(nothing selected yet)"
+state selectedCustomLabel: string = "(nothing selected yet)"
+
+public function setup() {
+  m.defaultList.callFunc("setup")
+  m.customList.callFunc("setup")
+}
+
+scale field rootWidth: integer = 1920
+scale field rootHeight: integer = 1080
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+scale state hintTranslation: object = [40, 140]
+scale state defaultColumnLabelTranslation: object = [100, 210]
+scale state customColumnLabelTranslation: object = [700, 210]
+scale state defaultListTranslation: object = [100, 260]
+scale state customListTranslation: object = [700, 260]
+scale state selectedDefaultTranslation: object = [100, 980]
+scale state selectedCustomTranslation: object = [700, 980]
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="7/7 — jumpFocus(...): RowList-style FF/RW multi-item jumps" color="0xFFFFFFFF" translation="{titleTranslation}" focusable="true" default-focus="true" />
+  <Label id="subtitle" text="Two lists, two jump sizes — press DOWN to enter one" color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+  <Label id="hint" text="On this header, FAST-FORWARD/REWIND still switch chapters. Inside a list, they jump rows instead — hold to keep jumping. UP from the top row comes back here." color="0x888888FF" translation="{hintTranslation}" />
+  <Label id="defaultColumnLabel" text="Default — jump 5" color="0x66CCFFFF" translation="{defaultColumnLabelTranslation}" />
+  <Label id="customColumnLabel" text="Customized — jump 2" color="0x66FFAAFF" translation="{customColumnLabelTranslation}" />
+  <JumpRowList id="defaultList" translation="{defaultListTranslation}" rowCount="{12}" jumpSize="{5}" labelPrefix="Default" rowColor="0x3A6EA5FF" bind:selectedLabel="{selectedDefaultLabel}" />
+  <JumpRowList id="customList" translation="{customListTranslation}" rowCount="{6}" jumpSize="{2}" labelPrefix="Custom" rowColor="0x3AA56EFF" bind:selectedLabel="{selectedCustomLabel}" />
+  <Label id="selectedDefault" text="{selectedDefaultLabel}" color="0xFFFFFFFF" translation="{selectedDefaultTranslation}" />
+  <Label id="selectedCustom" text="{selectedCustomLabel}" color="0xFFFFFFFF" translation="{selectedCustomTranslation}" />
+</Rectangle>
+</component>

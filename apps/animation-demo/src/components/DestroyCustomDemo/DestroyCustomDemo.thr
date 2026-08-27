@@ -1,0 +1,133 @@
+<script>
+' Chapter 5/8 — a custom `in:` animation paired with a built-in `out:` preset on a destroy-mode
+' {#if:destroy} block — unifies custom animations and presets under one transition: mechanism. The
+' card carries its own focusable content, proving destroy mode's retimed focus-safety fix: unlike
+' the pre-existing (unmodified) destroy path, the actual removeChild is deferred until the exit
+' animation reports "stopped", but unregister/recoverFocusFor still fire immediately when the exit
+' starts. See findings/focus-system.md.
+'
+' Also the live-verification fixture for findings/component-unmount-hook.md's two former "Still
+' open" items — see TickReadout.thr's own top comment for what `cardTicker`/`badgeTicker` (below)
+' are each proving.
+animation popIn {
+  target: card
+  duration: 0.3
+  easeFunction: "outExpo"
+  scale: [0.5, 1]
+}
+
+' A Layer 1 `target:` referencing an id inside a `{#if:destroy}` block — used to be a documented
+' "no known-safe pattern" limitation (Roku's own fieldToInterp caches its target resolution on
+' first `.control = "start"`, going stale the moment {#if:destroy} destroys/recreates `card` under
+' the same id) since Layer 1's `.start()` has no fixed call site the compiler could hook a reset
+' into the way Layer 2's create/hide subs can. Now fixed generally (see findings/animation.md's
+' "target: inside a {#if:destroy} block is validated for existence, never for reachability" entry):
+' every `.start()` call site for an animation targeting a destroy-mode id gets a fieldToInterp
+' blank-then-reset immediately before it. `pulse.start()` below, triggered from `trigger` (which
+' persists across every showCard cycle, unlike `card` itself), is exactly the case that used to
+' only work on card's FIRST construction — pressing "replay" should visibly pulse the card EVERY
+' time it's shown, not just the first.
+animation pulse {
+  target: card
+  duration: 0.3
+  scale: [1, 1.2, 1]
+}
+
+state showCard: boolean = false
+state showBadge: boolean = true
+
+' `showBadge` defaults true, so `badgeTicker` already exists by the time this forwards — same
+' "the {#if:destroy} create sub is part of this component's own synchronous state-write cascade,
+' strictly before any explicit follow-up call can reach it" reasoning as
+' apps/async-demo/NestedAndListTimerDemo.thr's own toggleMiddle(). If the user toggled the badge off
+' before removing (and re-showing) the card, showBadge stays false across the cycle (component-level
+' state, not reset by card's own destroy/recreate) and badgeTicker correctly isn't (re)constructed.
+private function toggleCard(key: string, press: boolean) {
+  if (press) {
+    state showCard = not showCard
+    if (showCard) {
+      m.cardTicker.callFunc("startDemo")
+      if (showBadge) {
+        m.badgeTicker.callFunc("startDemo")
+      }
+    }
+  }
+}
+
+' Independently toggles the nested `badgeTicker` destroy-mode block — deliberately reachable while
+' `card` holds focus (bound on `card` itself, see the template below), so a live test can toggle the
+' badge off (starting its own SLOWER 0.5s exit fade) and then immediately toggle `card` off too
+' (its own FASTER 0.2s exit fade) — `card`'s own destroy sub then reaches `badgeTicker` via its own
+' unmount cascade while `badgeTicker`'s own destroy sub hasn't run yet. See findings/
+' component-unmount-hook.md's "ft_unmount on a node whose own children are already mid-teardown" item.
+' Bound on `card` itself as `on:key[backspace]` — confirmed live on this device/firmware that
+' Roku's ECP "Info" keypress never reaches onKeyEvent as "info" at all (see FocusedTeardownDemo.thr
+' in apps/async-demo for the same finding), so `backspace` (confirmed working there) is reused here.
+private function toggleBadge(key: string, press: boolean) {
+  if (press) {
+    state showBadge = not showBadge
+    if (showBadge) {
+      m.badgeTicker.callFunc("startDemo")
+    }
+  }
+}
+
+' Test-only explicit focus transfer (`focus("card")` — see GRAMMAR.md's "focus(<id>)" entry) onto
+' `card` once it exists — `card` is geometrically unreachable from `trigger` via ordinary LRUD (no
+' perpendicular-axis overlap at either box's screen position), and this demo's own default flow
+' deliberately keeps `trigger` focused across every showCard cycle (see the Layer 1 `pulse.start()`
+' comment above) rather than auto-focusing `card` — so this is the explicit hook a live gap-1/gap-2
+' verification pass uses to put REAL focus on `card` before removing it. Bound on `trigger` as
+' `on:key[backspace]` too (mutually exclusive with `card`'s own use of the same key — only one of
+' the two can ever hold focus at a time, so there's no ambiguity about which handler fires).
+private function focusCard(key: string, press: boolean) {
+  if (press) {
+    if (showCard) {
+      focus("card")
+    }
+  }
+}
+
+private function pulseCard(key: string, press: boolean) {
+  if (press) {
+    pulse.start()
+  }
+}
+
+' Static layout below is `scale`d so this screen looks the same at any declared ui_resolutions
+' tier — see findings/scale.md. `popIn`'s own `scale: [0.5, 1]` keyframes above and `out:fade`'s
+' opacity are already resolution-independent, so they need no scaling of their own.
+scale field rootWidth: integer = 1920
+scale field rootHeight: integer = 1080
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+scale field triggerWidth: integer = 300
+scale field triggerHeight: integer = 60
+scale state triggerTranslation: object = [40, 140]
+scale state triggerLabelTranslation: object = [16, 16]
+scale field cardWidth: integer = 400
+scale field cardHeight: integer = 240
+scale state cardTranslation: object = [760, 420]
+scale state cardLabelTranslation: object = [24, 24]
+scale state cardTickerTranslation: object = [24, 64]
+scale state badgeTickerTranslation: object = [24, 108]
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="5/8 — custom in: + preset out: on {#if:destroy}" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="removeChild deferred until fade-out finishes; Replay pulses via Layer 1 target:; Backspace toggles focus/badge" color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+  <Rectangle id="trigger" focusable="true" default-focus="true" color="0x2A2A6AFF" width="{triggerWidth}" height="{triggerHeight}" translation="{triggerTranslation}" on:key[OK]="{toggleCard()}" on:key[replay]="{pulseCard()}" on:key[backspace]="{focusCard()}">
+    <Label id="triggerLabel" text="OK: toggle card — Replay: pulse it — Backspace: focus the card" color="0xFFFFFFFF" translation="{triggerLabelTranslation}" />
+  </Rectangle>
+  {#if:destroy showCard}
+  <Rectangle id="card" in:popIn="" out:fade="{{duration: 0.2}}" focusable="true" color="0x6A2A2AFF" width="{cardWidth}" height="{cardHeight}" translation="{cardTranslation}" on:key[OK]="{toggleCard()}" on:key[backspace]="{toggleBadge()}">
+    <Label id="cardLabel" text="Card — OK removes it, Backspace toggles the badge" color="0xFFFFFFFF" translation="{cardLabelTranslation}" />
+    <TickReadout id="cardTicker" translation="{cardTickerTranslation}" />
+    {#if:destroy showBadge}
+    <TickReadout id="badgeTicker" out:fade="{{duration: 0.5}}" translation="{badgeTickerTranslation}" />
+    {/if}
+  </Rectangle>
+  {/if}
+</Rectangle>
+</component>

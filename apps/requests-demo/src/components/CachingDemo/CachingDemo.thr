@@ -1,0 +1,105 @@
+<script>
+' Chapter 2/4 — GRAMMAR.md's "Requests" → "HTTP response caching". Three small `request Http {}`
+' declarations, one button each, covering the whole `cache` override surface: no key at all
+' (follows the server's own Cache-Control), `cache: false` (forced off), and
+' `cache: { ttlSeconds: 300 }` (forced lifetime). Each button's own request can be pressed
+' repeatedly (a fresh Task node every press — Task nodes are one-shot) — press the SAME button
+' twice in a row to see whether the second press reports `fromCache: true`.
+'
+' This chapter is self-documenting rather than visually proving caching actually happened: the
+' readout below always states which config was used and what behavior to EXPECT for it, alongside
+' the real `response.fromCache` value the server/cache layer reported. Genuinely confirming
+' fromCache flips to true on a repeated default/TTL press (and stays false for the disabled one) is
+' a real-device job — see findings/requests-demo-app.md, this chapter is explicitly flagged there
+' as not yet live-verified.
+scale field rootWidth: integer = 1920
+scale field rootHeight: integer = 1080
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+scale field buttonWidth: integer = 480
+scale field buttonHeight: integer = 70
+scale state defaultButtonTranslation: object = [40, 160]
+scale state disabledButtonTranslation: object = [40, 250]
+scale state ttlButtonTranslation: object = [40, 340]
+scale state buttonLabelInset: object = [20, 22]
+scale state defaultReadoutTranslation: object = [40, 440]
+scale state disabledReadoutTranslation: object = [40, 500]
+scale state ttlReadoutTranslation: object = [40, 560]
+
+state defaultCacheText: string = "(not sent yet) — no cache key: follows the server's own Cache-Control automatically"
+state disabledCacheText: string = "(not sent yet) — cache: false: always a real network hit, fromCache should stay false"
+state ttlCacheText: string = "(not sent yet) — cache: ttlSeconds 300: forces this lifetime, ignoring Cache-Control"
+state defaultCachePressCount: integer = 0
+state disabledCachePressCount: integer = 0
+state ttlCachePressCount: integer = 0
+
+private function sendDefaultCache(key: string, press: boolean) {
+  if (press) {
+    state defaultCachePressCount = defaultCachePressCount + 1
+    task = CreateObject("roSGNode", "CacheDefaultRequest")
+    taskManager.run(task)
+    taskManager.onResult(task, onDefaultCacheSucceeded, onDefaultCacheFailed)
+  }
+}
+
+private function sendDisabledCache(key: string, press: boolean) {
+  if (press) {
+    state disabledCachePressCount = disabledCachePressCount + 1
+    task = CreateObject("roSGNode", "CacheDisabledRequest")
+    taskManager.run(task)
+    taskManager.onResult(task, onDisabledCacheSucceeded, onDisabledCacheFailed)
+  }
+}
+
+private function sendTtlCache(key: string, press: boolean) {
+  if (press) {
+    state ttlCachePressCount = ttlCachePressCount + 1
+    task = CreateObject("roSGNode", "CacheTtlRequest")
+    taskManager.run(task)
+    taskManager.onResult(task, onTtlCacheSucceeded, onTtlCacheFailed)
+  }
+}
+
+private function onDefaultCacheSucceeded(result: dynamic) {
+  state defaultCacheText = "press #" + defaultCachePressCount.ToStr() + " — fromCache=" + result.fromCache.ToStr() + " — no cache key: follows the server's own Cache-Control automatically"
+}
+
+private function onDefaultCacheFailed(error: dynamic) {
+  state defaultCacheText = "press #" + defaultCachePressCount.ToStr() + " — error: " + error.message
+}
+
+private function onDisabledCacheSucceeded(result: dynamic) {
+  state disabledCacheText = "press #" + disabledCachePressCount.ToStr() + " — fromCache=" + result.fromCache.ToStr() + " — cache: false: always a real network hit, fromCache should stay false"
+}
+
+private function onDisabledCacheFailed(error: dynamic) {
+  state disabledCacheText = "press #" + disabledCachePressCount.ToStr() + " — error: " + error.message
+}
+
+private function onTtlCacheSucceeded(result: dynamic) {
+  state ttlCacheText = "press #" + ttlCachePressCount.ToStr() + " — fromCache=" + result.fromCache.ToStr() + " — cache: ttlSeconds 300: forces this lifetime, ignoring Cache-Control"
+}
+
+private function onTtlCacheFailed(error: dynamic) {
+  state ttlCacheText = "press #" + ttlCachePressCount.ToStr() + " — error: " + error.message
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="2/4 — response caching (cachefs:/-backed, on by default)" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="Up/Down to pick a button, OK to send it — press the same one twice to test its own cache behavior" color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+  <Rectangle id="defaultCacheButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{defaultButtonTranslation}" on:key[OK]="{sendDefaultCache()}">
+    <Label id="defaultCacheButtonLabel" text="Send (default caching — no cache key)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="disabledCacheButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{disabledButtonTranslation}" on:key[OK]="{sendDisabledCache()}">
+    <Label id="disabledCacheButtonLabel" text="Send (cache: false)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="ttlCacheButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{ttlButtonTranslation}" on:key[OK]="{sendTtlCache()}">
+    <Label id="ttlCacheButtonLabel" text="Send (cache: ttlSeconds 300)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="defaultCacheReadout" text="{defaultCacheText}" color="0x66FF99FF" translation="{defaultReadoutTranslation}" />
+  <Label id="disabledCacheReadout" text="{disabledCacheText}" color="0x66CCFFFF" translation="{disabledReadoutTranslation}" />
+  <Label id="ttlCacheReadout" text="{ttlCacheText}" color="0xFFCC66FF" translation="{ttlReadoutTranslation}" />
+</Rectangle>
+</component>

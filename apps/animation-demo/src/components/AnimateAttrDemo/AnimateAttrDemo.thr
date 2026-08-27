@@ -1,0 +1,51 @@
+<script>
+' Chapter 6/8 — animate:<field> auto-animates the reactive cascade's own write to a matching
+' dynamic attribute, instead of an instant snap. `posterOpacity` is a plain state, flipped
+' explicitly (not via a ternary — ternary is assignment/state-write-RHS only in this DSL, not a
+' dynamic attribute binding's own expression) between two opacity levels each time OK is pressed.
+'
+' `poster2` shares the SAME `posterOpacity` write but with a customized, much slower/delayed
+' `animate:opacity` config — the two posters visibly settle at different times from the exact same
+' state change, proving `{{duration, delay}}` overrides are per-element, not global. (`easeFunction`
+' deliberately left at its default here — it's a quoted-string AA value, and this attribute's own
+' value already needs its own double quotes around `{{...}}`; GRAMMAR.md's Layer 3 section shows
+' `easeFunction` in this position, but the currently-safe, precedent-following form for this XML
+' attribute position is numeric-only overrides — see findings/animation.md.)
+state posterOpacity: float = 0.25
+
+private function toggleActive(key: string, press: boolean) {
+  if (press) {
+    if (posterOpacity = 0.25) {
+      state posterOpacity = 1
+    } else {
+      state posterOpacity = 0.25
+    }
+  }
+}
+
+' Static layout below is `scale`d so this screen looks the same at any declared ui_resolutions
+' tier — see findings/scale.md. `animate:opacity`'s own config is unitless (opacity), so it needs
+' no scaling of its own.
+scale field rootWidth: integer = 1920
+scale field rootHeight: integer = 1080
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+scale field triggerWidth: integer = 300
+scale field triggerHeight: integer = 60
+scale state triggerTranslation: object = [40, 140]
+scale state triggerLabelTranslation: object = [16, 16]
+scale state posterTranslation: object = [760, 390]
+scale state poster2Translation: object = [1180, 390]
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="6/8 — animate:opacity on a reactive attribute" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="Same state write, two customizations — left: default 0.4s, right: slower + delayed" color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+  <Rectangle id="trigger" focusable="true" default-focus="true" color="0x2A2A6AFF" width="{triggerWidth}" height="{triggerHeight}" translation="{triggerTranslation}" on:key[OK]="{toggleActive()}">
+    <Label id="triggerLabel" text="Press OK to toggle" color="0xFFFFFFFF" translation="{triggerLabelTranslation}" />
+  </Rectangle>
+  <Poster id="poster" uri="pkg:/images/channel-poster_fhd.png" opacity="{posterOpacity}" animate:opacity="{{duration: 0.4}}" translation="{posterTranslation}" />
+  <Poster id="poster2" uri="pkg:/images/channel-poster_fhd.png" opacity="{posterOpacity}" animate:opacity="{{duration: 1.2, delay: 0.2}}" translation="{poster2Translation}" />
+</Rectangle>
+</component>

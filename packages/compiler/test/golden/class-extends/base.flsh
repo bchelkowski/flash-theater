@@ -1,0 +1,14 @@
+class MyClass {
+  constructor(a: string, b: integer) {
+    private a: string = a
+    private b: integer = b
+  }
+
+  public function myPublicMethod(count: integer): string {
+    return m.myPrivateMethod(count)
+  }
+
+  private function myPrivateMethod(count: integer): string {
+    return str(count + m.b) + " " + m.a
+  }
+}

@@ -1,0 +1,17 @@
+class Counter {
+  constructor(start: integer) {
+    private count: integer = start
+  }
+
+  public function get(): integer {
+    return m.count
+  }
+
+  public function isZero(): boolean {
+    return m.count == 0
+  }
+
+  public function describe(): string {
+    return str(m.count)
+  }
+}

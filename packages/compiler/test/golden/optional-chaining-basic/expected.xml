@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="OptionalChainingBasic" extends="Group">
+  <interface>
+    <field id="profile" type="node" onChange="on_profileChange" />
+    <field id="cache" type="node" onChange="on_cacheChange" />
+    <field id="ft_routeReady" type="boolean" value="false" />
+    <function name="ft_unmount" />
+  </interface>
+  <children>
+    <LayoutGroup id="root">
+      <Label id="out" />
+      <Label id="summary" />
+    </LayoutGroup>
+  </children>
+  <script type="text/brightscript" uri="OptionalChainingBasic.brs" />
+</component>

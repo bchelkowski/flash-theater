@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- flash-theater:generated — do not edit by hand, source: SplashScreen.thr -->
+<component name="SplashScreen" extends="Group">
+  <interface>
+    <field id="rootWidth" type="integer" value="1280" onChange="on_rootWidthChange" />
+    <field id="rootHeight" type="integer" value="720" onChange="on_rootHeightChange" />
+    <field id="enterButtonWidth" type="integer" value="300" onChange="on_enterButtonWidthChange" />
+    <field id="enterButtonHeight" type="integer" value="50" onChange="on_enterButtonHeightChange" />
+    <function name="setup" />
+    <function name="onLoadTimerFire" />
+  </interface>
+  <children>
+    <Rectangle id="root" color="0x050505FF">
+      <Label id="title" text="Flash Theater Sample" color="0xFFFFFFFF" />
+    </Rectangle>
+  </children>
+  <script type="text/brightscript" uri="SplashScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/FlashTheater/Scale/FlashTheaterScale.brs" />
+</component>

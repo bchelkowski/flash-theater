@@ -1,0 +1,51 @@
+<script>
+' Chapter 4/7 — isFocused/isInFocusChain, default vs. the parent/child distinction. Reserved,
+' reactive read-only fields synthesized only for a component that actually reads them (no cost
+' for everyone else). Both are fields of THIS component — see apps/sample-app's Shell.thr for the
+' original worked example this mirrors.
+'
+' Default (plainButton, a direct child of this component's own template): focusing it makes BOTH
+' isFocused AND isInFocusChain report true — the simple case, since the focused element sits
+' directly under this component's own root.
+'
+' Customized (the wrapper below, holding a nested FocusStateChild custom component): focusing the
+' CHILD's own internal button makes isInFocusChain true (the focused element is still somewhere
+' in this component's subtree) while isFocused stays false — this component doesn't itself own
+' the focused element, a nested child one level down does. A single-writer design makes two
+' components ever reporting isFocused=true at once unrepresentable.
+derived focusStateLabel: string = describeFocusState(isFocused, isInFocusChain)
+
+private function describeFocusState(focused: boolean, inChain: boolean): string {
+  return "isFocused=" + focused.ToStr() + "   isInFocusChain=" + inChain.ToStr()
+}
+
+scale field rootWidth: integer = 1920
+scale field rootHeight: integer = 1080
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+scale state readoutTranslation: object = [40, 150]
+scale field plainWidth: integer = 500
+scale field plainHeight: integer = 90
+scale state plainTranslation: object = [40, 220]
+scale state plainLabelInset: object = [16, 30]
+scale field wrapperWidth: integer = 500
+scale field wrapperHeight: integer = 160
+scale state wrapperTranslation: object = [40, 360]
+scale state wrapperLabelInset: object = [16, 16]
+scale state childTranslation: object = [16, 70]
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="4/7 — isFocused vs. isInFocusChain" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="plainButton (direct child): both true — wrapper's nested child: isInFocusChain only" color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+  <Label id="readout" text="{focusStateLabel}" color="0x66FF99FF" translation="{readoutTranslation}" />
+  <Rectangle id="plainButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{plainWidth}" height="{plainHeight}" translation="{plainTranslation}">
+    <Label id="plainLabel" text="Direct child — focus me for isFocused=true" color="0xFFFFFFFF" translation="{plainLabelInset}" />
+  </Rectangle>
+  <Rectangle id="wrapper" color="0x1A1A1AFF" width="{wrapperWidth}" height="{wrapperHeight}" translation="{wrapperTranslation}">
+    <Label id="wrapperLabel" text="Wrapper — nothing focusable here directly" color="0xFFFFFFFF" translation="{wrapperLabelInset}" />
+    <FocusStateChild id="child" translation="{childTranslation}" />
+  </Rectangle>
+</Rectangle>
+</component>

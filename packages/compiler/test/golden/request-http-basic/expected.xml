@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="RequestHttpBasic" extends="Task">
+  <interface>
+    <field id="resolvedOptions" type="assocarray" />
+    <field id="rawResponse" type="assocarray" />
+    <field id="ft_isRequestComponent" type="boolean" value="true" />
+    <field id="result" type="assocarray" />
+    <field id="error" type="assocarray" />
+    <field id="ft_routeReady" type="boolean" value="false" />
+    <function name="ft_unmount" />
+  </interface>
+  <children>
+  </children>
+  <script type="text/brightscript" uri="RequestHttpBasic.brs" />
+</component>

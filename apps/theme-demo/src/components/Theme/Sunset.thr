@@ -1,0 +1,6 @@
+<theme name="sunset">
+colors: {
+  background: string = "0x3D1F0FFF"
+  accent: string = "0xFF7A45FF"
+}
+</theme>

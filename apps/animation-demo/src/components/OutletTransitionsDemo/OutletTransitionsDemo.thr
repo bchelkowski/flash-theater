@@ -1,0 +1,32 @@
+<script>
+' Chapter 8/8 — the narrated version of what's already been happening on every chapter switch in
+' this app. `MainScene.thr`'s own `<FlashTheaterRouterOutlet>` carries `navigate-out:`/
+' `navigate-in:`/`back-out:`/`back-in:`, all targeting the outlet itself (never a chapter screen —
+' a routed screen has no compile-time id an animation could reference). Router-outlet transitions
+' have no per-route override (GRAMMAR.md's own "Not supported" list) — they're configured once, on
+' the outlet, and apply to EVERY route it ever mounts, this screen included. So there's nothing this
+' chapter's own template can trigger that the others haven't already shown: FAST-FORWARD to arrive
+' here (slideInFromRight, the same as arriving at any other chapter) and REWIND/BACK to leave
+' (slideOutRight/back-in — the automatic router back-key, walking history) both play the exact same
+' transition this screen is describing. See GRAMMAR.md's "Router-outlet transitions" and
+' findings/router-transitions.md.
+scale field rootWidth: integer = 1920
+scale field rootHeight: integer = 1080
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+scale field cardWidth: integer = 1200
+scale field cardHeight: integer = 400
+scale state cardTranslation: object = [360, 400]
+scale state cardLabelTranslation: object = [40, 40]
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="8/8 — router-outlet transitions" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="Every chapter switch you've just been watching IS this mechanism" color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+  <Rectangle id="card" focusable="true" default-focus="true" color="0x2A2A6AFF" width="{cardWidth}" height="{cardHeight}" translation="{cardTranslation}">
+    <Label id="cardLabel" text="MainScene.thr's router outlet carries navigate-out/navigate-in/back-out/back-in, each naming a script-declared animation targeting the outlet itself. FAST-FORWARD to the next chapter and it slides in from the right — REWIND (or physical Back) and the outgoing screen slides back out to the right while the previous one re-enters from the left. One outlet, one config, every route." color="0xFFFFFFFF" translation="{cardLabelTranslation}" wrap="true" width="{cardWidth - 80}" />
+  </Rectangle>
+</Rectangle>
+</component>
+</content>

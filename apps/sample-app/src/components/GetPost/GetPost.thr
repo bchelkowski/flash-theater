@@ -1,0 +1,38 @@
+<script>
+' Demonstrates `request Http { cache: { ttlSeconds: <n> } }` — see GRAMMAR.md's "Requests" section
+' and findings/requests-caching.md's "HTTP response caching" writeup. Deliberately the SIMPLEST possible
+' request: a fixed URL, no `buildRequest` at all (no per-call parameterization needed — see
+' GetPosts.thr for that), so there's no `prepareRequest`/`callFunc` step on the caller's side
+' either — RequestDemoScreen.thr drives this one with a plain `taskManager.run(task)`, exactly like
+' SlowTask.thr. The point here is caching alone, not parameterization.
+'
+' jsonplaceholder.typicode.com/posts/1 actually sends its own `Cache-Control: max-age=43200`
+' (12 hours, confirmed via curl -I) — so caching is ALREADY on by default here even without this
+' `cache` key at all (GET requests cache automatically, following the server's own header — see
+' GRAMMAR.md). This `cache: { ttlSeconds: 30 }` is here specifically to demonstrate the FORCE
+' behavior instead: it overrides the server's real 12-hour header down to exactly 30 seconds. Press
+' twice in a row (within 30s) — second press reports fromCache=true; wait 31+ seconds and press
+' again — back to fromCache=false, a real network round trip, even though the server's own header
+' would otherwise have kept this cached for 12 hours. (See `ft_httpFetch`'s own `isCacheable`/
+' `ft_httpCacheRead` path and `ft_httpResponseMaxAge`'s `forcedTtlSeconds` check in
+' runtime-assets/Http/FlashTheaterHttp.brs.)
+request Http {
+  method: "GET",
+  url: "https://jsonplaceholder.typicode.com/posts/1",
+  cache: { ttlSeconds: 30 }
+}
+
+' `response.fromCache` — true only on a cache hit (see FlashTheaterHttp.brs's own return-shape doc
+' comment) — surfaced here so RequestDemoScreen.thr can show it directly, proving the cache is
+' actually being consulted rather than the app just re-requesting silently every time.
+private function parseResponse(response: object): object {
+  return { title: response.data.title, fromCache: response.fromCache }
+}
+
+private function parseError(response: object): object {
+  return { message: "HTTP " + response.httpStatusCode.ToStr() }
+}
+</script>
+
+<component extends="Task">
+</component>

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="FlashTheaterFocusManager" extends="Node">
+  <interface>
+    <function name="setSceneRef" />
+    <function name="register" />
+    <function name="unregister" />
+    <function name="unregisterSubtree" />
+    <function name="recoverFocusFor" />
+    <function name="claimFocusIfVacant" />
+    <function name="navigate" />
+    <!-- RowList-style multi-item jump — the runtime counterpart of the `jumpFocus(<direction>,
+         <count>, <press>)` DSL statement (see codegen/brs-emitter.ts's printJumpFocusStatement).
+         Repeats the same single-hop search navigate() uses, `count` times, committing exactly once
+         at the end — see navigateBy()'s own doc comment in FlashTheaterFocusManager.brs. -->
+    <function name="navigateBy" />
+    <function name="moveFocusTo" />
+    <function name="focusComponent" />
+    <function name="resolveEntryTarget" />
+    <function name="registerFocusState" />
+    <!-- Deferred focus application — see FlashTheaterFocusManager.brs's own section comment. -->
+    <function name="beginFocusTransition" />
+    <function name="proposeFocusTarget" />
+    <function name="requestFocusTarget" />
+    <function name="applyPendingFocus" />
+    <!-- Deferred, route-scoped focus restoration on a router navigation (forward or back) —
+         captures whatever was last ACTUALLY focused inside the route being left (via
+         mostRecentlyFocusedWithin(), below — not necessarily whatever holds literal focus at the
+         moment router.navigate()/router.back() is called), and restores it Scene-wide the next time
+         that same route mounts. See captureRouteFocusMemory()/beginSuppressedNavigation()/
+         resolveRouteFocusTarget() in FlashTheaterFocusManager.brs. -->
+    <function name="captureRouteFocusMemory" />
+    <function name="beginSuppressedNavigation" />
+    <function name="resolveRouteFocusTarget" />
+    <!-- The most recently focused node anywhere inside a given root's own subtree, regardless of
+         which nested component actually registered it — see mostRecentlyFocusedWithin()'s own doc
+         comment. Exposed for FlashTheaterRouterOutlet's own captureRouteFocusMemory() call site,
+         above. -->
+    <function name="mostRecentlyFocusedWithin" />
+    <!-- Diagnostics: "what has focus right now, and where does it sit in the tree". -->
+    <function name="focusedNode" />
+    <function name="getFocusPath" />
+    <function name="getFocusPathString" />
+    <function name="startRepeat" />
+    <function name="stopRepeat" />
+  </interface>
+  <script type="text/brightscript" uri="FlashTheaterFocusManager.brs" />
+</component>

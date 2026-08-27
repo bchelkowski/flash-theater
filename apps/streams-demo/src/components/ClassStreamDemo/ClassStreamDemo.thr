@@ -1,0 +1,80 @@
+<script>
+import Broadcaster from "components/Classes/Broadcaster.flsh"
+import Listener from "components/Classes/Listener.flsh"
+
+' Chapter 2/3 — declaring a `stream` as a `.flsh` class field (`public stream onChanged: <Type>`),
+' reachable from whoever holds the class instance. See GRAMMAR.md's "`stream`" section (the
+' "Also declarable directly on a `.flsh` class" bullet) and findings/streams.md's "A class-declared
+' stream field is reachable from whoever holds the instance" entry.
+'
+' Default: `Broadcaster` (a `.flsh` class with a `stream` field) has one method, `change(value)`,
+' that calls `m.onChanged.emit(value)` — this component holds an instance and subscribes directly
+' to `instance.onChanged` from its OWN script, exactly like reading any other public member off a
+' class instance (`m.broadcaster.onChanged.subscribe(...)`, zero special mechanism).
+'
+' Customized addition: a SECOND, independent subscriber to the SAME class-instance stream —
+' `Listener`, a second `.flsh` class instance that also holds a reference to `Broadcaster` (see
+' Listener.flsh's own comment for why it uses the bound-method sugar, not an inline callback, to do
+' so). One press of "Broadcast a value" updates BOTH readouts — this component's own subscriber
+' immediately (its callback writes into `state`, riding the template cascade), and Listener's
+' internal state too (pulled via "Refresh listener readout", since a class instance's own private
+' state isn't otherwise observable) — proving both subscribers received the SAME emission
+' independently, not that only one of them fired.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 420
+scale field buttonHeight: integer = 50
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state broadcastButtonTranslation: object = [40, 120]
+scale state refreshButtonTranslation: object = [40, 180]
+scale state componentReadoutTranslation: object = [40, 260]
+scale state listenerReadoutTranslation: object = [40, 290]
+scale state emitCountReadoutTranslation: object = [40, 320]
+scale state buttonLabelInset: object = [16, 12]
+
+state componentSubscriberText: string = "component subscriber: none yet"
+state listenerSubscriberText: string = "listener subscriber (class-to-class): none yet"
+state emitCount: integer = 0
+
+derived emitCountLabel: string = "broadcast " + emitCount.ToStr() + " time(s)"
+
+public function setup() {
+  m.broadcaster = Broadcaster()
+  m.broadcaster.onChanged.subscribe(function (value: string) {
+    state componentSubscriberText = "component subscriber: " + value
+  })
+
+  m.listener = Listener()
+  m.listener.subscribeTo(m.broadcaster)
+}
+
+private function broadcastValue(key: string, press: boolean) {
+  if (press) {
+    state emitCount = emitCount + 1
+    m.broadcaster.change("broadcast-" + emitCount.ToStr())
+  }
+}
+
+private function refreshListenerReadout(key: string, press: boolean) {
+  if (press) {
+    state listenerSubscriberText = "listener subscriber (class-to-class): " + m.listener.lastReceived() + " (received " + m.listener.receivedCount().ToStr() + "x)"
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="2/3 — class-declared stream field, two independent subscribers" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="UP/DOWN between buttons, OK to run — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Rectangle id="broadcastButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{broadcastButtonTranslation}" on:key[OK]="{broadcastValue()}">
+    <Label id="broadcastButtonLabel" text="Broadcast a value" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="refreshButton" focusable="true" color="0x2A4A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{refreshButtonTranslation}" on:key[OK]="{refreshListenerReadout()}">
+    <Label id="refreshButtonLabel" text="Refresh listener readout" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="componentReadout" text="{componentSubscriberText}" color="0x66FF99FF" translation="{componentReadoutTranslation}" />
+  <Label id="listenerReadout" text="{listenerSubscriberText}" color="0x66CCFFFF" translation="{listenerReadoutTranslation}" />
+  <Label id="emitCountReadout" text="{emitCountLabel}" color="0xFFCC66FF" translation="{emitCountReadoutTranslation}" />
+</Rectangle>
+</component>

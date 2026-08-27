@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="AnonymousFunctionBasicFixture" extends="Group">
+  <interface>
+    <field id="prefix" type="string" value="&quot;Item: &quot;" />
+    <field id="ft_routeReady" type="boolean" value="false" />
+    <function name="registerHandler" />
+    <function name="ft_unmount" />
+  </interface>
+  <children>
+    <LayoutGroup id="root" />
+  </children>
+  <script type="text/brightscript" uri="AnonymousFunctionBasicFixture.brs" />
+</component>

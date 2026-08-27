@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="RawBlockBasic" extends="Group">
+  <interface>
+    <field id="limit" type="integer" value="5" onChange="on_limitChange" />
+    <field id="ft_routeReady" type="boolean" value="false" />
+    <function name="ft_unmount" />
+  </interface>
+  <children>
+    <LayoutGroup id="root">
+      <Label id="out" />
+    </LayoutGroup>
+  </children>
+  <script type="text/brightscript" uri="RawBlockBasic.brs" />
+</component>

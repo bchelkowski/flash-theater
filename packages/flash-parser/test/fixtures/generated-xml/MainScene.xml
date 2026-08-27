@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- flash-theater:generated — do not edit by hand, source: MainScene.thr -->
+<component name="MainScene" extends="Scene">
+  <interface>
+    <function name="setup" />
+  </interface>
+  <children>
+    <FlashTheaterRouterOutlet id="rootOutlet" />
+  </children>
+  <script type="text/brightscript" uri="MainScene.brs" />
+</component>

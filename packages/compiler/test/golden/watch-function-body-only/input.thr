@@ -1,0 +1,12 @@
+<script>
+watch count = store(count)
+derived doubled: integer = count * 2
+
+private function bump() {
+  store(count) = count + 1
+}
+</script>
+
+<component>
+<Label id="out" text="ready" />
+</component>

@@ -1,0 +1,43 @@
+<script>
+' A minimal Timer-owning leaf, reused by DestroyCustomDemo.thr in two different shapes — closing
+' the two "Still open" items in findings/component-unmount-hook.md, which were about ft_unmount
+' timing/guarding, not about Timer statements themselves (see findings/timer-statements.md for
+' that side):
+'
+' 1. `cardTicker` — a plain, always-present direct child of `card`, DestroyCustomDemo's own
+'    destroy-mode/`out:fade`-transitioning element. Gives that block's own exit-animation-deferred
+'    teardown real Timer content, so the interleaving between focus recovery (fires immediately when
+'    the exit animation STARTS) and the ft_unmount cascade (fires only once the exit animation STOPS
+'    and the destroy sub actually runs) is directly observable via tick evidence, not just "navigation
+'    kept working."
+' 2. `badgeTicker` — inside its OWN nested `{#if:destroy}` block (`showBadge`) with a LONGER `out:fade`
+'    than `card`'s own — deliberately toggled off first, then `card` itself toggled off before
+'    `badgeTicker`'s own slower exit animation finishes. `card`'s own (faster) destroy sub's unmount
+'    cascade reaches `badgeTicker` directly (it's in `card`'s own flat `nestedIds`, same component,
+'    not an opaque cross-component boundary) while `badgeTicker`'s own destroy sub hasn't run yet —
+'    exactly the "calling ft_unmount on a node whose own children are already mid-teardown" gap.
+'
+' Not focusable — DestroyCustomDemo.thr's own `card`/`trigger` already own all focusable content and
+' key handling for this demo; this widget is purely an observable tick readout, started explicitly via
+' `startDemo()`, the same forwarding convention every other Timer demo in this repo already uses
+' (see apps/async-demo's TimerLeafWidget.thr).
+scale field width: integer = 340
+scale field height: integer = 36
+scale state readoutTranslation: object = [8, 6]
+
+state tickCount: integer = 0
+
+derived tickLabel: string = "ticks: " + tickCount.ToStr()
+
+public function startDemo() {
+  m.tickTimer = setInterval(function() {
+    state tickCount = tickCount + 1
+  }, 300)
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x1A1A1AFF" width="{width}" height="{height}">
+  <Label id="readout" text="{tickLabel}" color="0xFFFFFFFF" translation="{readoutTranslation}" />
+</Rectangle>
+</component>

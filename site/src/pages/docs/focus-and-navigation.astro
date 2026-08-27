@@ -1,0 +1,167 @@
+---
+import DocsLayout from '../../components/DocsLayout.astro';
+import DocsHero from '../../components/DocsHero.astro';
+import CodePanel from '../../components/CodePanel.astro';
+import NotSupported from '../../components/NotSupported.astro';
+import DocsFooterLinks from '../../components/DocsFooterLinks.astro';
+
+const focusable = `<Rectangle id="prompt" focusable="true" default-focus="true"
+           color="0x3A3A3AFF" width="{promptWidth}" height="{promptHeight}"
+           on:key[OK]="{goToSchedule()}">
+  <Label id="promptLabel" text="{welcomeText}" />
+</Rectangle>`;
+
+const onKeyExample = `<Rectangle id="tile" focusable="true" on:key[OK]="{selectTile(tile)}">
+  <Label id="tileLabel" text="{tile.label}" />
+</Rectangle>`;
+
+const scrollIntoView = `field scrollOffsetX: float = 0
+field scrollOffsetY: float = 0
+
+<component>
+<Rectangle id="viewport" clippingRect="{[0, 0, 1000, 500]}">
+  <Group id="track" translation="{[-scrollOffsetX, -scrollOffsetY]}">
+    {#each tiles as tile (tile.id)}
+      <Rectangle id="tile" focusable="true" translation="{[tile.x, tile.y]}" .../>
+    {/each}
+  </Group>
+</Rectangle>
+</component>`;
+
+const focusState = `derived menuHighlight: string = pickHighlight(isFocused)
+
+private function pickHighlight(focused: boolean): string {
+  if (focused) {
+    return "0x0057FFFF"
+  }
+  return "0x2A2A2AFF"
+}`;
+
+const focusChainExample = `<Rectangle id="menu" color="{menuHighlight}">
+{#if isInFocusChain}
+  <Label id="activeBadge" text="active section" />
+{/if}
+</Rectangle>`;
+
+const focusCall = `focus("searchBox")  ' jump focus to one of THIS component's own descendants, by id`;
+
+const jumpFocusExample = `<Group id="list" on:key[fastforward]="{jumpDown()}" on:key[rewind]="{jumpUp()}">
+  {#each rows as row (row.id)}
+    <Rectangle id="row" focusable="true">
+      <Label id="rowLabel" text="{row.label}" />
+    </Rectangle>
+  {/each}
+</Group>
+
+private function jumpDown(key: string, press: boolean) {
+  jumpFocus("down", 5, press)  ' <press> forwarded unconditionally — see note below
+}
+private function jumpUp(key: string, press: boolean) {
+  jumpFocus("up", 5, press)
+}`;
+---
+<DocsLayout title="Focus & navigation" slug="focus-and-navigation">
+  <DocsHero icon="🎯">
+    Focus &amp; navigation
+    <br />
+    <span class="text-base text-slate-500 font-normal">focusable, on:key, and the cross-component LRUD focus system.</span>
+  </DocsHero>
+
+  <p class="text-slate-300 leading-relaxed mb-6">
+    An automatic, cross-component geometric (up/down/left/right) focus system — no hand-written
+    <code class="text-amber-300">SetFocus()</code>/<code class="text-amber-300">onKeyEvent</code> chasing required for
+    ordinary directional navigation between components you didn't even write together.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3"><code>focusable</code> and <code>on:key</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">focusable="true"</code> (or a dynamic <code class="text-amber-300">{'{expr}'}</code>) registers
+    an element with the app-wide focus registry — it needs an <code class="text-amber-300">id</code>.
+    <code class="text-amber-300">on:key[Key1,Key2,...]={'{'}call{'}'}</code> binds a handler using Roku's own raw key
+    strings (a <code class="text-amber-300">*</code> wildcard matches any key), with bubbling simulated up through
+    nested <code class="text-amber-300">on:key</code> ancestors exactly like real DOM event bubbling.
+    <code class="text-amber-300">default-focus="true"</code> marks a component's own natural entry point (at most one
+    per component, must pair with a static <code class="text-amber-300">focusable="true"</code>).
+  </p>
+  <CodePanel code={focusable} lang="xml" filename="HomeScreen.thr (excerpt)" class="mb-4" />
+  <CodePanel code={onKeyExample} lang="xml" filename="ScrollFocusDemo.thr (excerpt)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Cross-component LRUD navigation</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Arrow-key navigation searches the current component's own focusable content first, then widens to the
+    whole app-wide registry — geometric, spatial-navigation-style scoring (genuine axis overlap, not a cone/angle
+    guess). Holding a direction key accelerates repeat navigation automatically. A component declaring both
+    <code class="text-amber-300">scrollOffsetX</code>/<code class="text-amber-300">scrollOffsetY</code> fields gets
+    automatic scroll-into-view when focus moves to off-screen content within it:
+  </p>
+  <CodePanel code={scrollIntoView} lang="xml" filename="ScrollFocusDemo.thr (excerpt)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">RowList-style multi-item jump — <code>jumpFocus</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">jumpFocus(&lt;direction&gt;, &lt;count&gt;, &lt;press&gt;)</code> moves focus several
+    registered candidates at once in one direction, instead of navigate()'s own single step — the same
+    <code class="text-amber-300">"up"</code>/<code class="text-amber-300">"down"</code>/<code class="text-amber-300">"left"</code>/<code class="text-amber-300">"right"</code>
+    vocabulary, repeated up to <code class="text-amber-300">&lt;count&gt;</code> times and stopping early at a real boundary
+    (landing on the last reachable item instead of overshooting) — and, unlike an ordinary arrow-key press, a jump
+    never crosses into a different component partway through: it stays confined to whichever component's own
+    registered content the press started in, even once it runs out of further candidates there. It's deliberately
+    <strong class="text-slate-200">not</strong> automatic the way arrow-key LRUD is — every chapter app in this
+    project already reserves FAST-FORWARD/REWIND for chapter switching precisely because
+    <code class="text-amber-300">navigate()</code> never touches those keys, so an author wires
+    <code class="text-amber-300">jumpFocus</code> onto an <code class="text-amber-300">on:key[...]</code> binding instead —
+    on the focusable element itself, or once on a plain wrapping container, since <code class="text-amber-300">on:key</code>
+    bubbles from wherever focus currently sits up through its ancestor chain (no <code class="text-amber-300">focusable</code>
+    needed on that container). <code class="text-amber-300">&lt;press&gt;</code> must be
+    forwarded through <strong class="text-slate-200">unconditionally</strong> (never guarded by the caller's own
+    <code class="text-amber-300">if (press)</code>) — a press jumps focus and arms the same hold-to-repeat timing arrow keys
+    already use, a release stops it:
+  </p>
+  <CodePanel code={jumpFocusExample} lang="xml" filename="JumpFocusDemo.thr (excerpt)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">The vacuum rule</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Automatically-chosen focus (on router mount, or after the focused node is destroyed) is applied
+    <strong class="text-slate-200">only when nothing currently holds focus</strong> — it never takes focus away from
+    somewhere it already is. This is what makes a persistent side menu keep focus across navigations instead of
+    getting yanked into newly-mounted content every time. An explicit <code class="text-amber-300">focus(&lt;id&gt;)</code>
+    deliberately overrides the rule, since the author asked for it by name.
+  </p>
+  <CodePanel code={focusCall} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3"><code>isFocused</code> / <code>isInFocusChain</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Reserved, reactive read-only fields — synthesized only for a component that actually reads them (no cost for
+    everyone else). <code class="text-amber-300">isFocused</code> means this component owns the focused element;
+    <code class="text-amber-300">isInFocusChain</code> means the focused element is anywhere in its subtree (nested
+    child components included) — a single-writer design makes two components reporting <code class="text-amber-300">isFocused = true</code>
+    at once unrepresentable, not merely disallowed.
+  </p>
+  <CodePanel code={focusState} lang="xml" filename="" class="mb-4" />
+  <CodePanel code={focusChainExample} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Reference implementation — <code>apps/focus-demo</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-8">
+    Every mechanism on this page has a router-mounted, <code class="text-amber-300">scale</code>d
+    chapter in <code class="text-amber-300">apps/focus-demo</code> — 7 chapters
+    (<code class="text-amber-300">/focusable-basics</code> through <code class="text-amber-300">/jump-focus</code>),
+    reachable with REWIND/FAST-FORWARD once compiled and sideloaded. One chapter,
+    <code class="text-amber-300">CrossSiblingRelayDemo</code>, is deliberately kept hand-written
+    (not compiled from <code class="text-amber-300">.thr</code>) — the project's one worked
+    example of a hand-authored component used directly as a router route's own
+    <code class="text-amber-300">component:</code>, composing three real
+    <code class="text-amber-300">.thr</code> siblings and hand-wiring the cross-sibling
+    <code class="text-amber-300">focus(&lt;id&gt;)</code>/relay pattern this page describes above.
+    See <code class="text-amber-300">findings/focus-demo-app.md</code> for what each chapter
+    covers and <code class="text-amber-300">findings/demo-app-conventions.md</code> for the
+    app-structure convention it follows.
+  </p>
+
+  <NotSupported items={[
+    'Two elements at any nesting depth both statically <code class="text-amber-300">focusable="true"</code> — rejected at compile time as a provable ambiguity.',
+    'A router-free app needs an explicit boot-time claim (a hand-written <code class="text-amber-300">setup()</code> calling into the focus manager) — nothing applies a proposed default focus into a vacuum on its own outside the router\'s automatic hand-off.',
+    'A <code class="text-amber-300">{#if:destroy}</code> block whose content is a nested custom component needs an explicit unregister/reclaim around the switch — generated teardown can\'t see into another component\'s own focusable content.',
+    'No DSL-exposed timing configuration for <code class="text-amber-300">jumpFocus</code>\'s own hold-to-repeat — it always reuses the fixed <code class="text-amber-300">repeatTuning()</code> constants arrow-key repeat already uses.',
+  ]} />
+
+  <DocsFooterLinks grammarAnchor="#focus-system" />
+</DocsLayout>

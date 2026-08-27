@@ -1,0 +1,62 @@
+<script>
+' Chapter 2/7 — cross-component LRUD navigation + automatic scroll-into-view. A `scrollOffsetX`/
+' `scrollOffsetY` field pair is all a component needs for the focus system to automatically scroll
+' off-screen focused content back into view — no manual math. Default shape: the uniform 6x5 grid.
+' Customized shape: three irregular, non-grid-aligned cards mixed into the SAME collection/registry,
+' exercising navigate()'s LRUD scoring against messy real-world geometry (varying size, not
+' row/column-aligned), not just a perfectly uniform grid.
+'
+' This file is now a thin chrome wrapper (background/title/subtitle/hint) around
+' ScrollableTileGrid.thr, which owns the grid/scroll/jump mechanics — see that file's own top
+' comment for why the split was needed (GRAMMAR.md's "Scroll-into-view" contract requires the
+' scrollOffsetX/Y-declaring component's own template root to BE the viewport window, which
+' conflicted with this chapter's own full-screen background+title chrome living in the same
+' component). ScrollableTileGrid is a plain nested child, not router-mounted, so it gets neither an
+' automatic `setup()` call NOR the router outlet's automatic entry-focus resolution (both keyed to
+' `m.currentChild` — this component itself, which now owns no focusable content directly). Fixed
+' the same way CrossSiblingRelayDemo.thr's hand-written setup() already does for its own three
+' all-nested-children shape: call the grid's setup() explicitly, then claimFocusIfVacant(m.tileGrid)
+' to establish this chapter's own entry focus (the automatic router resolution finds nothing under
+' THIS component directly and silently proposes no target, same as it always silently no-ops when a
+' router-mounted screen declares no focusable content of its own).
+'
+' Every tile binds on:key[fastforward]/[rewind] to jumpFocus (2-row jumps, hold-to-repeat) —
+' unlike JumpFocusDemo's own header/list split (see its own top comment), this grid has no
+' non-focusable "safe" element to act as an escape hatch back to MainScene's chapter-switch
+' handler, so FAST-FORWARD/REWIND are captured for as long as any tile holds focus. This is
+' deliberate: a grid is exactly the kind of focusable region where FF/RW should stay contained
+' rather than leaking out to chapter navigation the moment a tile is focused.
+public function setup() {
+  m.tileGrid.callFunc("setup")
+  m.global.ft_focus.callFunc("claimFocusIfVacant", m.tileGrid)
+}
+
+' `standalone` gates the "2/7 — ..." chapter chrome (title/subtitle/hint) — true (the default) when
+' this file is mounted directly as its own router-mounted chapter, false when embedded as a plain
+' child inside another component's own composition (CrossSiblingRelayDemo sets this to false right
+' after createChild()). Device-found bug this fixes: with the chrome unconditional, chapter 5
+' (CrossSiblingRelayDemo, which embeds this component as one of three siblings) visibly showed
+' "2/7 — cross-component LRUD + scroll-into-view" on screen while the bottom hint correctly read
+' "Chapter 5/7" — confusing, self-contradictory chapter-position text on the same screen. The
+' full-screen `root` background Rectangle stays unconditional either way — CrossSiblingRelayDemo has
+' no background of its own and relies on this one showing through.
+field standalone: boolean = true
+
+scale field rootWidth: integer = 1920
+scale field rootHeight: integer = 1080
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+scale state hintTranslation: object = [40, 120]
+scale state tileGridTranslation: object = [100, 160]
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  {#if:destroy standalone}
+    <Label id="title" text="2/7 — cross-component LRUD + scroll-into-view" color="0xFFFFFFFF" translation="{titleTranslation}" />
+    <Label id="subtitle" text="Uniform 6x5 grid, plus 3 irregular non-grid-aligned cards below it" color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+    <Label id="hint" text="FAST-FORWARD/REWIND jump 2 rows within this grid instead of switching chapters — hold to keep jumping." color="0x888888FF" translation="{hintTranslation}" />
+  {/if}
+  <ScrollableTileGrid id="tileGrid" translation="{tileGridTranslation}" />
+</Rectangle>
+</component>

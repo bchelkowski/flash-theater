@@ -1,0 +1,24 @@
+<script>
+' Real end-to-end proof of the `environments` feature (see GRAMMAR.md's "Environments" section and
+' findings/environments.md) — NOT wired into MainScene's router, and deliberately excluded from the
+' plain (no --env) build by the app-root flash-theater.config.json's own "exclude" list.
+' `env.apiBaseUrl`/`env.buildLabel` only resolve when an environment is active (compiling with none
+' active is a hard `expression/env-requires-active-environment` compile error — see
+' analysis/global-bindings.ts's `resolveEnvPath`), so this component can only ever be compiled as
+' part of an environment build in the first place. Each of this app's two environments
+' (environments/staging.config.json, environments/production.config.json) re-includes this whole
+' directory via its own "include" list, and declares both variables with different values —
+' compile with each active (`FLASH_THEATER_ENV=staging npm run build:roku`/`FLASH_THEATER_ENV=production
+' npm run build:roku`, from this app's own directory) and diff the two compiled
+' out-staging/components/EnvDemo/EnvDemo.brs vs out-production/components/EnvDemo/EnvDemo.brs to see
+' the different baked literals directly.
+derived apiBaseUrlLabel: string = "API: " + env.apiBaseUrl
+derived buildLabelText: string = "Build: " + env.buildLabel
+</script>
+
+<component>
+<Rectangle id="root" color="0x101010FF" width="400" height="80">
+  <Label id="apiBaseUrlReadout" text="{apiBaseUrlLabel}" color="0x66CCFFFF" translation="[16, 12]" />
+  <Label id="buildLabelReadout" text="{buildLabelText}" color="0x66CCFFFF" translation="[16, 40]" />
+</Rectangle>
+</component>

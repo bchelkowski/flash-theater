@@ -1,0 +1,229 @@
+---
+import Layout from '../components/Layout.astro';
+import CodePanel from '../components/CodePanel.astro';
+import parserPkg from '../../../packages/flash-parser/package.json';
+
+const base = import.meta.env.BASE_URL;
+
+const installExample = `npm install flash-parser`;
+
+const quickStartExample = `import { parseThr, findAll, SyntaxKind, FieldDeclaration } from 'flash-parser';
+
+const source = \`
+<script>
+field count: integer = 0
+derived doubled: integer = count * 2
+</script>
+<component>
+  <Label id="label" text="{doubled}" />
+</component>
+\`;
+
+const { root, diagnostics } = parseThr(source);
+
+diagnostics; // [] — no parse errors
+
+// Lossless CST: printing every token's full text (with trivia) reproduces
+// the exact original source, byte for byte.
+root.getText() === source; // true
+
+// findAll + one of the typed AST classes from 'ast.js' — walk() itself
+// is a plain (node: SyntaxNode) => void callback over every CST node,
+// not a per-kind visitor object; findAll is how you collect just one kind.
+const fields = findAll(root, SyntaxKind.FieldDeclaration, (n) => new FieldDeclaration(n));
+for (const f of fields) console.log(f.name, f.type, f.defaultLiteral);
+// "count integer 0"`;
+
+const diagnosticsExample = `import { parseThr } from 'flash-parser';
+
+// parseThr/parseFlsh never throw on a malformed file — check the
+// diagnostics array yourself (this is what the compiler's own
+// CompileError wraps diagnostics[0] into, on top of this package).
+const { diagnostics } = parseThr(\`
+<script>
+field count: integer = 0
+<component></component>
+\`); // missing </script>
+
+for (const d of diagnostics) {
+  console.log(d.code, '—', d.message, \`(line \${d.line})\`);
+}
+// "thr/unterminated-script — No closing </script> found. (line 1)"
+
+// ParseDiagnostic shape:
+// { code: string, message: string, pos: number, end: number, line: number }
+// pos/end are byte offsets into the source; line is 0-based.`;
+
+const apiSurface = [
+  { title: 'DSL AST nodes', body: 'ThrFile/FieldDeclaration/DerivedDeclaration/IfStatement/ClassDeclaration/... — one typed class per grammar construct, from ast.ts.' },
+  { title: 'BrightScript AST + scopes', body: 'BsFunctionDeclaration/BsIfStatement/BsCallExpression/..., plus buildBrightScriptScopes/resolveBrightScriptName/findBrightScriptScopeAtLine.' },
+  { title: 'Tokens & trivia', body: 'tokenize/TokenKind/Token/tokenFullText — the raw token stream with whitespace/comments attached, underneath the CST.' },
+  { title: 'Visitor helpers', body: 'walk (a plain depth-first (node) => void callback over every CST node) and findAll (collect every node matching one SyntaxKind, wrapped into a typed AST class).' },
+  { title: 'Embedded-region helpers', body: 'parseEmbeddedExpression/parseEmbeddedStatements/findTopLevelIdentifiers/findMemberAccesses/... — used by the compiler to analyze one BrightScript expression/statement region inside DSL source without reparsing the whole file.' },
+];
+
+const brightscriptExample = `import { tokenizeBrightScript, parseBrightScript, wrapBrightScriptNode } from 'flash-parser';
+
+// A full, self-sufficient BrightScript grammar — vendored and adapted from
+// kopytko-brightscript-parser, but parsed independently, not delegated to
+// it at parse time. Used for every embedded expression/statement region
+// inside DSL source.
+const { root, diagnostics } = parseBrightScript(\`
+function add(a as Integer, b as Integer) as Integer
+  return a + b
+end function
+\`);
+
+const file = wrapBrightScriptNode(root);
+console.log(diagnostics.length); // 0`;
+
+const xmlExample = `import { parseSceneGraphXml } from 'flash-parser';
+
+// A SceneGraph XML lexer/parser/AST — used for the template markup and
+// for parsing generated .xml output back for validation. Returns the
+// typed root XmlElement directly (undefined if the document has none).
+const root = parseSceneGraphXml(\`
+<component name="Widget" extends="Group">
+  <children>
+    <Label id="label" text="hi" />
+  </children>
+</component>
+\`);
+
+console.log(root.tagName); // 'component'
+console.log(root.attributes.map((a) => \`\${a.name}=\${a.value}\`));
+// [ 'name=Widget', 'extends=Group' ]`;
+
+const owns = [
+  { title: 'DSL grammar', body: "The .thr <script>/template split, field/derived/state/read/watch, private/public function, the JS-shaped if/for/while/try, and .flsh classes (extends/override/super)." },
+  { title: 'Full BrightScript grammar', body: 'A lexer, recursive-descent parser, and typed AST — independent of kopytko-brightscript-parser at parse time.' },
+  { title: 'SceneGraph XML grammar', body: 'A lexer/parser/AST for the template markup and generated .xml output.' },
+];
+---
+<Layout title="flash-parser" description="A lossless CST + typed AST parser for the flash-theater DSL.">
+  <div class="bg-[radial-gradient(ellipse_60%_40%_at_50%_0%,rgba(217,119,6,0.12),transparent)] border-b border-[#1f2c42]">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+      <div class="flex items-center gap-2 text-sm text-slate-500 mb-4">
+        <span>npm</span>
+        <span>/</span>
+        <code class="text-slate-300">flash-parser</code>
+        <span class="bg-slate-700/60 text-slate-400 text-xs px-2 py-0.5 rounded-full ml-1">v{parserPkg.version}</span>
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4">flash-parser</h1>
+      <p class="text-lg text-slate-400 max-w-2xl leading-relaxed">
+        A lossless CST + typed AST parser for the flash-theater DSL (<code class="text-amber-300">.thr</code>/<code class="text-amber-300">.flsh</code>)
+        — the counterpart to <code class="text-amber-300">kopytko-brightscript-parser</code> for BrightScript.
+        Used by <a href={`${base}/compiler/`} class="prose-link">flash-theater-compiler</a> as its only
+        parsing layer.
+      </p>
+      <div class="flex flex-wrap gap-3 mt-6">
+        <a href="https://www.npmjs.com/package/flash-parser" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium rounded-lg transition-colors">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M0 7.334v8h6.666v1.332H12v-1.332h12v-8H0zm6.666 6.664H5.334v-4H3.999v4H1.335V8.667h5.331v5.331zm4 0v1.336H8.001V8.667h5.334v5.331h-2.669v0zm12.001 0h-1.33v-4h-1.336v4h-1.335v-4h-1.33v4h-2.671V8.667h8.002v5.331zM10.665 10h1.336v2.667h-1.336V10z"/></svg>
+          npm
+        </a>
+        <a href="https://github.com/bchelkowski/flash-theater/tree/main/packages/flash-parser" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 text-sm font-medium rounded-lg transition-colors">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          Source
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
+    <section>
+      <h2 class="text-xl font-bold text-white mb-4">Install</h2>
+      <CodePanel code={installExample} lang="bash" filename="terminal" />
+      <p class="text-sm text-slate-500 mt-3">Requires Node.js ≥ 24.</p>
+    </section>
+
+    <section>
+      <h2 class="text-xl font-bold text-white mb-2">Quick start</h2>
+      <p class="text-slate-400 mb-4 max-w-2xl leading-relaxed">
+        Parse a <code class="text-amber-300">.thr</code> file into a lossless CST + typed AST.
+      </p>
+      <CodePanel code={quickStartExample} lang="typescript" filename="example.ts" />
+    </section>
+
+    <section>
+      <h2 class="text-xl font-bold text-white mb-2">Diagnostics</h2>
+      <p class="text-slate-400 mb-4 max-w-2xl leading-relaxed">
+        <code class="text-amber-300">parseThr</code>/<code class="text-amber-300">parseFlsh</code> never
+        throw on malformed source — a syntax problem always comes back as an entry in
+        <code class="text-amber-300">diagnostics</code> instead (this is also what
+        <a href={`${base}/compiler/`} class="prose-link">flash-theater-compiler</a>'s own
+        <code class="text-amber-300">CompileError</code> wraps <code class="text-amber-300">diagnostics[0]</code> into,
+        on top of this package).
+      </p>
+      <CodePanel code={diagnosticsExample} lang="typescript" filename="example.ts" />
+    </section>
+
+    <section>
+      <h2 class="text-xl font-bold text-white mb-2">What this package owns</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+        {owns.map((o) => (
+          <div class="bg-[#111927] rounded-xl border border-[#1f2c42] p-5">
+            <h3 class="font-semibold text-white text-sm mb-1">{o.title}</h3>
+            <p class="text-xs text-slate-400 leading-relaxed">{o.body}</p>
+          </div>
+        ))}
+      </div>
+      <p class="text-sm text-slate-500 mt-4 leading-relaxed max-w-2xl">
+        <code class="text-amber-300">kopytko-brightscript-parser</code> remains a dependency for two
+        narrow, non-parsing roles inside <code class="text-amber-300">flash-theater-compiler</code>
+        only (validating generated <code class="text-amber-300">.brs</code> post-codegen, and
+        supplying Roku's builtin-function name catalog) — never for parsing DSL source.
+      </p>
+    </section>
+
+    <section>
+      <h2 class="text-xl font-bold text-white mb-2">The BrightScript grammar</h2>
+      <p class="text-slate-400 mb-4 max-w-2xl leading-relaxed">
+        A full, self-sufficient BrightScript expression/statement grammar — used for every
+        embedded region inside DSL source, and for BrightScript-level scope resolution.
+      </p>
+      <CodePanel code={brightscriptExample} lang="typescript" filename="example.ts" />
+    </section>
+
+    <section>
+      <h2 class="text-xl font-bold text-white mb-2">The SceneGraph XML grammar</h2>
+      <p class="text-slate-400 mb-4 max-w-2xl leading-relaxed">
+        A dedicated XML lexer/parser/AST for template markup and generated output — not a
+        general-purpose XML library, just enough SceneGraph XML to round-trip losslessly.
+      </p>
+      <CodePanel code={xmlExample} lang="typescript" filename="example.ts" />
+    </section>
+
+    <section>
+      <h2 class="text-xl font-bold text-white mb-2">Full API surface</h2>
+      <p class="text-slate-400 mb-4 max-w-2xl leading-relaxed">
+        Beyond the examples above, the package also exports:
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {apiSurface.map((a) => (
+          <div class="bg-[#111927] rounded-xl border border-[#1f2c42] p-5">
+            <h3 class="font-semibold text-white text-sm mb-1">{a.title}</h3>
+            <p class="text-xs text-slate-400 leading-relaxed font-mono">{a.body}</p>
+          </div>
+        ))}
+      </div>
+      <p class="text-sm text-slate-500 mt-4">
+        The full, current export list is <a href="https://github.com/bchelkowski/flash-theater/blob/main/packages/flash-parser/src/index.ts" class="prose-link" target="_blank">src/index.ts</a> — every symbol there ships with its own TypeScript types.
+      </p>
+    </section>
+
+    <section class="border-t border-[#1f2c42] pt-10">
+      <h2 class="text-xl font-bold text-white mb-3">Documentation</h2>
+      <ul class="text-sm text-slate-400 space-y-2">
+        <li>
+          <a href={`${base}/docs/getting-started/`} class="prose-link">Getting started</a> — project layout and the compile CLI.
+        </li>
+        <li>
+          <a href="https://github.com/bchelkowski/flash-theater/blob/main/packages/compiler/GRAMMAR.md" class="prose-link" target="_blank">GRAMMAR.md</a> — the exact grammar this package implements.
+        </li>
+        <li>
+          <a href={`${base}/compiler/`} class="prose-link">flash-theater-compiler</a> — the compiler built on top of this parser.
+        </li>
+      </ul>
+    </section>
+  </div>
+</Layout>

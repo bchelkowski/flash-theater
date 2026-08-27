@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="BindBasicFixture" extends="Group">
+  <interface>
+    <field id="ft_routeReady" type="boolean" value="false" />
+    <function name="ft_unmount" />
+  </interface>
+  <children>
+    <LayoutGroup id="root">
+      <TextEditBox id="input" />
+      <Label id="echo" />
+    </LayoutGroup>
+  </children>
+  <script type="text/brightscript" uri="BindBasicFixture.brs" />
+</component>

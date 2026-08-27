@@ -1,0 +1,117 @@
+---
+import DocsLayout from '../../components/DocsLayout.astro';
+import DocsHero from '../../components/DocsHero.astro';
+import CodePanel from '../../components/CodePanel.astro';
+import NotSupported from '../../components/NotSupported.astro';
+import DocsFooterLinks from '../../components/DocsFooterLinks.astro';
+
+const attrs = `<Rectangle id="background" color="0x1A1A1AFF" width="{width}" height="{height}">
+  <Label id="label" text="{favoritesLabel}" color="{textColor}" />
+</Rectangle>`;
+
+const ifToggle = `{#if favoriteCount == 0}
+  <Label id="emptyBadge" text="Add your first!" color="{textColor}" />
+{/if}`;
+
+const ifDestroy = `{#if:destroy showCelebration}
+  <Label id="celebration" text="Nice streak!" color="{textColor}" />
+{/if}`;
+
+const eachBlock = `{#if:destroy hasLoaded}
+  {#each schedule as day (day.id)}
+    <Label id="row" text="{prefix + day.title}" translation="{[rowX, day.y]}"
+           focusable="true" on:key[OK]="{selectDay(day)}" />
+    {#if:destroy day.isToday}
+      <Label id="todayBadge" text="(today)" translation="{[todayBadgeX, day.y]}" />
+    {/if}
+  {/each}
+{/if}`;
+
+const bindExample = `<TextEditBox id="searchBox" bind:text="{searchText}" focusable="true" />
+<Label id="searchEcho" text="{searchText}" />`;
+---
+<DocsLayout title="Template & binding" slug="template-and-binding">
+  <DocsHero icon="🧩">
+    Template &amp; binding
+    <br />
+    <span class="text-base text-slate-500 font-normal">Dynamic attributes, {'{#if}'}/{'{#if:destroy}'}, {'{#each}'}, bind:.</span>
+  </DocsHero>
+
+  <p class="text-slate-300 leading-relaxed mb-6">
+    A <code class="text-amber-300">.thr</code> component's template is always valid XML — every node id is
+    automatically cached (no hand-written <code class="text-amber-300">findNode</code>), and every
+    <code class="text-amber-300">{'{expr}'}</code> attribute becomes a real, generated reactive push.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Static and dynamic attributes</h2>
+  <CodePanel code={attrs} lang="xml" filename="" class="mb-4" />
+  <p class="text-slate-400 leading-relaxed mb-8">
+    A static attribute value containing <code class="text-amber-300">&lt;</code>/<code class="text-amber-300">&gt;</code>/<code class="text-amber-300">&amp;</code>
+    can be written with the raw character (<code class="text-amber-300">text="a &lt; b"</code>) — the compiler escapes it
+    correctly when generating the underlying XML. Don't pre-escape it by hand
+    (<code class="text-amber-300">text="a &amp;lt; b"</code>): the compiler would escape that text too, so the literal
+    entity code ends up rendered on screen instead of the character you meant.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3"><code>{'{#if}'}</code> — toggle mode</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Reactively binds <code class="text-amber-300">visible</code> on a synthetic wrapper <code class="text-amber-300">Group</code>.
+    The subtree is always constructed and stays registered (including for focus purposes) — cheap toggling, no
+    teardown.
+  </p>
+  <CodePanel code={ifToggle} lang="xml" filename="FavoriteCounter.thr (excerpt)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3"><code>{'{#if:destroy}'}</code> — construct/destroy mode</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Hand-constructs the subtree at runtime when the condition first becomes true, and tears it down (with focus
+    correctly handed back, per the <a href="focus-and-navigation/" class="prose-link">vacuum rule</a>) when it goes
+    false again — a genuinely clean slate on every remount, not a cheap visibility flip.
+  </p>
+  <CodePanel code={ifDestroy} lang="xml" filename="FavoriteCounter.thr (excerpt)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3"><code>{'{#each}'}</code> — keyed list rendering</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">{'{#each <collection> as <item> (<key>)}'}</code> does a real keyed add/remove/reposition
+    diff, preserving node identity across reorders. Nests with <code class="text-amber-300">{'{#if}'}</code>/<code class="text-amber-300">{'{#if:destroy}'}</code>
+    in both directions, including loop-in-loop. The collection may be a plain array or a SceneGraph node (iterated
+    over its own children).
+  </p>
+  <CodePanel code={eachBlock} lang="xml" filename="ScheduleList.thr (excerpt)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3"><code>bind:</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">bind:&lt;childField&gt;={'{'}&lt;stateName&gt;{'}'}</code> pulls a value <strong class="text-slate-200">out of</strong> a
+    child node's field into a <code class="text-amber-300">state</code>, reactively, whenever the child's field
+    changes. Despite the "two-way binding" name in early planning docs, this is
+    <strong class="text-slate-200">one-directional only: child → state.</strong> It never pushes a value into the
+    child — pushing, when wanted, is just an ordinary <code class="text-amber-300">attr="{'{expr}'}"</code> dynamic
+    attribute on a separate attribute.
+  </p>
+  <CodePanel code={bindExample} lang="xml" filename="ScheduleList.thr (excerpt)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Reference implementation — <code>apps/template-and-binding-demo</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-8">
+    Every mechanism on this page has a router-mounted, <code class="text-amber-300">scale</code>d
+    chapter in <code class="text-amber-300">apps/template-and-binding-demo</code> — 4 chapters
+    (<code class="text-amber-300">/attributes</code> through <code class="text-amber-300">/bind</code>),
+    reachable with REWIND/FAST-FORWARD once compiled and sideloaded. Each chapter shows a default
+    example alongside a deliberately different, customized one — e.g. <code class="text-amber-300">/each</code>'s
+    plain 5-row list next to a "Reverse order"/"Rotate order" pair that reorders the SAME backing
+    items, proving each row's own color travels with it (node identity preserved across the keyed
+    diff, not destroyed and rebuilt), and <code class="text-amber-300">/if-toggle-vs-destroy</code>'s
+    two side-by-side counters showing that a <code class="text-amber-300">{'{#if}'}</code> panel's
+    internal state survives a hide/show cycle while a <code class="text-amber-300">{'{#if:destroy}'}</code>
+    panel's resets to zero. See <code class="text-amber-300">findings/template-and-binding-demo-app.md</code>
+    for what each chapter covers and <code class="text-amber-300">findings/demo-app-conventions.md</code>
+    for the app-structure convention it follows.
+  </p>
+
+  <NotSupported items={[
+    '<code class="text-amber-300">bind:</code> inside an <code class="text-amber-300">{#each}</code> body — rejected at compile time.',
+    'No built-in loop index variable inside <code class="text-amber-300">{#each}</code> — a list item that needs its own layout position must carry that position as part of its own data (see the real-world workaround in ScheduleList.thr).',
+    'A <code class="text-amber-300">{#each}</code> block\'s items are not reachable by an enclosing <code class="text-amber-300">LayoutGroup</code>\'s automatic child layout — the wrapper Group sits between them.',
+    'Every <code class="text-amber-300">{#each}</code> item binding re-runs unconditionally on every reconcile — no fine-grained per-field diff.',
+  ]} />
+
+  <DocsFooterLinks grammarAnchor="#conditional-rendering" />
+</DocsLayout>

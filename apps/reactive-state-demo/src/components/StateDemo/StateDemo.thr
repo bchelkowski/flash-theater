@@ -1,0 +1,82 @@
+<script>
+' Chapter 2/4 — `state` (private, `m.x`-backed, writable, reactive). See GRAMMAR.md's "state"
+' section and site/src/pages/docs/reactive-state.astro.
+'
+' Default: `state counter = <expr>` triggers the same reactive cascade a `field` change does —
+' pressing OK increments `counter`, and `doubledLabel` (a derived reading it) recomputes
+' automatically, exactly like a field-driven derived would.
+'
+' Customized: the real, documented field-shadowing gotcha (findings/reactivity-state.md's
+' "Assigning to a name that shadows a field..." entry) — a plain assignment to a name that
+' happens to match a declared `field`'s name is NOT a hidden field write. It's an ordinary new
+' local, shadowing the field for the rest of that function (real BrightScript lexical scoping,
+' deliberately not special-cased by this DSL). `demoShadowing()` below assigns straight to
+' `baseCount` (a declared field) without the `state` keyword — that line compiles to a plain
+' BrightScript local assignment, `baseCount = baseCount + 1`, and the field's own value (read by
+' `baseCountLabel` below, always still 100) never actually changes.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 460
+scale field buttonHeight: integer = 50
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state counterTranslation: object = [40, 110]
+scale state doubledTranslation: object = [40, 140]
+scale state incrementButtonTranslation: object = [40, 190]
+scale state baseCountTranslation: object = [40, 260]
+scale state shadowButtonTranslation: object = [40, 300]
+scale state shadowResultTranslation: object = [40, 370]
+scale state buttonLabelInset: object = [16, 12]
+
+field baseCount: integer = 100
+
+state counter: integer = 0
+state shadowResultText: string = "(press the Demonstrate shadowing button below to see)"
+
+derived counterLabel: string = "counter (state): " + str(counter)
+derived doubledLabel: string = "doubledCounter (derived, reads state): " + str(counter * 2)
+derived baseCountLabel: string = "baseCount (field, never mutated by demoShadowing): " + str(baseCount)
+
+private function increment(key: string, press: boolean) {
+  if (press) {
+    state counter = counter + 1
+  }
+}
+
+private function demoShadowing(key: string, press: boolean) {
+  if (press) {
+    ' Plain assignment to a name matching the `baseCount` FIELD above — real BrightScript lexical
+    ' scoping means this declares a brand-new LOCAL shadowing the field for the rest of THIS
+    ' function only. It is NOT a hidden field write: `baseCount` (the field, read by
+    ' `baseCountLabel` above) never changes, no matter how many times this runs.
+    '
+    ' The local is assigned a fresh LITERAL, never `baseCount + 1` — BrightScript determines
+    ' local-vs-field scope by statically scanning the WHOLE function body for assignment targets,
+    ' so once `baseCount` is assigned anywhere in this function, EVERY bare `baseCount` read in it
+    ' — including on the assignment's own right-hand side — resolves to that not-yet-initialized
+    ' local, never the field, crashing with "Use of uninitialized variable" (live-device-caught:
+    ' see findings/reactive-state-demo-app.md's device-pass writeup). A literal sidesteps this
+    ' entirely, and still proves the same point: this local is fresh every press, never derived
+    ' from either the field OR a prior press's own local.
+    baseCount = 999
+    state shadowResultText = "Local baseCount is now " + str(baseCount) + " inside this function — but the real field above is still 100."
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="2/4 — state" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="OK on a button to trigger it — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Label id="counterText" text="{counterLabel}" color="0xAAAAAAFF" translation="{counterTranslation}" />
+  <Label id="doubledText" text="{doubledLabel}" color="0xAAAAAAFF" translation="{doubledTranslation}" />
+  <Rectangle id="incrementButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{incrementButtonTranslation}" on:key[OK]="{increment()}">
+    <Label id="incrementButtonLabel" text="Increment state counter" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="baseCountText" text="{baseCountLabel}" color="0x66CCFFFF" translation="{baseCountTranslation}" />
+  <Rectangle id="shadowButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{shadowButtonTranslation}" on:key[OK]="{demoShadowing()}">
+    <Label id="shadowButtonLabel" text="Demonstrate shadowing (writes a LOCAL, not the field)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="shadowResultReadout" text="{shadowResultText}" color="0xFFCC66FF" translation="{shadowResultTranslation}" />
+</Rectangle>
+</component>

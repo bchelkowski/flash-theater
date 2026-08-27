@@ -1,0 +1,17 @@
+<script>
+state showMiddle: boolean = false
+
+public function toggleMiddle() {
+  state showMiddle = not showMiddle
+}
+</script>
+
+<component>
+<Rectangle id="root">
+  <Label id="first" text="first" />
+  {#if:destroy showMiddle}
+    <Label id="middle" text="middle" />
+  {/if}
+  <Label id="last" text="last" />
+</Rectangle>
+</component>

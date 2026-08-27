@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="FunctionBodyRewriteFixture" extends="Group">
+  <interface>
+    <field id="enabled" type="boolean" value="true" />
+    <field id="score" type="integer" value="0" onChange="on_scoreChange" />
+    <field id="ft_routeReady" type="boolean" value="false" />
+    <function name="echoScore" />
+    <function name="ft_unmount" />
+  </interface>
+  <children>
+    <LayoutGroup id="root">
+      <Label id="out" />
+    </LayoutGroup>
+  </children>
+  <script type="text/brightscript" uri="FunctionBodyRewriteFixture.brs" />
+</component>

@@ -1,0 +1,17 @@
+<script>
+' Chapter 2 (/caching)'s "default caching" button — GRAMMAR.md's "Requests" → "HTTP response
+' caching": a GET request with NO `cache` key at all still consults and populates the cache,
+' purely following the real response's own Cache-Control header. jsonplaceholder.typicode.com
+' does send a Cache-Control header on its GET responses, so this endpoint is expected to actually
+' cache — see CachingDemo.thr's own readout for the exact wording surfaced to the user, and
+' findings/requests-demo-app.md for why this can't be confirmed from source alone (needs a real
+' device pass to observe an actual fromCache=true on a second press).
+request Http { method: "GET", url: "https://jsonplaceholder.typicode.com/posts/1" }
+
+private function parseResponse(response: object): object {
+  return { title: response.data.title, fromCache: response.fromCache }
+}
+</script>
+
+<component extends="Task">
+</component>

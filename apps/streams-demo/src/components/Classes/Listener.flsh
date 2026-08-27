@@ -1,0 +1,37 @@
+' Chapter 2/3 (class-stream) — a SECOND independent subscriber to `Broadcaster`'s own `onChanged`
+' stream field, entirely from class code (`ClassStreamDemo.thr`'s own script subscribes directly
+' too — see that file). Proves multiple subscribers on the same class-instance stream all receive
+' the same emission independently.
+'
+' `.subscribe(m.onBroadcastChanged)` — a bare bound-method-reference argument, no call parens — is
+' DSL sugar the compiler lowers to `.subscribe({ target: m, action: "onBroadcastChanged" })`. This
+' is the REQUIRED pattern here, not a style choice — see GRAMMAR.md's "`stream`" section and
+' findings/streams.md: a Function value's own `m` binding does not reliably survive being stored in
+' the stream's own subscriber list and invoked later once detached from a real SceneGraph node
+' (confirmed live, real device), since a `.flsh` instance is a plain associative array with no
+' SceneGraph identity at all. Never write the inline-anonymous-function form here. See chapter 3
+' (`/bound-method-sugar`) for the raw `{ target, action }` descriptor this sugar lowers to, shown
+' side by side with this same sugar form.
+class Listener {
+  constructor() {
+    private received: string = "none yet"
+    private receiveCount: integer = 0
+  }
+
+  public function subscribeTo(broadcaster: object) {
+    broadcaster.onChanged.subscribe(m.onBroadcastChanged)
+  }
+
+  public function onBroadcastChanged(value: string) {
+    m.received = value
+    m.receiveCount = m.receiveCount + 1
+  }
+
+  public function lastReceived(): string {
+    return m.received
+  }
+
+  public function receivedCount(): integer {
+    return m.receiveCount
+  }
+}

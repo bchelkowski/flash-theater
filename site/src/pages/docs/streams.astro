@@ -1,0 +1,118 @@
+---
+import DocsLayout from '../../components/DocsLayout.astro';
+import DocsHero from '../../components/DocsHero.astro';
+import CodePanel from '../../components/CodePanel.astro';
+import NotSupported from '../../components/NotSupported.astro';
+import DocsFooterLinks from '../../components/DocsFooterLinks.astro';
+
+const SCRIPT_OPEN = '<' + 'script>';
+const SCRIPT_CLOSE = '<' + '/script>';
+
+const declare = `stream dataLoaded: string`;
+
+const componentUsage = `${SCRIPT_OPEN}
+stream dataLoaded: string
+
+public function setup() {
+  dataLoaded.subscribe(function (value: string) {
+    state dataLoadedText = "dataLoaded: " + value
+  })
+}
+
+private function emitDataLoaded(key: string, press: boolean) {
+  if (press) {
+    dataLoaded.emit("payload-ready")
+  }
+}
+${SCRIPT_CLOSE}`;
+
+const classField = `class Publisher {
+  public stream onChanged: string
+
+  public function change(value: string) {
+    m.onChanged.emit(value)
+  }
+}`;
+
+const subscribeSugar = `' Sugar: pass a bound method reference directly...
+dataLoaded.subscribe(m.onPublisherChanged)
+
+' ...instead of the hand-written descriptor it lowers to:
+dataLoaded.subscribe({ target: m, action: "onPublisherChanged" })`;
+---
+<DocsLayout title="Streams" slug="streams">
+  <DocsHero icon="📡">
+    Streams
+    <br />
+    <span class="text-base text-slate-500 font-normal">Per-instance pub-sub between objects inside one component.</span>
+  </DocsHero>
+
+  <p class="text-slate-300 leading-relaxed mb-6">
+    <code class="text-amber-300">stream &lt;name&gt;: &lt;Type&gt;</code> is a BehaviorSubject-like value for
+    imperative, reactive communication between different objects living inside the <strong class="text-slate-200">same</strong>
+    component — a <code class="text-amber-300">.thr</code> component's own script, and any <code class="text-amber-300">.flsh</code>
+    class instances it holds. It's never for node-to-node communication across components — that stays
+    <code class="text-amber-300">field</code>/<code class="text-amber-300">bind:</code> (see
+    <a href="reactive-state/" class="prose-link">Reactive state</a> and
+    <a href="template-and-binding/" class="prose-link">Template &amp; binding</a>).
+  </p>
+  <CodePanel code={declare} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3"><code>.emit</code> / <code>.subscribe</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">.emit(value)</code> sends a new value; <code class="text-amber-300">.subscribe(callback)</code>
+    reacts to every future value <strong class="text-slate-200">plus an immediate replay</strong> of the most recent
+    one, synchronously, before <code class="text-amber-300">.subscribe</code> itself returns — a subscriber that
+    arrives after at least one <code class="text-amber-300">.emit()</code> sees the current value right away, no
+    separate "read the current value" call needed.
+  </p>
+  <CodePanel code={componentUsage} lang="xml" filename="StreamDemo.thr (excerpt)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Declaring a stream on a class</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    A stream can also be a <a href="classes/" class="prose-link">class</a> field — reachable from whoever holds the
+    instance, exactly like reading any other public member:
+  </p>
+  <CodePanel code={classField} lang="xml" filename="Publisher.flsh" class="mb-8" />
+  <p class="text-slate-500 text-sm leading-relaxed mb-8">
+    <code class="text-amber-300">someInstance.onChanged.subscribe(...)</code> then works with zero special mechanism,
+    from either a component's own script or another class's method.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Bound-method subscribe sugar</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Passing a bare stored function value across this boundary is unreliable for a class instance (a
+    <code class="text-amber-300">.flsh</code> instance has no SceneGraph identity, and its <code class="text-amber-300">m</code>
+    binding does not survive being stored and invoked later) — so <code class="text-amber-300">.subscribe(&lt;target&gt;.&lt;methodName&gt;)</code>
+    is recognized structurally and lowered to a safe <code class="text-amber-300">{'{'} target, action {'}'}</code> descriptor automatically:
+  </p>
+  <CodePanel code={subscribeSugar} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Reference implementation — <code>apps/streams-demo</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-8">
+    Every mechanism on this page has a router-mounted, <code class="text-amber-300">scale</code>d
+    chapter in <code class="text-amber-300">apps/streams-demo</code> — 3 chapters
+    (<code class="text-amber-300">/emit-subscribe</code>, <code class="text-amber-300">/class-stream</code>,
+    <code class="text-amber-300">/bound-method-sugar</code>), reachable with REWIND/FAST-FORWARD once
+    compiled and sideloaded. <code class="text-amber-300">/emit-subscribe</code> contrasts a late
+    subscriber's immediate replay against the idiomatic setup()-subscribe bridge-into-state pattern,
+    firing multiple emissions in a row to prove the callback fires every time. <code class="text-amber-300">/class-stream</code>
+    subscribes to the same class-declared stream field from both a component's own script and a
+    second class instance at once. <code class="text-amber-300">/bound-method-sugar</code> wires the
+    same emission to two independent listeners side by side — one using the raw
+    <code class="text-amber-300">{'{'} target, action {'}'}</code> descriptor, one using the
+    <code class="text-amber-300">.subscribe(m.methodName)</code> sugar — so a live run confirms both
+    forms actually fire identically. See <code class="text-amber-300">findings/streams-demo-app.md</code>
+    for what each chapter covers and <code class="text-amber-300">findings/demo-app-conventions.md</code>
+    for the app-structure convention it follows.
+  </p>
+
+  <NotSupported items={[
+    'No unsubscribe API — a stream\'s subscriber list lives as long as whatever owns the stream does.',
+    '<code class="text-amber-300">.subscribe</code>/<code class="text-amber-300">.emit</code> are untyped, ordinary method calls — never structurally type-checked against the declared <code class="text-amber-300">&lt;Type&gt;</code>.',
+    'Calling <code class="text-amber-300">.subscribe(...)</code> from inside a <code class="text-amber-300">derived</code> expression or a template binding is rejected at compile time — it would re-subscribe and replay on every recompute.',
+    'Deliberately excluded from the <code class="text-amber-300">derived</code>/<code class="text-amber-300">watch</code> dependency graph — a stream read never triggers a reactive recompute on its own.',
+  ]} />
+
+  <DocsFooterLinks grammarAnchor="#stream" />
+</DocsLayout>

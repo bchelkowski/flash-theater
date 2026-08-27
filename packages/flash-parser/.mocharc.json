@@ -1,0 +1,6 @@
+{
+  "require": ["tsx", "source-map-support/register"],
+  "spec": "test/**/*.test.ts",
+  "timeout": 10000,
+  "extension": ["ts"]
+}

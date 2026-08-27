@@ -1,0 +1,109 @@
+<script>
+import BankAccount from "components/Classes/BankAccount.flsh"
+
+' Chapter 1/3 — fields (top-level literal default AND the constructor-parameter shorthand),
+' all three visibility levels, and methods. See findings/classes-demo-app.md for the full writeup
+' and Classes/BankAccount.flsh for the class this drives.
+'
+' Default usage: construct one instance in `setup()` (`m.account = BankAccount(...)`, the same
+' bare-`m.<name>` idiom `apps/sample-app/src/components/StreamDemo/StreamDemo.thr` already uses
+' for its own class instances — no `field`/`state` declaration needed just to hold a reference),
+' then call methods on it from key handlers. `deposit`/`withdraw` return/mutate through the
+' PRIVATE `balance` field; only `summary()` — a method the class itself provides — can ever
+' surface its value, since there is no public getter for it at all.
+'
+' Customized addition beyond the single-method-no-contrast shape: "Withdraw $250" deliberately
+' exceeds the account's `overdraftLimit`, so `withdraw()` returns `false` and leaves `balance`
+' unchanged — directly contrasted against "Withdraw $30" (which succeeds) via the same
+' `lastWithdrawResult` readout, showing withdraw()'s own private-field guard actually gating
+' something observable, not just accepting every call. $250, not $200 — live-device-caught:
+' `withdraw()`'s own guard (`balance - amount < 0 - overdraftLimit`) is boundary-INCLUSIVE, so from
+' the account's starting $100 balance and $100 overdraftLimit, withdrawing exactly $200 lands right
+' AT the -$100 floor (allowed, not blocked) — it takes $250+ to genuinely exceed it. See
+' findings/classes-demo-app.md's device-pass writeup.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 460
+scale field buttonHeight: integer = 50
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state depositButtonTranslation: object = [40, 120]
+scale state withdraw30ButtonTranslation: object = [40, 180]
+scale state withdraw250ButtonTranslation: object = [40, 240]
+scale state buttonLabelInset: object = [16, 12]
+scale state summaryTranslation: object = [40, 320]
+scale state withdrawResultTranslation: object = [40, 360]
+
+state balanceVersion: integer = 0
+state lastWithdrawResult: string = "(no withdrawal attempted yet)"
+
+derived summaryLabel: string = accountSummaryText(balanceVersion)
+
+' `derived`'s own initial value is computed in init(), before setup() ever runs — so `m.account`
+' (constructed in setup(), the bare-m idiom this file's own top comment describes) is still
+' `invalid` the first time this runs. Optional chaining protects the CHAIN itself
+' (`m?.account?.summary?()` safely resolves to Invalid instead of crashing there), but this
+' function's own declared `: string` return type still enforces a cast on whatever comes back —
+' casting Invalid to String throws "Type Mismatch. Unable to cast 'Invalid' to 'String'."
+' Live-device-caught: this app crashed on its very first mount before this guard was added — see
+' findings/classes-demo-app.md's device-pass writeup.
+private function accountSummaryText(_version: integer): string {
+  if (m.account = invalid) {
+    return "(not initialized yet)"
+  }
+  return m.account.summary()
+}
+
+public function setup() {
+  m.account = BankAccount("Ada", 100)
+}
+
+private function deposit50(key: string, press: boolean) {
+  if (press) {
+    m.account.deposit(50)
+    state balanceVersion = balanceVersion + 1
+  }
+}
+
+private function withdraw30(key: string, press: boolean) {
+  if (press) {
+    ok = m.account.withdraw(30)
+    if (ok) {
+      state lastWithdrawResult = "Withdraw $30: succeeded"
+    } else {
+      state lastWithdrawResult = "Withdraw $30: blocked (overdraft limit)"
+    }
+    state balanceVersion = balanceVersion + 1
+  }
+}
+
+private function withdraw250(key: string, press: boolean) {
+  if (press) {
+    ok = m.account.withdraw(250)
+    if (ok) {
+      state lastWithdrawResult = "Withdraw $250: succeeded"
+    } else {
+      state lastWithdrawResult = "Withdraw $250: blocked (overdraft limit)"
+    }
+    state balanceVersion = balanceVersion + 1
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="1/3 — fields, visibility (public/private/protected), methods" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="UP/DOWN between buttons, OK to run — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Rectangle id="depositButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{depositButtonTranslation}" on:key[OK]="{deposit50()}">
+    <Label id="depositButtonLabel" text="Deposit $50" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="withdraw30Button" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{withdraw30ButtonTranslation}" on:key[OK]="{withdraw30()}">
+    <Label id="withdraw30ButtonLabel" text="Withdraw $30 (within overdraft limit)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="withdraw250Button" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{withdraw250ButtonTranslation}" on:key[OK]="{withdraw250()}">
+    <Label id="withdraw250ButtonLabel" text="Withdraw $250 (exceeds overdraft limit)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="summaryReadout" text="{summaryLabel}" color="0x66FF99FF" translation="{summaryTranslation}" />
+  <Label id="withdrawResultReadout" text="{lastWithdrawResult}" color="0xFFCC66FF" translation="{withdrawResultTranslation}" />
+</Rectangle>
+</component>

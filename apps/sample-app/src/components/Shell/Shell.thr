@@ -1,0 +1,345 @@
+<script>
+' Persistent chrome for every "/browse/*" route — mounted once by the root
+' FlashTheaterRouterOutlet, and stays mounted across every navigation between its own children
+' (HomeScreen/ScheduleScreen, below), since neither of those changes THIS component's own matched
+' route entry ("browse") in the app's route tree (see MainScene.thr's setRouting()). Verify live
+' that Shell's own node identity is unchanged (via queryAppUi) across a "/browse" ->
+' "/browse/schedule" navigation — the actual proof this is working, not just that it compiles. See
+' GRAMMAR.md's "Router" section and findings/router.md.
+'
+' The sidebar (below) is reserved for NAVIGATION ONLY — every element in it is either the menu
+' itself or a small diagnostic readout about navigation/focus state (interceptorUrl/Status,
+' focusStateReadout, menuHint). `FavoriteCounter` used to live here too (moved to HomeScreen.thr,
+' 2026-08-19) — it's ordinary routed CONTENT, not navigation chrome, and its own diagnostic label
+' stack never actually fit the sidebar's own width/height budget cleanly (see
+' findings/router-transitions.md's own writeup of that whole saga). Its own on:key[options] handler
+' stays here regardless — see that function's own doc comment below for why a NAVIGATION-only
+' component still owns the key handler for a piece of content it no longer renders.
+'
+' ROUTER-OUTLET TRANSITIONS, demonstrated on `childOutlet` itself (below): navigate-out:/
+' navigate-in:/back-out:/back-in: slide `childOutlet`'s own translation off/on screen around every
+' swap (see the slideOutLeft/slideInFromRight/slideOutRight/slideInFromLeft animation declarations
+' below), and loadingComponent holds RouterLoadingSpinner up until whichever screen just mounted
+' calls router.markReady() or loadingTimeout elapses. Verify live: every menu press slides the
+' content pane left-then-in-from-right; the physical back key slides it the reverse way. Every
+' screen under this outlet now calls router.markReady() — most synchronously from their own
+' setup() (the spinner never actually appears for these; the outlet reveals as soon as setup()
+' returns), EXCEPT RouterTransitionDemo.thr, which deliberately defers markReady() behind a real
+' GetPosts.thr fetch (the spinner genuinely shows there, for as long as the request takes). See
+' GRAMMAR.md's "Router" section and findings/router-transitions.md.
+'
+' THE VACUUM RULE, demonstrated end to end. This menu is the canonical TV layout: a persistent
+' side menu beside content that swaps as you move through it. Both menu entries navigate, and
+' focus MUST stay in the menu the whole time — a framework that handed focus to each freshly
+' mounted screen would yank focus out from under the user on every single menu move, which is
+' exactly the behavior the vacuum rule exists to prevent: an automatically-chosen focus target is
+' applied only when nothing currently holds focus. Here focus lives on a menu item that is NOT
+' inside the swapped subtree, so it survives every navigation untouched, and each mounted screen's
+' own default-focus="true" element only takes effect when focus actually enters that screen (press
+' "right" from the menu). Verify live: press Down/Up in the menu and confirm the highlight stays on
+' the menu items while the content beside it changes.
+'
+' Two focusable elements of its own, which used to be impossible here — an earlier design had the
+' enclosing outlet call focusComponent() on whatever it mounted, so persistent chrome with its own
+' focusable content would have had focus stolen back from the nested outlet's own, earlier focus
+' decision. The pending-target mechanism (deepest proposal wins, applied only into a vacuum)
+' removed that restriction entirely. See findings/router.md.
+'
+' `divider` is a thin, non-focusable line between the sidebar (0-380) and the content pane
+' (400-1280) — purely visual, makes the two regions unmistakable on screen. `childOutlet` itself is
+' offset by [400, 0] once, here — the single point where the sidebar's own width is known — so every
+' mounted screen's own template can use simple local coordinates (0,0 = top-left of the content
+' pane) without needing to know the sidebar exists at all.
+'
+' Every size/position below is `scale`d, authored for this app's configured design resolution (HD
+' — see flash-theater.config.json; this whole app's layout was originally built against a
+' 1280x720 canvas, confirmed by every root element's own literal 1280/720 dimensions, so HD is
+' this app's real baseline, not FHD). At FHD the whole sidebar+content layout scales UP by 1.5x to
+' fill the larger screen, rather than sitting shrunk/confined in the top-left corner of an
+' unfilled canvas — confirmed live, see findings/scale.md.
+'
+' "options" (the * button) bumps the shared favorite counter — reachable from EITHER HomeScreen or
+' ScheduleScreen, since neither declares its own on:key[options] handler: real Roku key bubbling
+' routes an unhandled key up through each SceneGraph ancestor's own onKeyEvent in turn
+' (HomeScreen/ScheduleScreen's own generated onKeyEvent first, then Shell's, since Shell is their
+' real SceneGraph parent via the outlet) — exactly the same cross-component bubbling this app's
+' focus system already relies on elsewhere, now demonstrated across a router-mounted boundary too.
+' Writes straight to the shared `store(favoriteCount)` value (see bumpFavorite() below) rather than
+' reaching into a specific FavoriteCounter instance via callFunc — deliberately, since FavoriteCounter
+' now lives on HomeScreen.thr, not here, and is torn down/recreated every time HomeScreen itself is
+' (leaving Home for Schedule and back, say). The store is the actual persistent source of truth;
+' pressing "options" from Schedule (where no FavoriteCounter is even mounted) still correctly bumps
+' the count, visible the next time HomeScreen mounts and reads it back reactively.
+'
+' `lastInterceptedUrl`/`lastInterceptedStatus` prove taskManager.onRequestSent(...)/
+' onResponseReceived(...) (see GRAMMAR.md's "Task manager" section) actually work CROSS-COMPONENT:
+' registered once here, from Shell's own automatic router-mounted setup() call, they update no
+' matter which DIFFERENT screen's own request Task (GetPosts/GetPost/CreatePost, reached via
+' RequestDemoScreen) actually fires. Placed in the persistent sidebar specifically so the readout
+' stays visible regardless of which screen is currently mounted in childOutlet — the whole point of
+' a GLOBAL, register-once interceptor is that it isn't tied to whichever screen happened to issue
+' the request.
+' Deliberately NOT bound to "right": an unconditional component-level on:key[right] here would
+' swallow the arrow key before the focus system's own LRUD fallthrough ever ran, making it
+' impossible to walk right out of the menu into the mounted content — confirmed live while building
+' the menu above. A component-level (non-focus-gated) handler always shadows LRUD navigation for
+' whatever key it claims, so claim a key the focus system doesn't use.
+' isFocused / isInFocusChain — reserved, reactive focus-state fields the compiler synthesizes for
+' any component that reads them (and for no other component, so nothing here costs anything in a
+' component that doesn't care). This is the clearest possible place to see the difference between
+' the two: Shell OWNS the menu but only WRAPS the mounted screen, so
+'   - focus on a menu item      -> isFocused = true,  isInFocusChain = true
+'   - focus inside HomeScreen   -> isFocused = false, isInFocusChain = true
+'   - (Shell is always in the chain in this app, since everything visible lives under it)
+' Both are ordinary fields, so they compose with `derived` and with {#if} exactly like any other
+' field — no new syntax, no observers to wire by hand. See GRAMMAR.md's "Focus system".
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field menuItemWidth: integer = 300
+' Stays 50 (56px row pitch, below) even though FavoriteCounter no longer lives in this sidebar at
+' all (moved to HomeScreen.thr, 2026-08-19 — see this file's own top comment): `menuHomeTranslation`/
+' `menuScheduleTranslation` below must stay Y-aligned with HomeScreen.thr's own `prompt` and
+' ScheduleScreen.thr's own `backPrompt`/`lateDefault` (cross-axis overlap is what lets "right" from
+' either menu row reach straight into that screen's own content — see runtime-assets/FocusManager's
+' `bestCandidate()`), so this sizing can't be freely changed without updating those two screens'
+' own translations to match — deliberately left alone here, out of scope for the FavoriteCounter
+' move itself.
+scale field menuItemHeight: integer = 50
+scale field dividerWidth: integer = 2
+scale field childOutletWidth: integer = 880
+scale field childOutletHeight: integer = 720
+
+scale state menuHomeTranslation: object = [40, 190]
+scale state menuScheduleTranslation: object = [40, 246]
+scale state menuLoadingTranslation: object = [40, 302]
+scale state menuCardsTranslation: object = [40, 358]
+scale state menuTasksTranslation: object = [40, 414]
+scale state menuStreamsTranslation: object = [40, 470]
+scale state menuRequestsTranslation: object = [40, 526]
+scale state menuTransitionDemoTranslation: object = [40, 582]
+scale state menuLabelInset: object = [16, 12]
+scale state dividerTranslation: object = [380, 0]
+scale state childOutletTranslation: object = [400, 0]
+' Below every menu row (which ends at 582 + menuItemHeight 50 = 632).
+scale state interceptorUrlTranslation: object = [40, 642]
+scale state interceptorStatusTranslation: object = [40, 664]
+scale state focusReadoutTranslation: object = [40, 686]
+scale state menuHintTranslation: object = [40, 706]
+
+' Router-outlet transition demo — see GRAMMAR.md's "Router" section and
+' findings/router-transitions.md. `childOutlet` is wrapped in `childOutletViewport` (see the
+' template below) — a plain `Rectangle` with `clippingRect` set to its own bounds. This is the
+' EXACT scroll-viewport pattern GRAMMAR.md's "Scroll-into-view" section already documents ("the
+' field-declaring component's own template root element must NOT itself be the thing that
+' translates — only content nested further inside it should move, so the root element's own bounds
+' stay a stable reference window throughout"): `childOutletViewport` never itself moves and clips
+' everything inside it to its own 880x720 window, so `childOutlet`'s own slide (below) is confined
+' to that window instead of visibly sliding across the sidebar — confirmed live this is NOT
+' automatic (Roku never clips a node's children to its own bounds by default) and NOT something
+' FlashTheaterRouterOutlet handles for you; an author wanting the slide confined to its own region
+' has to add this wrapper themselves, same as any other scrollable/clipped region in this DSL.
+'
+' Because `childOutletViewport` (not `childOutlet` itself) now carries the FIXED absolute position
+' (`childOutletTranslation`, [400, 0]), `childOutlet`'s own resting translation, relative to ITS
+' OWN parent, is genuinely `[0, 0]` — every "resting" keyframe below reflects that. (An earlier cut
+' of this demo had `childOutlet` positioned directly at [400, 0] with no wrapper, which needed
+' [400, 0] as the resting keyframe instead — got wrong twice live, once via an unscaled offset and
+' once via using [0, 0] instead of [400, 0] as the true rest position; adding the wrapper here
+' removes that whole class of mistake by making [0, 0] correct again.)
+'
+' `scaled: true` (object form — the array shorthand doesn't support it) is still required:
+' `childOutletViewport`'s own `width="880"` (below) is `scale`d, so at any factor besides 1.0 the
+' REAL on-screen window no longer matches a literal 880px slide offset — the exact footgun the
+' built-in `fly`/`slide` presets already set `scaled: true` on their own pixel offset to avoid.
+animation slideOutLeft {
+  target: childOutlet
+  duration: 0.25
+  easeFunction: "outQuad"
+  translation: { keyValue: [[0, 0], [-880, 0]], scaled: true }
+}
+animation slideInFromRight {
+  target: childOutlet
+  duration: 0.25
+  easeFunction: "outQuad"
+  translation: { keyValue: [[880, 0], [0, 0]], scaled: true }
+}
+animation slideOutRight {
+  target: childOutlet
+  duration: 0.25
+  easeFunction: "outQuad"
+  translation: { keyValue: [[0, 0], [880, 0]], scaled: true }
+}
+animation slideInFromLeft {
+  target: childOutlet
+  duration: 0.25
+  easeFunction: "outQuad"
+  translation: { keyValue: [[-880, 0], [0, 0]], scaled: true }
+}
+
+derived focusStateLabel: string = describeFocus(isFocused, isInFocusChain)
+derived childOutletClipRect: object = [0, 0, childOutletWidth, childOutletHeight]
+' `store(...)` is write-only syntax (`store(<key>) = <expr>`, a statement form) — reading the
+' current value back needs a `watch` binding instead, same as any other store consumer. Reactive
+' (not `read`, a one-time snapshot) since Shell stays mounted for the whole "/browse/*" subtree and
+' must always bump the CURRENT count, not whatever it happened to be when Shell first mounted.
+watch favoriteCount = store(favoriteCount)
+
+state lastInterceptedUrl: string = "onRequestSent: (none yet)"
+state lastInterceptedStatus: string = "onResponseReceived: (none yet)"
+
+private function describeFocus(focused: boolean, inChain: boolean): string {
+  if (focused) {
+    return "focus: MENU"
+  }
+  if (inChain) {
+    return "focus: CONTENT"
+  }
+  return "focus: elsewhere"
+}
+
+' Writes straight to the shared store — see this file's own top comment and the "options" key
+' comment above for why: FavoriteCounter (HomeScreen.thr) reads this reactively wherever/whenever
+' it happens to be mounted, so this works correctly even when pressed from a screen that isn't
+' rendering it at all right now.
+private function bumpFavorite(key: string, press: boolean) {
+  if (press) {
+    store(favoriteCount) = favoriteCount + 1
+  }
+}
+
+' Each menu entry navigates WITHOUT taking focus with it — see this file's own top comment.
+private function showHome(key: string, press: boolean) {
+  if (press) {
+    router.navigate("/browse")
+  }
+}
+
+private function showSchedule(key: string, press: boolean) {
+  if (press) {
+    router.navigate("/browse/schedule", { day: "Mon" })
+  }
+}
+
+private function showLoadingDemo(key: string, press: boolean) {
+  if (press) {
+    router.navigate("/browse/loading")
+  }
+}
+
+private function showCards(key: string, press: boolean) {
+  if (press) {
+    router.navigate("/browse/cards")
+  }
+}
+
+private function showTaskDemo(key: string, press: boolean) {
+  if (press) {
+    router.navigate("/browse/tasks")
+  }
+}
+
+private function showStreamDemo(key: string, press: boolean) {
+  if (press) {
+    router.navigate("/browse/streams")
+  }
+}
+
+private function showRequestDemo(key: string, press: boolean) {
+  if (press) {
+    router.navigate("/browse/requests")
+  }
+}
+
+private function showTransitionDemo(key: string, press: boolean) {
+  if (press) {
+    router.navigate("/browse/transition-demo")
+  }
+}
+
+' Global HTTP request/response interceptors, registered ONCE, here — see GRAMMAR.md's "Task
+' manager" section. `req`/`resp` are the resolved-options AA and the RAW ft_httpFetch response
+' respectively (never `result`/`error`, which are each request component's own
+' parseResponse/parseError-transformed output) — fired for EVERY request Http {} component's own
+' traffic anywhere in the app, not just ones Shell itself creates.
+private function onAnyRequestSent(req: dynamic) {
+  state lastInterceptedUrl = "onRequestSent: " + req.url
+}
+
+private function onAnyResponseReceived(resp: dynamic) {
+  state lastInterceptedStatus = "onResponseReceived: HTTP " + resp.httpStatusCode.ToStr()
+  if (not resp.parseSucceeded) {
+    state lastInterceptedStatus = lastInterceptedStatus + " (parse error: " + resp.parseErrorMessage + ")"
+  }
+}
+
+' Router-mounted components get an automatic setup() call the moment they're mounted (see
+' GRAMMAR.md's "Router" section) — Shell is mounted once, for the whole "/browse/*" subtree, so
+' this runs exactly once regardless of how many child screens the user navigates through.
+public function setup() {
+  taskManager.onRequestSent(onAnyRequestSent)
+  taskManager.onResponseReceived(onAnyResponseReceived)
+}
+</script>
+
+<component on:key[options]="{bumpFavorite()}">
+<Rectangle id="root" color="0x0A0A0AFF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="interceptorUrlReadout" text="{lastInterceptedUrl}" color="0x66CCFFFF" translation="{interceptorUrlTranslation}" />
+  <Label id="interceptorStatusReadout" text="{lastInterceptedStatus}" color="0x66CCFFFF" translation="{interceptorStatusTranslation}" />
+  <Rectangle id="menuHome" focusable="true" color="0x2A2A2AFF" width="{menuItemWidth}" height="{menuItemHeight}" translation="{menuHomeTranslation}" on:key[OK]="{showHome()}">
+    <Label id="menuHomeLabel" text="Home" color="0xFFFFFFFF" translation="{menuLabelInset}" />
+  </Rectangle>
+  <Rectangle id="menuSchedule" focusable="true" color="0x2A2A2AFF" width="{menuItemWidth}" height="{menuItemHeight}" translation="{menuScheduleTranslation}" on:key[OK]="{showSchedule()}">
+    <Label id="menuScheduleLabel" text="Schedule" color="0xFFFFFFFF" translation="{menuLabelInset}" />
+  </Rectangle>
+  <Rectangle id="menuLoading" focusable="true" color="0x2A2A2AFF" width="{menuItemWidth}" height="{menuItemHeight}" translation="{menuLoadingTranslation}" on:key[OK]="{showLoadingDemo()}">
+    <Label id="menuLoadingLabel" text="Loading demo" color="0xFFFFFFFF" translation="{menuLabelInset}" />
+  </Rectangle>
+  <Rectangle id="menuCards" focusable="true" color="0x2A2A2AFF" width="{menuItemWidth}" height="{menuItemHeight}" translation="{menuCardsTranslation}" on:key[OK]="{showCards()}">
+    <Label id="menuCardsLabel" text="Cards demo" color="0xFFFFFFFF" translation="{menuLabelInset}" />
+  </Rectangle>
+  <Rectangle id="menuTasks" focusable="true" color="0x2A2A2AFF" width="{menuItemWidth}" height="{menuItemHeight}" translation="{menuTasksTranslation}" on:key[OK]="{showTaskDemo()}">
+    <Label id="menuTasksLabel" text="Task demo" color="0xFFFFFFFF" translation="{menuLabelInset}" />
+  </Rectangle>
+  <Rectangle id="menuStreams" focusable="true" color="0x2A2A2AFF" width="{menuItemWidth}" height="{menuItemHeight}" translation="{menuStreamsTranslation}" on:key[OK]="{showStreamDemo()}">
+    <Label id="menuStreamsLabel" text="Stream demo" color="0xFFFFFFFF" translation="{menuLabelInset}" />
+  </Rectangle>
+  <Rectangle id="menuRequests" focusable="true" color="0x2A2A2AFF" width="{menuItemWidth}" height="{menuItemHeight}" translation="{menuRequestsTranslation}" on:key[OK]="{showRequestDemo()}">
+    <Label id="menuRequestsLabel" text="Request demo" color="0xFFFFFFFF" translation="{menuLabelInset}" />
+  </Rectangle>
+  <Rectangle id="menuTransitionDemo" focusable="true" color="0x2A2A2AFF" width="{menuItemWidth}" height="{menuItemHeight}" translation="{menuTransitionDemoTranslation}" on:key[OK]="{showTransitionDemo()}">
+    <Label id="menuTransitionDemoLabel" text="Transition demo" color="0xFFFFFFFF" translation="{menuLabelInset}" />
+  </Rectangle>
+  <Label id="focusStateReadout" text="{focusStateLabel}" color="0x66FF99FF" translation="{focusReadoutTranslation}" />
+  {#if isFocused}
+    <Label id="menuHintLabel" text="press RIGHT to enter content" color="0x888888FF" translation="{menuHintTranslation}" />
+  {/if}
+  <Rectangle id="divider" color="0x2A2A2AFF" width="{dividerWidth}" height="{rootHeight}" translation="{dividerTranslation}" />
+  <!-- The clipping viewport — see the animation declarations' own doc comment above. Never itself
+       translated; its own fixed position (childOutletTranslation) is what used to sit directly on
+       childOutlet before this wrapper existed. clippingRect confines everything inside (the outlet
+       and whatever it slides) to this Rectangle's own 880x720 window, so a mid-slide screen never
+       visibly renders over the sidebar to its left. color is fully transparent — this Rectangle
+       exists purely as a clip boundary, not a visible fill. -->
+  <Rectangle id="childOutletViewport" color="0x00000000" width="{childOutletWidth}" height="{childOutletHeight}" translation="{childOutletTranslation}" clippingRect="{childOutletClipRect}">
+    <!-- navigate-out:/navigate-in: play on router.navigate(...) (every menu press above);
+         back-out:/back-in: play on router.back() (the physical back key) — reversed pair, see the
+         animation declarations above. No ="" on any of the four — a bare attribute (no value at
+         all) means the same as ="" here, same as it does for Layer 2's own transition:/in:/out:
+         (see GRAMMAR.md's "Template" section) — there's never an override to pass for a custom
+         animation reference like these four, so the ="" would be pure ceremony. width/height mirror
+         the viewport's own (also used to center loadingComponent — see
+         FlashTheaterRouterOutlet.brs's own _showSpinner). loadingComponent holds every screen's own
+         reveal behind RouterLoadingSpinner until that screen calls router.markReady() — every
+         screen under this outlet now does so (see each screen's own setup()), so loadingTimeout
+         below is a rarely-hit safety net, not the common path; only RouterTransitionDemo.thr
+         deliberately delays its own markReady() behind a real fetch. -->
+    <FlashTheaterRouterOutlet
+      id="childOutlet"
+      width="{childOutletWidth}" height="{childOutletHeight}"
+      navigate-out:slideOutLeft navigate-in:slideInFromRight
+      back-out:slideOutRight back-in:slideInFromLeft
+      loadingComponent="RouterLoadingSpinner" loadingMinDuration="0.15" loadingTimeout="3"
+    />
+  </Rectangle>
+</Rectangle>
+</component>

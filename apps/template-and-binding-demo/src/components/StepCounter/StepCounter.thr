@@ -1,0 +1,31 @@
+<script>
+' Tiny reusable child used by IfToggleVsDestroyDemo (chapter 2) to make {#if} vs {#if:destroy}'s
+' internal-state-survival difference directly observable, not just asserted in a comment: this
+' component's own `count` state persists for as long as its node instance is alive. A toggle-mode
+' ({#if}) parent never destroys this node, so `count` survives a hide/show cycle; a destroy-mode
+' ({#if:destroy}) parent tears the whole subtree down and rebuilds it from scratch on every show —
+' a fresh instance (count back at 0) is what you get back, a real, code-verifiable fact per
+' GRAMMAR.md's "Conditional rendering" section ("a block's internal state never survives a
+' destroy/recreate cycle").
+scale field rootWidth: integer = 340
+scale field rootHeight: integer = 90
+scale state labelTranslation: object = [12, 12]
+scale state hintTranslation: object = [12, 52]
+
+state count: integer = 0
+
+derived countText: string = "count: " + count.ToStr()
+
+private function increment(key: string, press: boolean) {
+  if (press) {
+    state count = count + 1
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{rootWidth}" height="{rootHeight}" on:key[OK]="{increment()}">
+  <Label id="countLabel" text="{countText}" color="0xFFFFFFFF" translation="{labelTranslation}" />
+  <Label id="hint" text="OK increments" color="0x888888FF" translation="{hintTranslation}" />
+</Rectangle>
+</component>

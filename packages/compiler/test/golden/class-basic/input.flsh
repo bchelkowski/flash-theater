@@ -1,0 +1,20 @@
+class MyClass {
+  constructor(a: string, b: integer) {
+    private a: string = a
+    private b: integer = b
+  }
+
+  private myPrivateValue: string = "ad"
+  public myPublicValue: integer = 123
+
+  public function myPublicMethod(count: integer): string {
+    return m.myPrivateMethod(count)
+  }
+
+  private function myPrivateMethod(count: integer): string {
+    if (count = 1) {
+      return "1 " + m.a
+    }
+    return str(count + m.b) + " " + m.a
+  }
+}

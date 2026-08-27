@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- flash-theater:generated — do not edit by hand, source: ScheduleDateMenuItem.thr -->
+<component name="ScheduleDateMenuItem" extends="Group">
+  <interface>
+    <field id="width" type="integer" value="0" onChange="on_widthChange" />
+    <field id="height" type="integer" value="0" onChange="on_heightChange" />
+    <field id="focusPercent" type="float" value="0.0" onChange="on_focusPercentChange" />
+    <field id="gridHasFocus" type="boolean" value="false" onChange="on_gridHasFocusChange" />
+    <field id="itemContent" type="node" onChange="on_itemContentChange" />
+  </interface>
+  <children>
+    <Rectangle id="background" color="0x1A1A1AFF">
+      <Rectangle id="highlight" />
+      <LayoutGroup id="labelsContainer" horizAlignment="center" vertAlignment="center">
+        <Label id="titleLabel" />
+        <Label id="dayNameLabel" />
+      </LayoutGroup>
+    </Rectangle>
+  </children>
+  <script type="text/brightscript" uri="ScheduleDateMenuItem.brs" />
+</component>

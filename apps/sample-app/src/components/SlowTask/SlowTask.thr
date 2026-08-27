@@ -1,0 +1,23 @@
+<script>
+' A trivial background Task exercising the global taskManager — see TaskDemoScreen.thr and
+' findings/task-manager-core.md. This compiler has no Task-specific grammar or codegen of its own (see
+' GRAMMAR.md's "Task manager" section — confirmed: <component extends="Task"> is handled exactly
+' like any other extends value, generically). Roku's own Task lifecycle mechanism does the rest:
+' setting a Task node's `functionName` field to the literal name of one of its own top-level
+' subs/functions, then `control = "RUN"`, spawns that sub on the Task's own background thread.
+' `taskManager.run(...)` is what sets `control` — `functionName` itself is plain BrightScript,
+' set by the caller (TaskDemoScreen.thr) right after CreateObject(), before ever calling
+' `taskManager.run(...)` — deliberately NOT declared here as a DSL `field` default, since this
+' function's name must stay exactly "doWork" (a `public function` keeps its literal DSL name,
+' unlike `private function`, which gets a `private_` prefix — using `private` here would silently
+' break the functionName match).
+public function doWork() {
+  ' Runs on this Task's own background thread, not the render thread — Sleep() here only blocks
+  ' this one task. Simulates slow work so TaskDemoScreen can visibly demonstrate taskManager's
+  ' queueing behavior under a small maxConcurrent.
+  Sleep(3000)
+}
+</script>
+
+<component extends="Task">
+</component>

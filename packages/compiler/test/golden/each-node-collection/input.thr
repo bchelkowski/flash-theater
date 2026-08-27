@@ -1,0 +1,11 @@
+<script>
+field container: node = invalid
+</script>
+
+<component>
+<Rectangle id="root">
+  {#each container as child (child.id)}
+    <Label id="row" text="{child.id}" />
+  {/each}
+</Rectangle>
+</component>

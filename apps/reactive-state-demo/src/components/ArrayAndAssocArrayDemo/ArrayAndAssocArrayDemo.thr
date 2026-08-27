@@ -1,0 +1,79 @@
+<script>
+' Chapter 4/4 — `field`/`state` declared as `array`/`assocarray` with a literal default (pure
+' literals only — no identifiers, no calls; GRAMMAR.md's "field"/"state" sections). See
+' site/src/pages/docs/reactive-state.astro's own array/assocarray example and its NotSupported
+' list.
+'
+' Default: `tags` (a `field: array`) rendered via `{#each}`.
+'
+' Customized: `config` (a `field: assocarray`) with several keys read into separate template
+' bindings, plus `items` (a `state: array`, the common empty-default-then-populate-via-a-function
+' shape) — contrasts a `field`'s array/assocarray default being TYPE-CHECKED at compile time (a
+' `field` declared `array`/`assocarray` whose literal doesn't actually look like one is a compile
+' error, `dsl/field-default-type-mismatch`) against `state`'s own declared type staying decorative:
+' only the array/assocarray CONTENTS are validated for `state` (every leaf must itself be a
+' literal, `dsl/state-default-not-literal` otherwise), never cross-checked against the `<Type>`
+' annotation itself the way `field`'s is.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 460
+scale field buttonHeight: integer = 50
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state tagsHeadingTranslation: object = [40, 110]
+scale state tagsListTranslation: object = [40, 140]
+scale state configHeadingTranslation: object = [40, 260]
+scale state configRetriesTranslation: object = [40, 290]
+scale state configTimeoutTranslation: object = [40, 320]
+scale state configLabelTranslation: object = [40, 350]
+scale state itemsHeadingTranslation: object = [40, 400]
+scale state itemsListTranslation: object = [40, 430]
+scale state addItemButtonTranslation: object = [40, 550]
+scale state buttonLabelInset: object = [16, 12]
+
+field tags: array = ["reactive", "state", "demo"]
+field config: assocarray = { retries: 3, timeout: 10, label: "Config panel" }
+
+state items: array = []
+
+derived retriesLabel: string = "config.retries: " + str(config.retries)
+derived timeoutLabel: string = "config.timeout: " + str(config.timeout)
+derived configLabelText: string = "config.label: " + config.label
+
+private function addItem(key: string, press: boolean) {
+  if (press) {
+    ' `items` is `state`, so mutating the array in place is not itself reactive — only the
+    ' explicit `state items = <expr>` statement below triggers the recompute cascade ({#each}'s
+    ' own reconcile included), exactly like any other `state` write.
+    updated = items
+    updated.Push("item " + str(items.Count() + 1))
+    state items = updated
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="4/4 — array / assocarray defaults" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="OK adds an item to state items — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Label id="tagsHeading" text="tags (field: array, literal default):" color="0xAAAAAAFF" translation="{tagsHeadingTranslation}" />
+  <LayoutGroup id="tagsList" translation="{tagsListTranslation}">
+    {#each tags as tag (tag)}
+      <Label id="tagRow" text="{tag}" color="0x66CCFFFF" />
+    {/each}
+  </LayoutGroup>
+  <Label id="configHeading" text="config (field: assocarray, literal default):" color="0xAAAAAAFF" translation="{configHeadingTranslation}" />
+  <Label id="retriesText" text="{retriesLabel}" color="0x66CCFFFF" translation="{configRetriesTranslation}" />
+  <Label id="timeoutText" text="{timeoutLabel}" color="0x66CCFFFF" translation="{configTimeoutTranslation}" />
+  <Label id="configLabelReadout" text="{configLabelText}" color="0x66CCFFFF" translation="{configLabelTranslation}" />
+  <Label id="itemsHeading" text="items (state: array, starts empty, populated via addItem()):" color="0xAAAAAAFF" translation="{itemsHeadingTranslation}" />
+  <LayoutGroup id="itemsList" translation="{itemsListTranslation}">
+    {#each items as item (item)}
+      <Label id="itemRow" text="{item}" color="0xFFCC66FF" />
+    {/each}
+  </LayoutGroup>
+  <Rectangle id="addItemButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{addItemButtonTranslation}" on:key[OK]="{addItem()}">
+    <Label id="addItemButtonLabel" text="Add item to state items" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+</Rectangle>
+</component>

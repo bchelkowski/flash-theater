@@ -1,0 +1,240 @@
+---
+import Layout from '../components/Layout.astro';
+import CodePanel from '../components/CodePanel.astro';
+import compilerPkg from '../../../packages/compiler/package.json';
+
+const base = import.meta.env.BASE_URL;
+
+const installExample = `npm install --save-dev flash-theater-compiler`;
+
+const cliFlagsExample = `flash-theater compile [--check] [--src-dir <dir>] [--out-dir <dir>] [--env <name>]
+flash-theater zip [--out-dir <dir>] [--env <name>] [--app-name <name>]`;
+
+const cliCompileExample = `flash-theater compile
+# Compiles every .thr/.flsh file under src/ into out/ (per
+# flash-theater.config.json, or the srcDir/outDir defaults), copying
+# every other src/ file (manifest, images/, source/Main.brs, ...)
+# through untouched. Wipes and fully regenerates out/ every run.
+
+flash-theater compile --check
+# Same discovery/compile pass, but writes nothing — just reports
+# "OK <path>" per file, or the first compile error. Use in CI.
+
+flash-theater compile --src-dir client --out-dir build
+# Override flash-theater.config.json's srcDir/outDir for this run.
+
+flash-theater compile --env staging
+# Loads environments/staging.config.json (+ an optional, git-ignored
+# environments/staging.local.config.json layered on top), writes to
+# out-staging/ instead of out/, and patches src/manifest's declared
+# manifestOverrides into the copied manifest. Falls back to the
+# FLASH_THEATER_ENV env var when --env isn't passed, so it flows
+# through an npm script's "compile && zip" chain unchanged.`;
+
+const cliZipExample = `flash-theater zip
+# Zips out/ into dist/<app-name>.zip — <app-name> defaults to the
+# current directory's package.json "name" field, or its own directory
+# name if there's no package.json.
+
+flash-theater zip --app-name my-channel --out-dir build
+# Explicit app name and a matching --out-dir (zip never reads srcDir —
+# there's nothing under src/ it needs).
+
+flash-theater zip --env staging
+# Zips out-staging/ (matching a prior "compile --env staging") into
+# dist/<app-name>-staging-<version>.zip.`;
+
+const configExample = `// flash-theater.config.json — sibling of src/, out/, package.json
+// The file itself is entirely optional. But once it exists — for ANY
+// reason, even just to set srcDir/outDir — "designResolution" becomes
+// mandatory in it, whether or not this project uses "scale" anywhere.
+{
+  "designResolution": "fhd",   // "hd" | "fhd" — mandatory once this file exists
+  "srcDir": "src",             // optional, defaults to "src"
+  "outDir": "out",             // optional, defaults to "out"
+  "exclude": ["**/*.snap.thr"] // optional glob patterns, relative to srcDir
+}`;
+
+const libraryExample = `import { compileThrSource } from 'flash-theater-compiler';
+import { CompileError } from 'flash-theater-compiler/dsl-ast';
+
+try {
+  const { xml, brs, usesStore, usesFocusSystem, usesRouter } = compileThrSource(
+    \`<script>
+field count: integer = 0
+derived doubled: integer = count * 2
+</script>
+<component>
+  <Label id="label" text="{doubled}" />
+</component>\`,
+    'DoubledCounter',
+  );
+
+  // xml — a static SceneGraph component definition
+  // brs — generated init()/setFields()/onChange handlers, no hand-written observers
+  // usesStore/usesFocusSystem/usesRouter/... — see "What compileThrSource does NOT do" below
+} catch (err) {
+  if (err instanceof CompileError) {
+    // err.diagnostic — { code: string, message: string, span?: { line: number } }
+    console.error(\`[\${err.diagnostic.code}] \${err.diagnostic.message}\`);
+  }
+}`;
+
+const browserSafeExample = `// A browser-safe subpath (no node:fs/node:path pulled in, unlike the
+// package's main entry point which also re-exports the Node-only CLI) —
+// what this site's own live playground imports.
+import { compileThrSource } from 'flash-theater-compiler/compile';
+import { CompileError } from 'flash-theater-compiler/dsl-ast';`;
+
+const pipeline = [
+  { icon: '📝', title: '.thr source', body: 'field / derived / private-public function, template markup that is always valid XML.' },
+  { icon: '🧬', title: 'flash-parser', body: 'Lossless CST + typed AST — the compiler\'s only parsing layer.' },
+  { icon: '📄', title: '.xml + .brs', body: 'Static SceneGraph tree, generated init()/onChange handlers — zero vdom, zero diffing.' },
+  { icon: '📺', title: 'Real Roku device', body: 'Sideloaded and verified live — reactive fields update the screen with no hand-written observer.' },
+];
+---
+<Layout title="flash-theater-compiler" description="The .thr/.flsh → .xml/.brs compiler for the flash-theater language.">
+  <div class="bg-[radial-gradient(ellipse_60%_40%_at_50%_0%,rgba(217,119,6,0.12),transparent)] border-b border-[#1f2c42]">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+      <div class="flex items-center gap-2 text-sm text-slate-500 mb-4">
+        <span>npm</span>
+        <span>/</span>
+        <code class="text-slate-300">flash-theater-compiler</code>
+        <span class="bg-slate-700/60 text-slate-400 text-xs px-2 py-0.5 rounded-full ml-1">v{compilerPkg.version}</span>
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-bold text-white mb-4">flash-theater-compiler</h1>
+      <p class="text-lg text-slate-400 max-w-2xl leading-relaxed">
+        The <code class="text-amber-300">.thr</code>/<code class="text-amber-300">.flsh</code> → <code class="text-amber-300">.xml</code>/<code class="text-amber-300">.brs</code> compiler.
+        Parses with <a href={`${base}/parser/`} class="prose-link">flash-parser</a>'s own vendored
+        grammar — never hand-parses BrightScript or XML itself — and generates static SceneGraph
+        markup plus generated observer wiring.
+      </p>
+      <div class="flex flex-wrap gap-3 mt-6">
+        <a href="https://www.npmjs.com/package/flash-theater-compiler" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-sm font-medium rounded-lg transition-colors">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M0 7.334v8h6.666v1.332H12v-1.332h12v-8H0zm6.666 6.664H5.334v-4H3.999v4H1.335V8.667h5.331v5.331zm4 0v1.336H8.001V8.667h5.334v5.331h-2.669v0zm12.001 0h-1.33v-4h-1.336v4h-1.335v-4h-1.33v4h-2.671V8.667h8.002v5.331zM10.665 10h1.336v2.667h-1.336V10z"/></svg>
+          npm
+        </a>
+        <a href="https://github.com/bchelkowski/flash-theater/tree/main/packages/compiler" target="_blank" rel="noopener" class="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 text-sm font-medium rounded-lg transition-colors">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          Source
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
+    <section>
+      <h2 class="text-xl font-bold text-white mb-4">How it works</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {pipeline.map((p, i) => (
+          <div class="relative bg-[#111927] rounded-xl border border-[#1f2c42] p-5">
+            <div class="text-2xl mb-2">{p.icon}</div>
+            <h3 class="font-semibold text-white text-sm mb-1">{p.title}</h3>
+            <p class="text-xs text-slate-400 leading-relaxed">{p.body}</p>
+            {i < pipeline.length - 1 && (
+              <div class="hidden lg:block absolute top-1/2 -right-3 -translate-y-1/2 text-slate-600">→</div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section>
+      <h2 class="text-xl font-bold text-white mb-4">Install</h2>
+      <CodePanel code={installExample} lang="bash" filename="terminal" />
+      <p class="text-sm text-slate-500 mt-3">Requires Node.js ≥ 24.</p>
+    </section>
+
+    <section>
+      <h2 class="text-xl font-bold text-white mb-2">CLI</h2>
+      <p class="text-slate-400 mb-4 max-w-2xl leading-relaxed">
+        The primary way to use this package — compiles a whole project convention-based, like
+        <code class="text-amber-300">tsc</code> reading <code class="text-amber-300">tsconfig.json</code>,
+        no glob argument. Installing the package puts <code class="text-amber-300">flash-theater</code> on
+        your <code class="text-amber-300">PATH</code> (via <code class="text-amber-300">npx flash-theater</code>
+        or an npm script).
+      </p>
+      <CodePanel code={cliFlagsExample} lang="bash" filename="terminal" />
+
+      <h3 class="text-sm font-semibold text-white mt-6 mb-2">compile</h3>
+      <CodePanel code={cliCompileExample} lang="bash" filename="terminal" />
+
+      <h3 class="text-sm font-semibold text-white mt-6 mb-2">zip</h3>
+      <CodePanel code={cliZipExample} lang="bash" filename="terminal" />
+    </section>
+
+    <section>
+      <h2 class="text-xl font-bold text-white mb-2">Configuration — flash-theater.config.json</h2>
+      <p class="text-slate-400 mb-4 max-w-2xl leading-relaxed">
+        The file itself is entirely optional — sibling of <code class="text-amber-300">src/</code> and
+        <code class="text-amber-300">out/</code>. But once it exists, for any reason (even just to set
+        <code class="text-amber-300">srcDir</code>/<code class="text-amber-300">outDir</code>), <code class="text-amber-300">designResolution</code>
+        becomes mandatory in it — whether or not the project uses <code class="text-amber-300">scale</code>
+        anywhere. With no config file at all, defaults apply and using <code class="text-amber-300">scale</code>
+        anywhere becomes a compile error instead (<code class="text-amber-300">dsl/scale-requires-config</code>).
+      </p>
+      <CodePanel code={configExample} lang="json" filename="flash-theater.config.json" />
+      <p class="text-sm text-slate-500 mt-3 max-w-2xl leading-relaxed">
+        <code class="text-amber-300">environments/&lt;name&gt;.config.json</code> (for <code class="text-amber-300">--env</code>)
+        is a separate, per-environment file — see
+        <a href="https://github.com/bchelkowski/flash-theater/blob/main/packages/compiler/GRAMMAR.md#environments" class="prose-link" target="_blank">GRAMMAR.md's "Environments" section</a>
+        for its own <code class="text-amber-300">variables</code>/<code class="text-amber-300">manifestOverrides</code>/<code class="text-amber-300">exclude</code>/<code class="text-amber-300">include</code> shape, and
+        <a href="https://github.com/bchelkowski/flash-theater/blob/main/packages/compiler/GRAMMAR.md#scale" class="prose-link" target="_blank">GRAMMAR.md's "scale" section</a>
+        for what <code class="text-amber-300">designResolution</code> actually controls.
+      </p>
+    </section>
+
+    <section>
+      <h2 class="text-xl font-bold text-white mb-2">Library API</h2>
+      <p class="text-slate-400 mb-4 max-w-2xl leading-relaxed">
+        For embedding the compiler directly — a build tool integration, a playground, a linter.
+        <code class="text-amber-300">compileThrSource</code>/<code class="text-amber-300">compileFlshSource</code> compile
+        <strong class="text-slate-300">one file in isolation</strong> and throw a <code class="text-amber-300">CompileError</code> on
+        any diagnostic (never a partial/best-effort result).
+      </p>
+      <CodePanel code={libraryExample} lang="typescript" filename="example.ts" />
+      <div class="bg-[#111927] rounded-xl border border-amber-800/30 p-5 mt-4">
+        <h3 class="font-semibold text-amber-300 text-sm mb-2">What compileThrSource does NOT do</h3>
+        <p class="text-sm text-slate-400 leading-relaxed">
+          It does not copy the built-in runtime components (the focus manager, router, store, task
+          manager, or any of the <code class="text-amber-300">Safe*</code>/<code class="text-amber-300">Scale</code>/<code class="text-amber-300">Stream</code>/<code class="text-amber-300">Http</code> codegen
+          helpers) into your output — it only tells you which ones this one file needs, via the
+          <code class="text-amber-300">usesStore</code>/<code class="text-amber-300">usesFocusSystem</code>/<code class="text-amber-300">usesRouter</code>/<code class="text-amber-300">usesTaskManager</code>/<code class="text-amber-300">usesComparisonHelper</code>/<code class="text-amber-300">usesSafeNotHelper</code>/<code class="text-amber-300">usesStreamHelper</code>/<code class="text-amber-300">usesHttpRequestHelper</code>/<code class="text-amber-300">usesScaleHelper</code>/<code class="text-amber-300">usesRelationalHelper</code>
+          boolean flags on its return value. For a whole project's worth of files, compiled and wired
+          together the same way the CLI does it (this is exactly what <code class="text-amber-300">runCompileCommand</code>
+          calls), use <code class="text-amber-300">compileApp(inputs, srcRoot, outRoot, config, envVariables)</code> from
+          the same package instead — see
+          <a href="https://github.com/bchelkowski/flash-theater/blob/main/packages/compiler/src/cli.ts" class="prose-link" target="_blank">cli.ts</a>
+          for the exact reference implementation (which runtime asset gets copied for which flag).
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <h2 class="text-xl font-bold text-white mb-2">Browser-safe subpath</h2>
+      <p class="text-slate-400 mb-4 max-w-2xl leading-relaxed">
+        This site's own <a href={`${base}/#playground`} class="prose-link">live playground</a> on the
+        homepage imports the compiler this way — no Node built-ins pulled into the browser bundle.
+      </p>
+      <CodePanel code={browserSafeExample} lang="typescript" filename="example.ts" />
+    </section>
+
+    <section class="border-t border-[#1f2c42] pt-10">
+      <h2 class="text-xl font-bold text-white mb-3">Documentation</h2>
+      <ul class="text-sm text-slate-400 space-y-2">
+        <li>
+          <a href={`${base}/docs/getting-started/`} class="prose-link">Getting started</a> — project layout and the compile CLI.
+        </li>
+        <li>
+          <a href="https://github.com/bchelkowski/flash-theater/blob/main/packages/compiler/GRAMMAR.md" class="prose-link" target="_blank">GRAMMAR.md</a> — the exact grammar this package compiles.
+        </li>
+        <li>
+          <a href="https://github.com/bchelkowski/flash-theater/blob/main/docs/features.md" class="prose-link" target="_blank">docs/features.md</a> — full feature status.
+        </li>
+        <li>
+          <a href={`${base}/parser/`} class="prose-link">flash-parser</a> — the parsing layer this compiler is built on.
+        </li>
+      </ul>
+    </section>
+  </div>
+</Layout>

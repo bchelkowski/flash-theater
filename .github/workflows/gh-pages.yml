@@ -1,0 +1,71 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+  workflow_call: {}
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    steps:
+      # No explicit ref: defaults to whatever commit triggered this run — the
+      # push-trigger's own main-branch commit for a direct push, or (when
+      # called via workflow_call from a release workflow) that same run's
+      # commit, so a release dispatched from a non-main ref doesn't redeploy
+      # a stale main instead of the ref it actually released from.
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      # The site's own Vite build reaches directly into packages/compiler/src
+      # and packages/flash-parser/src via astro.config.mjs's aliases, so
+      # their own dependencies (resolved by walking up from those files, not
+      # from site/) must be installed too — see findings/release-and-ci.md.
+      - name: Install root workspace dependencies
+        run: npm ci
+
+      - name: Install dependencies
+        working-directory: site
+        run: npm ci
+
+      - name: Build
+        working-directory: site
+        run: npm run build
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5

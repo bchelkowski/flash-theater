@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="BindInDestroyFixture" extends="Group">
+  <interface>
+    <field id="ft_routeReady" type="boolean" value="false" />
+    <function name="toggleInput" />
+    <function name="ft_unmount" />
+  </interface>
+  <children>
+    <Rectangle id="root">
+      <Label id="summary" text="summary" />
+    </Rectangle>
+  </children>
+  <script type="text/brightscript" uri="BindInDestroyFixture.brs" />
+</component>

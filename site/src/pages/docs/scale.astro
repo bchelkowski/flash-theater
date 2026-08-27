@@ -1,0 +1,98 @@
+---
+import DocsLayout from '../../components/DocsLayout.astro';
+import DocsHero from '../../components/DocsHero.astro';
+import CodePanel from '../../components/CodePanel.astro';
+import NotSupported from '../../components/NotSupported.astro';
+import DocsFooterLinks from '../../components/DocsFooterLinks.astro';
+
+const config = `{
+  "designResolution": "hd"
+}`;
+
+const manifest = `# manifest — MUST declare every resolution tier you want scale to act on
+ui_resolutions=fhd,hd`;
+
+const declarations = `scale field cardWidth: integer = 300
+scale field cardHeight: integer = 180
+scale derived cardTranslation: object = [810, 450]`;
+
+const statementForm = `private function renumbered(days: object): object {
+  updated = []
+  for (i = 0 to days.Count() - 1) {
+    day = days[i]
+    scale y = i * 40
+    day.y = y
+    updated.Push(day)
+  }
+  return updated
+}`;
+---
+<DocsLayout title="Scale" slug="scale">
+  <DocsHero icon="📐">
+    Scale
+    <br />
+    <span class="text-base text-slate-500 font-normal">Design-resolution-aware scaling for numbers, arrays, and AAs.</span>
+  </DocsHero>
+
+  <p class="text-slate-300 leading-relaxed mb-6">
+    <code class="text-amber-300">scale</code> multiplies a numeric value by
+    <code class="text-amber-300">(actual device display width) / (configured design-resolution width)</code>,
+    computed once at app boot — so a layout authored at one resolution renders proportionally correct at another.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Setup — config file and manifest, both required</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">flash-theater.config.json</code> declares the baseline your pixel values were
+    authored against:
+  </p>
+  <CodePanel code={config} lang="json" filename="flash-theater.config.json" class="mb-4" />
+  <p class="text-slate-400 leading-relaxed mb-4">
+    The Roku manifest's <code class="text-amber-300">ui_resolutions</code> must declare
+    <strong class="text-slate-200">every</strong> tier you want <code class="text-amber-300">scale</code> to ever do
+    anything for — a single-tier manifest makes Roku's own OS-level auto-scaling absorb the difference first,
+    silently turning every <code class="text-amber-300">scale</code> call into a permanent no-op:
+  </p>
+  <CodePanel code={manifest} lang="bash" filename="manifest" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Declaration form</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">scale field</code>/<code class="text-amber-300">state</code>/<code class="text-amber-300">derived</code>/<code class="text-amber-300">watch</code>/<code class="text-amber-300">read</code> —
+    scales a number directly, or an array/assocarray element-wise, one level deep.
+  </p>
+  <CodePanel code={declarations} lang="xml" filename="BounceButtonDemo.thr (excerpt)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Statement form</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    A template <code class="text-amber-300">{'{expr}'}</code> binding can't be <code class="text-amber-300">scale</code>d
+    directly — compute the scaled value once via <code class="text-amber-300">scale &lt;local&gt; = &lt;expr&gt;</code> and
+    store it on the data instead:
+  </p>
+  <CodePanel code={statementForm} lang="xml" filename="ScheduleList.thr (excerpt)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Reference implementation — every app, not just one</h2>
+  <p class="text-slate-400 leading-relaxed mb-8">
+    Unlike every other topic on this site, <code class="text-amber-300">scale</code> has no single dedicated chapter
+    app of its own — it's used pervasively across all 14 <code class="text-amber-300">apps/*</code> workspaces (every
+    <code class="text-amber-300">rootWidth</code>/<code class="text-amber-300">rootHeight</code>, every translation,
+    every chapter app's own layout), since a real device pass needs every screen scaled consistently, not just one
+    demo of the mechanism in isolation. <code class="text-amber-300">apps/animation-demo</code>'s
+    <code class="text-amber-300">BounceButtonDemo.thr</code> and <code class="text-amber-300">apps/sample-app</code>'s
+    <code class="text-amber-300">ScheduleList.thr</code> (the two files excerpted above) are two ordinary,
+    representative examples, not special cases. See <code class="text-amber-300">findings/scale-config-and-codegen.md</code>
+    for the compile-time design and <code class="text-amber-300">findings/scale-device-verification.md</code> for the
+    live-device lessons (manifest tiers, <code class="text-amber-300">designResolution</code> choice, partial-scale
+    focus breakage) — the closest thing this feature has to a "which chapter covers this" index, since the real
+    answer is "all of them."
+  </p>
+
+  <NotSupported items={[
+    '<code class="text-amber-300">node</code>-typed fields are excluded from scaling entirely.',
+    'Integer scaling truncates toward zero, never rounds — <code class="text-amber-300">10 * 0.667 = 6</code>, not 7.',
+    'Arrays/assocarrays scale one level deep only — a nested array\'s inner values pass through unscaled.',
+    'No compile-time type check on <code class="text-amber-300">scale derived</code>/<code class="text-amber-300">watch</code>/<code class="text-amber-300">read</code> — a <code class="text-amber-300">scale</code>d non-numeric expression is a silent runtime no-op, not a diagnostic.',
+    '<code class="text-amber-300">scale watch</code>/<code class="text-amber-300">read</code> have an unresolved double-scaling risk if a store value was already scaled by whoever wrote it.',
+    'Partial adoption across a screen with cross-component focus/LRUD dependencies can break directional navigation between a scaled and an unscaled sibling — treat <code class="text-amber-300">scale</code> adoption as closer to all-or-nothing per app.',
+  ]} />
+
+  <DocsFooterLinks grammarAnchor="#scale-statement-form" />
+</DocsLayout>

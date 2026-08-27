@@ -1,0 +1,17 @@
+{
+  "name": "router-demo",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Roku showcase for flash-theater's router surface — router.navigate/back/params/backJourneyData, directional focus (router.isBackJourney + focus(<id>)), router-outlet transitions (navigate-out:/navigate-in:/back-out:/back-in:), and the loading gate (loadingComponent + router.markReady()) — a focused, one-mechanic-per-chapter deep dive into the router itself, unlike every other chapter app where the router is just plumbing for chapter-to-chapter navigation (see findings/demo-app-conventions.md).",
+  "scripts": {
+    "compile": "flash-theater compile",
+    "zip": "flash-theater zip",
+    "build:roku": "npm run compile && npm run zip",
+    "sideload": "kopytko-roku installer install --zip dist/router-demo.zip"
+  },
+  "devDependencies": {
+    "flash-theater-compiler": "*",
+    "kopytko-roku-device": "^1.5.1"
+  }
+}

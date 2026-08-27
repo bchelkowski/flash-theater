@@ -1,0 +1,13 @@
+<script>
+field schedule: node = invalid
+private function selectItem(key: string, press: boolean, item: object) {}
+public function fallback(key: string, press: boolean, item: object) {}
+</script>
+
+<component>
+<Rectangle id="root">
+  {#each schedule as item (item.id)}
+  <Rectangle id="row" focusable="true" on:key[OK]="{selectItem(item)}" on:key[*]="{fallback(item)}" />
+  {/each}
+</Rectangle>
+</component>

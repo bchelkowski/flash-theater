@@ -1,0 +1,24 @@
+class ItemFilter {
+  constructor(threshold: integer) {
+    private threshold: integer = threshold
+  }
+
+  private function filterList(list: object, predicate: Function): object {
+    updated = []
+    for (i = 0 to list.Count() - 1) {
+      if (predicate(list[i])) {
+        updated.Push(list[i])
+      }
+    }
+    return updated
+  }
+
+  public function positives(items: object): object {
+    return m.filterList(items, function (item: integer): boolean {
+      if (item > m.threshold) {
+        return true
+      }
+      return false
+    })
+  }
+}

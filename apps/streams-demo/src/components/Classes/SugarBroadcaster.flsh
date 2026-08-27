@@ -1,0 +1,11 @@
+' Chapter 3/3 (bound-method-sugar) — a dedicated broadcaster for contrasting the RAW hand-written
+' `{ target, action }` descriptor form against the `.subscribe(<target>.<methodName>)` sugar form
+' that lowers to it. See RawDescriptorListener.flsh/SugarFormListener.flsh, this chapter's other
+' two halves.
+class SugarBroadcaster {
+  public stream pulse: string
+
+  public function fire(value: string) {
+    m.pulse.emit(value)
+  }
+}

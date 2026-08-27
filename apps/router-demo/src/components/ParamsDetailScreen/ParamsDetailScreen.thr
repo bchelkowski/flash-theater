@@ -1,0 +1,50 @@
+<script>
+' Chapter 1/4 — the nested "detail" half of navigate-and-params (reached from ParamsListScreen.thr,
+' the "" child of the same /navigate-and-params route — see MainScene.thr's own children: [...]).
+' Demonstrates:
+'   - router.params.* — idParam/titleParam read back exactly what ParamsListScreen.thr passed via
+'     router.navigate("/navigate-and-params/detail", { id: ..., title: ... }).
+'   - router.back() — goBack() simply pops back to ParamsListScreen.thr. The
+'     router.updateBackJourneyData(...) half of this round trip lives on ParamsListScreen.thr's own
+'     goToAlpha()/goToBeta(), not here — updateBackJourneyData(...) attaches data to the CURRENT
+'     route (GRAMMAR.md: "Attaches arbitrary data... to the current route"), so writing it here would
+'     attach it to THIS (detail) route's own entry, which router.back() immediately pops off the
+'     stack — never read back by anything. Live-device-caught: an earlier version of this chapter
+'     called updateBackJourneyData(...) from here, and ParamsListScreen.thr's own welcomeText never
+'     updated after a back trip, because the data was attached to (and discarded with) the entry
+'     being popped, not the one becoming active again. The already-working reference pattern
+'     (apps/sample-app's HomeScreen.thr/ScheduleScreen.thr) writes onto the route that's about to be
+'     LEFT BEHIND on the stack (list, before navigating forward), never the one about to be popped
+'     (detail, right before going back) — see findings/router-demo-app.md's device-pass writeup.
+'
+' No router.markReady() call here — same reason as ParamsListScreen.thr: this screen is mounted
+' through NavigateAndParamsDemo.thr's own nested outlet, which has no loadingComponent configured.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field promptWidth: integer = 620
+scale field promptHeight: integer = 60
+scale state titleTranslation: object = [40, 30]
+scale state paramsTranslation: object = [40, 80]
+scale state backPromptTranslation: object = [40, 220]
+scale state promptLabelInset: object = [16, 20]
+
+derived idParam: integer = router.params.id
+derived titleParam: string = router.params.title
+derived paramsText: string = "router.params.id = " + idParam.ToStr() + "   router.params.title = " + titleParam
+
+private function goBack(key: string, press: boolean) {
+  if (press) {
+    router.back()
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="1/4 -- detail screen" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="paramsReadout" text="{paramsText}" color="0x66CCFFFF" translation="{paramsTranslation}" />
+  <Rectangle id="backPrompt" focusable="true" default-focus="true" color="0x3A3A3AFF" width="{promptWidth}" height="{promptHeight}" translation="{backPromptTranslation}" on:key[OK]="{goBack()}">
+    <Label id="backPromptLabel" text="OK: back to list" color="0xFFFFFFFF" translation="{promptLabelInset}" />
+  </Rectangle>
+</Rectangle>
+</component>

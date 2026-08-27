@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="FlashTheaterRouterOutlet" extends="Group">
+  <interface>
+    <!-- Wired once, in the host component's own generated init() (codegen/brs-emitter.ts's
+         emitInitFunction), from a resolved navigate-out:/navigate-in:/back-out:/back-in: template
+         attribute — see analysis/router-transitions.ts. invalid (never wired) means "no animation
+         for this direction/phase", the exact pre-feature instant behavior. -->
+    <field id="ft_navigateOutAnim" type="node" />
+    <field id="ft_navigateInAnim" type="node" />
+    <field id="ft_backOutAnim" type="node" />
+    <field id="ft_backInAnim" type="node" />
+    <!-- Plain author-set attributes, passed straight through as ordinary static XML (no compiler
+         wiring beyond xml-emitter.ts's existing generic attribute pass-through) — see GRAMMAR.md's
+         "Router" section. Purely for this outlet's OWN script to read at runtime (centering the
+         loading spinner, deciding gate/timeout durations) — never SceneGraph layout/clipping
+         primitives, since Group has none of its own. -->
+    <field id="width" type="float" value="0" />
+    <field id="height" type="float" value="0" />
+    <field id="loadingComponent" type="string" value="" />
+    <field id="loadingMinDuration" type="float" value="0" />
+    <field id="loadingTimeout" type="float" value="5" />
+    <function name="ft_unmount" />
+  </interface>
+  <script type="text/brightscript" uri="FlashTheaterRouterOutlet.brs" />
+</component>

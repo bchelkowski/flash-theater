@@ -1,0 +1,75 @@
+<script>
+' Chapter 7/8 — proves a single declared `animation` name used as BOTH a Layer 2 `out:` transition
+' target AND a Layer 1 `.onFinish()` target never cross-wires, even though it's the exact same
+' name: Layer 2's `out:glow` always drives its OWN synthesized copy of `glow` (a distinct node),
+' never the literal `glow` node `.onFinish()` observes — see findings/animation-onfinish.md's "A
+' wrong assumption..." entry for the full design story (this screen is the live-device closer for
+' that entry, added after a live device session only exercised the single-name case via
+' BounceButtonDemo).
+'
+' OK toggles `card`'s visibility — hiding it plays `out:glow` (its own synthesized node); showing
+' it is instant (no `in:`). Replay fires `glow.start()` directly (the REAL `glow` node), whose
+' `.onFinish(onGlowFinished)` bumps `pulseFinishCount`. If the two mechanisms shared a node/
+' registration, toggling `card` would eventually increment `pulseFinishCount` too (or `Replay`
+' would eventually break `card`'s own hide behavior) — a live pass toggling AND pulsing repeatedly,
+' interleaved, and confirming `pulseFinishCount` only ever moves on `Replay`, is the actual check.
+animation glow {
+  target: card
+  duration: 0.3
+  easeFunction: "outExpo"
+  scale: [1, 1.3, 1]
+}
+
+state showPanel: boolean = true
+state pulseFinishCount: integer = 0
+state pulseLabelText: string = "Pulse finishes: 0"
+
+private function togglePanel(key: string, press: boolean) {
+  if (press) {
+    state showPanel = not showPanel
+  }
+}
+
+private function pulseCard(key: string, press: boolean) {
+  if (press) {
+    glow.start()
+    glow.onFinish(onGlowFinished)
+  }
+}
+
+private function onGlowFinished() {
+  state pulseFinishCount = pulseFinishCount + 1
+  state pulseLabelText = "Pulse finishes: " + pulseFinishCount.ToStr()
+}
+
+' Static layout below is `scale`d so this screen looks the same at any declared ui_resolutions
+' tier — see findings/scale.md. `glow`'s own `scale: [1, 1.3, 1]` keyframes above are already
+' resolution-independent relative multipliers, so they need no scaling of their own.
+scale field rootWidth: integer = 1920
+scale field rootHeight: integer = 1080
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+scale field triggerWidth: integer = 300
+scale field triggerHeight: integer = 60
+scale state triggerTranslation: object = [40, 140]
+scale state triggerLabelTranslation: object = [16, 16]
+scale field cardWidth: integer = 400
+scale field cardHeight: integer = 200
+scale state cardTranslation: object = [710, 440]
+scale state cardLabelTranslation: object = [24, 24]
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="7/8 — .onFinish() and out: sharing one declared animation name" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="OK: toggle card (plays out:glow on hide) — Replay: glow.start() + onFinish (a different node)" color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+  <Rectangle id="trigger" focusable="true" default-focus="true" color="0x2A2A6AFF" width="{triggerWidth}" height="{triggerHeight}" translation="{triggerTranslation}" on:key[OK]="{togglePanel()}" on:key[replay]="{pulseCard()}">
+    <Label id="triggerLabel" text="OK: toggle card — Replay: pulse card" color="0xFFFFFFFF" translation="{triggerLabelTranslation}" />
+  </Rectangle>
+  {#if showPanel}
+  <Rectangle id="card" out:glow="" color="0x2A6A4AFF" width="{cardWidth}" height="{cardHeight}" translation="{cardTranslation}">
+    <Label id="cardLabel" text="{pulseLabelText}" color="0xFFFFFFFF" translation="{cardLabelTranslation}" />
+  </Rectangle>
+  {/if}
+</Rectangle>
+</component>

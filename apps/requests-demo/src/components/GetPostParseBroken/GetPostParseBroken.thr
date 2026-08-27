@@ -1,0 +1,24 @@
+<script>
+' The deliberately-broken half of ParseSafetyDemo.thr — see GRAMMAR.md's "Requests" → "Parsing
+' safety". Targets a post id (99999) jsonplaceholder.typicode.com doesn't have, so the response is a
+' real 404 — `ft_httpFetch`'s own `isSuccess` is false, which routes into `parseError`, not
+' `parseResponse`. `parseError` here accesses `response.data.nonexistentField.title` — the exact
+' live-confirmed failure shape findings/requests-runtime.md documents (`.nonexistentField` on a real
+' AA returns `invalid` safely; `.title` on that `invalid` throws) — deliberately, to prove the
+' try/catch around `parseError` (not just `parseResponse`) actually protects the Task too.
+' `parseResponse` is left correct/unreachable here (this endpoint always 404s) purely so the
+' component reads like a realistic one, not a contrived crash-only stub. Migrated as-is (in shape)
+' from apps/async-demo's own GetPostParseBroken.thr — see findings/requests-demo-app.md.
+request Http { method: "GET", url: "https://jsonplaceholder.typicode.com/posts/99999" }
+
+private function parseResponse(response: object): object {
+  return { title: response.data.title }
+}
+
+private function parseError(response: object): object {
+  return { message: response.data.nonexistentField.title }
+}
+</script>
+
+<component extends="Task">
+</component>

@@ -1,0 +1,170 @@
+---
+import DocsLayout from '../../components/DocsLayout.astro';
+import DocsHero from '../../components/DocsHero.astro';
+import CodePanel from '../../components/CodePanel.astro';
+import NotSupported from '../../components/NotSupported.astro';
+import DocsFooterLinks from '../../components/DocsFooterLinks.astro';
+
+const SCRIPT_OPEN = '<' + 'script>';
+const SCRIPT_CLOSE = '<' + '/script>';
+
+const fileShape = `${SCRIPT_OPEN}
+  ...declarations (field, derived, state, functions, ...)...
+${SCRIPT_CLOSE}
+
+<component>
+  ...children (valid XML, one or more top-level siblings)...
+</component>`;
+
+const mainScene = `${SCRIPT_OPEN}
+public function setup() {
+  m.top.backgroundColor = "0x101010FF"
+  router.setRouting([
+    { path: "splash", component: "SplashScreen" },
+    { path: "browse", component: "Shell", children: [
+      { path: "", component: "HomeScreen" }
+    ] }
+  ])
+  router.navigate("/splash")
+}
+${SCRIPT_CLOSE}
+
+<component extends="Scene">
+<FlashTheaterRouterOutlet id="rootOutlet" />
+</component>`;
+
+const config = `{
+  "designResolution": "hd",
+  "srcDir": "src",
+  "outDir": "out",
+  "exclude": ["components/Experimental/**"]
+}`;
+
+const layout = `apps/my-app/
+├── flash-theater.config.json   # optional — tooling config, sibling to src/ and out/
+├── src/                        # 100% hand-written — the only directory you edit
+│   ├── manifest
+│   ├── images/
+│   ├── source/Main.brs
+│   └── components/
+│       └── HomeScreen/HomeScreen.thr
+└── out/                        # 100% generated — gitignored, wiped + rebuilt every compile
+    ├── manifest
+    ├── images/
+    ├── source/Main.brs
+    └── components/
+        └── HomeScreen/HomeScreen.xml
+        └── HomeScreen/HomeScreen.brs`;
+
+const cli = `flash-theater compile                       # compile the whole project (src/ -> out/)
+flash-theater compile --check                # validate only, write nothing
+flash-theater compile --src-dir a --out-dir b`;
+
+const zipCli = `flash-theater compile                       # first, build out/
+flash-theater zip                            # then, zip out/ into dist/<name>.zip
+flash-theater zip --app-name custom-name     # override the zip's base name`;
+---
+<DocsLayout title="Getting started" slug="getting-started">
+  <DocsHero icon="🚀">
+    Getting started
+    <br />
+    <span class="text-base text-slate-500 font-normal">Project layout, the &lt;component&gt; root tag, and the compile CLI.</span>
+  </DocsHero>
+
+  <p class="text-slate-300 leading-relaxed mb-6">
+    A flash-theater app is a normal Roku app project with one addition: a <code class="text-amber-300">src/</code>
+    tree containing <code class="text-amber-300">.thr</code> (and optionally <code class="text-amber-300">.flsh</code>)
+    files alongside your ordinary hand-written Roku project files (manifest, images, a bootstrap
+    <code class="text-amber-300">Main.brs</code>). The <code class="text-amber-300">flash-theater compile</code> CLI
+    reads everything under <code class="text-amber-300">src/</code> and produces a complete, ready-to-zip
+    Roku project under <code class="text-amber-300">out/</code> — plain SceneGraph <code class="text-amber-300">.xml</code>
+    and <code class="text-amber-300">.brs</code>, nothing exotic at runtime.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Project layout</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">src/</code> is <strong class="text-slate-200">100% hand-written</strong> — it's the
+    only directory you ever touch. <code class="text-amber-300">out/</code> is
+    <strong class="text-slate-200">100% generated</strong>, mirroring <code class="text-amber-300">src/</code>'s exact
+    structure — safe to delete, and it's wiped clean and rebuilt from scratch on every non-<code class="text-amber-300">--check</code>
+    compile. Nothing hand-written ever lives in <code class="text-amber-300">out/</code>, so gitignoring it wholesale
+    is always safe.
+  </p>
+  <CodePanel code={layout} lang="bash" filename="apps/my-app/" class="mb-8" />
+
+  <p class="text-slate-400 leading-relaxed mb-4">
+    An optional <code class="text-amber-300">flash-theater.config.json</code> at the app root (a sibling of
+    <code class="text-amber-300">src/</code>/<code class="text-amber-300">out/</code>, not inside <code class="text-amber-300">src/</code>)
+    can rename either directory or exclude paths from compilation entirely:
+  </p>
+  <CodePanel code={config} lang="json" filename="flash-theater.config.json" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">The compile CLI</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    There's no glob/pattern argument — <code class="text-amber-300">compile</code> always processes the whole
+    project, the same way <code class="text-amber-300">tsc</code> reads <code class="text-amber-300">tsconfig.json</code>
+    with no arguments rather than being told a file list every time.
+  </p>
+  <CodePanel code={cli} lang="bash" filename="terminal" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Packaging: <code>flash-theater zip</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Zipping <code class="text-amber-300">out/</code> into a sideload-ready package is also the compiler's
+    job, not something every app needs its own script for. <code class="text-amber-300">flash-theater zip</code>
+    reads an already-compiled <code class="text-amber-300">out/</code> (or <code class="text-amber-300">out-&lt;env&gt;/</code>,
+    see <a href="environments/" class="prose-link">Environments</a>) and writes
+    <code class="text-amber-300">dist/&lt;appName&gt;.zip</code>, where <code class="text-amber-300">&lt;appName&gt;</code>
+    defaults to your <code class="text-amber-300">package.json</code>'s <code class="text-amber-300">"name"</code>.
+  </p>
+  <CodePanel code={zipCli} lang="bash" filename="terminal" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Every <code>.thr</code> file has the same shape</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    An optional <code class="text-amber-300">&lt;script&gt;</code> region (declarations — see
+    <a href="reactive-state/" class="prose-link">Reactive state</a> and
+    <a href="statements/" class="prose-link">Statements &amp; expressions</a>) followed by a mandatory
+    <code class="text-amber-300">&lt;component&gt;</code> tag wrapping the template markup, which is always valid
+    XML with one or more top-level children — no forced single-root wrapper.
+  </p>
+  <CodePanel code={fileShape} lang="xml" filename="Widget.thr" class="mb-8" />
+
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">&lt;component extends="..."&gt;</code> controls what SceneGraph base class the
+    file compiles to — <code class="text-amber-300">Group</code> by default, or e.g.
+    <code class="text-amber-300">Scene</code> for an app's root entry point. Here's the actual root of
+    <code class="text-amber-300">apps/sample-app</code>, a real <code class="text-amber-300">Scene</code>-rooted
+    component compiled from <code class="text-amber-300">.thr</code> like everything else in the app:
+  </p>
+  <CodePanel code={mainScene} lang="xml" filename="MainScene.thr" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">The DSL is case-sensitive</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    BrightScript itself is case-insensitive, but <code class="text-amber-300">.thr</code>/<code class="text-amber-300">.flsh</code>
+    deliberately are not — two identifiers differing only in case are different identifiers in DSL
+    source (the compiled <code class="text-amber-300">.brs</code> output still folds case like any
+    BrightScript program does at runtime). Every bare identifier you write must resolve to exactly
+    one of: a real local in scope (a parameter, an assignment target, a loop variable), a declared
+    binding (<code class="text-amber-300">field</code>/<code class="text-amber-300">derived</code>/<code class="text-amber-300">state</code>/<code class="text-amber-300">read</code>/<code class="text-amber-300">watch</code>/<code class="text-amber-300">stream</code>/function
+    name), or <code class="text-amber-300">m</code>/a recognized BrightScript builtin. Anything else is a
+    compile error, not a silent pass-through — there's no "probably a BrightScript local used
+    elsewhere."
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Sideloading to a real device</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Each sample app's <code class="text-amber-300">build:roku</code> script runs
+    <code class="text-amber-300">flash-theater compile &amp;&amp; flash-theater zip</code>; a separate
+    <code class="text-amber-300">sideload</code> script installs the resulting <code class="text-amber-300">dist/</code>
+    zip onto a dev Roku over the network
+    via <code class="text-amber-300">kopytko-roku-device</code>. Sideloading needs a native Node install (not
+    WSL — it can't reach a LAN device) and the device's current IP, which can drift across sessions.
+  </p>
+
+  <NotSupported items={[
+    'A fully-generated <code class="text-amber-300">Main.brs</code> — one hand-written bootstrap line is still required per app.',
+    'A shared, package-size-aware generated runtime file strategy for apps approaching Roku\'s 4MB package limit.',
+    '<code class="text-amber-300">@import</code>/kopytko-packager integration for pulling in external component libraries.',
+  ]} />
+
+  <DocsFooterLinks grammarAnchor="#project-layout" />
+</DocsLayout>

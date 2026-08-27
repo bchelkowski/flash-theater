@@ -1,0 +1,252 @@
+---
+import DocsLayout from '../../components/DocsLayout.astro';
+import DocsHero from '../../components/DocsHero.astro';
+import CodePanel from '../../components/CodePanel.astro';
+import NotSupported from '../../components/NotSupported.astro';
+import DocsFooterLinks from '../../components/DocsFooterLinks.astro';
+
+const SCRIPT_OPEN = '<' + 'script>';
+const SCRIPT_CLOSE = '<' + '/script>';
+
+const setRouting = `public function setup() {
+  m.top.backgroundColor = "0x101010FF"
+  router.setRouting([
+    { path: "splash", component: "SplashScreen" },
+    {
+      path: "browse",
+      component: "Shell",
+      children: [
+        { path: "", component: "HomeScreen" },
+        { path: "schedule", component: "ScheduleScreen" }
+      ]
+    }
+  ])
+  router.navigate("/splash")
+}`;
+
+const outlet = `<component extends="Scene">
+<FlashTheaterRouterOutlet id="rootOutlet" />
+</component>`;
+
+const navigate = `private function goToSchedule(key: string, press: boolean) {
+  if (press) {
+    router.updateBackJourneyData({ visitedSchedule: true })
+    router.navigate("/browse/schedule", { day: "Mon" })
+  }
+}
+
+derived welcomeText: string = pickWelcomeText(router.backJourneyData.visitedSchedule)`;
+
+const paramsRead = `' Inside ScheduleScreen.thr, reached via /browse/schedule?day=Mon
+day = router.params.day`;
+
+const directionalFocus = `' DirectionalFocusDemo.thr — the same route wants a DIFFERENT initial focus
+' depending on how it was entered.
+public function setup() {
+  if (router.isBackJourney) {
+    focus("buttonB")
+  } else {
+    focus("buttonA")
+  }
+}`;
+
+const transitionAnimations = `animation slideOutLeft     { target: outlet, duration: 0.25, translation: [[0, 0], [-1280, 0]] }
+animation slideInFromRight { target: outlet, duration: 0.25, translation: [[1280, 0], [0, 0]] }
+animation slideOutRight    { target: outlet, duration: 0.25, translation: [[0, 0], [1280, 0]] }
+animation slideInFromLeft  { target: outlet, duration: 0.25, translation: [[-1280, 0], [0, 0]] }`;
+
+const transitionOutlet = `<FlashTheaterRouterOutlet
+  id="outlet"
+  width="1280" height="720"
+  navigate-out:slideOutLeft navigate-in:slideInFromRight
+  back-out:slideOutRight back-in:slideInFromLeft
+  loadingComponent="BusySpinner"
+  loadingMinDuration="0.2" loadingTimeout="5"
+/>`;
+
+const markReady = `' Inside the routed screen, once real data has arrived:
+private function onPostsLoaded(result: dynamic) {
+  state resultText = "Loaded " + result.count.ToStr() + " posts"
+  router.markReady()
+}`;
+---
+<DocsLayout title="Router" slug="router">
+  <DocsHero icon="🧭">
+    Router
+    <br />
+    <span class="text-base text-slate-500 font-normal">router.navigate, RouterOutlet, default-focus, the vacuum rule.</span>
+  </DocsHero>
+
+  <p class="text-slate-300 leading-relaxed mb-6">
+    A built-in, schemaless, zero-declaration global router — one <code class="text-amber-300">router.*</code> namespace
+    for both actions (<code class="text-amber-300">navigate</code>/<code class="text-amber-300">back</code>/...) and
+    data reads (<code class="text-amber-300">router.path</code>/<code class="text-amber-300">router.params.*</code>).
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Declaring routes and mounting the outlet</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">router.setRouting([...])</code> declares the whole route tree once (nesting via
+    <code class="text-amber-300">children</code>), and <code class="text-amber-300">&lt;FlashTheaterRouterOutlet&gt;</code>
+    renders whichever route currently matches. Any number of outlets may be mounted, nested arbitrarily — a parent
+    route's persistent chrome (a sidebar menu, say) never rebuilds just because a deeper sibling route changes.
+  </p>
+  <CodePanel code={setRouting} lang="xml" filename="MainScene.thr (excerpt)" class="mb-4" />
+  <CodePanel code={outlet} lang="xml" filename="MainScene.thr (excerpt)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Navigating, params, and back-journey data</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">router.navigate(path, [params], [skipInHistory])</code>,
+    <code class="text-amber-300">router.back()</code>, <code class="text-amber-300">router.resetHistory()</code>.
+    <code class="text-amber-300">router.appendBackJourneyData(data)</code>/<code class="text-amber-300">updateBackJourneyData(data)</code>
+    stash data on the current history entry, readable later via <code class="text-amber-300">router.backJourneyData.*</code>
+    once the user navigates back to it — genuinely surviving a full destroy-and-recreate round trip through history,
+    not just a same-instance field.
+  </p>
+  <CodePanel code={navigate} lang="xml" filename="HomeScreen.thr (excerpt)" class="mb-4" />
+  <CodePanel code={paramsRead} lang="xml" filename="" class="mb-8" />
+  <p class="text-slate-400 leading-relaxed mb-8">
+    <code class="text-amber-300">router.isBackJourney</code> reads the same schemaless way —
+    <code class="text-amber-300">true</code> when the current mount was reached via
+    <code class="text-amber-300">router.back()</code>, <code class="text-amber-300">false</code> for
+    an ordinary forward <code class="text-amber-300">router.navigate(...)</code>. See "Directional
+    focus" below for what it's for.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Back key — automatic, no wiring needed</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    The Scene-rooted component's generated <code class="text-amber-300">onKeyEvent</code> walks the router's history
+    on the physical "back" key with zero <code class="text-amber-300">on:key[back]</code> handler required anywhere —
+    it stops consuming the key once history is empty, so Roku's own default app-exit behavior takes over.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Focus after a navigation</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Every router-mounted component gets an automatic <code class="text-amber-300">setup()</code> call, and focus
+    lands on the newly-mounted screen's <code class="text-amber-300">default-focus="true"</code> element — but only
+    following the <a href="focus-and-navigation/" class="prose-link">vacuum rule</a>: if something else (a persistent
+    menu) already holds focus, navigating never rips it away.
+  </p>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    A route also remembers whatever element was last genuinely focused anywhere inside its own
+    mounted content — including inside a nested custom component, e.g. a list row — and restores it
+    automatically the next time the same route mounts, in either direction
+    (<code class="text-amber-300">router.navigate(...)</code> or <code class="text-amber-300">router.back()</code>),
+    even across a brand-new component instance and even for a dynamically-created
+    <code class="text-amber-300">{'{#each}'}</code> element. Nothing to author for this — it's
+    automatic. The vacuum rule still governs whether it's ever actually <em>observed</em>, though:
+    restoration only ever applies when returning creates a genuine focus vacancy (whatever holds
+    focus at that moment is also being destroyed by the same navigation). If you've manually stepped
+    back to a persistent menu before triggering the navigation, that menu keeps focus — the route's
+    own content memory is still captured underneath, ready for the next time a real vacancy occurs,
+    it just has no visible effect while something else remains legitimately focused.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Directional focus — <code class="text-white">router.isBackJourney</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Sometimes a route genuinely wants a <em>different</em> initial focus depending on how it was
+    entered — a multi-step flow whose own "continue" action should be focused on a fresh forward
+    visit, but whose own "review/edit" action should be focused when the user has stepped away and
+    come back to revisit it. Combine <code class="text-amber-300">router.isBackJourney</code> with an
+    explicit <code class="text-amber-300">focus(&lt;id&gt;)</code> call — always wins over both the
+    vacuum rule and the automatic restoration above — from the mounted component's own
+    <code class="text-amber-300">setup()</code>:
+  </p>
+  <CodePanel code={directionalFocus} lang="xml" filename="DirectionalFocusDemo.thr (excerpt)" class="mb-4" />
+  <p class="text-slate-400 leading-relaxed mb-8">
+    See <code class="text-amber-300">apps/sample-app</code>'s <code class="text-amber-300">DirectionalFocusDemo.thr</code>/
+    <code class="text-amber-300">DirectionalFocusDemoDetail.thr</code> (reachable from Home's own second
+    prompt) for the full, live-verified round trip: press OK on button A (focused on the forward
+    visit) to go to the detail step, then OK there to come back — button B is focused this time, not
+    A, proving the branch is genuinely direction-aware.
+  </p>
+
+  <h2 id="router-outlet-transitions" class="text-xl font-semibold text-white mt-10 mb-3">Router-outlet transitions</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">navigate-out:</code>/<code class="text-amber-300">navigate-in:</code>/<code class="text-amber-300">back-out:</code>/<code class="text-amber-300">back-in:</code>
+    on <code class="text-amber-300">&lt;FlashTheaterRouterOutlet&gt;</code> animate the swap instead of instantly replacing it —
+    same value grammar as <a href="animation/" class="prose-link">animation</a>'s own <code class="text-amber-300">transition:</code>/<code class="text-amber-300">in:</code>/<code class="text-amber-300">out:</code>
+    (a built-in preset or a declared <code class="text-amber-300">animation</code> name). The direction is read straight off
+    whether the swap came from <code class="text-amber-300">router.navigate(...)</code> or <code class="text-amber-300">router.back()</code> — nothing
+    to author on the caller's side. Every one of the four must target the OUTLET itself (never the screen it's mounting) — a
+    dynamically-created routed screen has no compile-time id an animation could reference, so the outlet's own translation
+    is what actually animates: the outgoing screen's <code class="text-amber-300">out:</code> plays, the outlet is torn down and
+    teleported to the <code class="text-amber-300">in:</code> animation's own starting position (e.g. off-screen on the
+    opposite side), then the new screen mounts and slides into place. Only one screen is ever visible at once — not two
+    screens co-mounted and cross-fading.
+  </p>
+  <CodePanel code={transitionAnimations} lang="xml" filename="Shell.thr (excerpt, inside &lt;script&gt;)" class="mb-4" />
+  <CodePanel code={transitionOutlet} lang="xml" filename="Shell.thr (excerpt, inside the template)" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Loading gate — <code class="text-white">loadingComponent</code> + <code class="text-white">router.markReady()</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">loadingComponent</code> names a SceneGraph node to show (Roku's built-in
+    <code class="text-amber-300">BusySpinner</code>, or any custom <code class="text-amber-300">.thr</code> component) while
+    the just-mounted screen isn't ready yet — the outlet creates and centers it itself, on
+    <code class="text-amber-300">width</code>/<code class="text-amber-300">height</code> (its own declared content-area
+    size; <code class="text-amber-300">FlashTheaterRouterOutlet</code> has no size of its own to derive that from). A screen
+    signals real readiness with <code class="text-amber-300">router.markReady()</code> — a genuine gate on real work (a
+    fetch, say), not a cosmetic timer. Unlike every other <code class="text-amber-300">router.*</code> action,
+    <code class="text-amber-300">markReady()</code> doesn't touch the router singleton at all: it flips a plain field
+    (<code class="text-amber-300">ft_routeReady</code>) on the CALLING component's own top node, which every compiled
+    <code class="text-amber-300">.thr</code> component declares unconditionally. A screen that never calls it still reveals —
+    <code class="text-amber-300">loadingTimeout</code> (default 5s) forces it — so this feature is opt-in, never a way to
+    accidentally strand a screen behind a spinner forever. Calling <code class="text-amber-300">markReady()</code>
+    synchronously inside <code class="text-amber-300">setup()</code> itself (the common case, when nothing needs
+    waiting on) reveals immediately with no spinner ever shown at all — the gate only actually waits when readiness
+    genuinely isn't known yet the moment <code class="text-amber-300">setup()</code> returns.
+  </p>
+  <CodePanel code={markReady} lang="xml" filename="RouterTransitionDemo.thr (excerpt)" class="mb-8" />
+  <p class="text-slate-400 leading-relaxed mb-4">
+    A navigation into a screen gated this way stays focus-free while it loads, then applies whichever
+    focus target the mount cascade settled on — including the route-scoped restoration described
+    above — once the gate actually clears. Nothing extra to author for the loading-gate case
+    specifically; it composes with the ordinary focus mechanics for free.
+  </p>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    When more than one nested outlet gates a mount in the same navigation (an ancestor re-rendering persistent chrome
+    around a deeper route change), only the INNERMOST one actually shows its <code class="text-amber-300">loadingComponent</code> —
+    an outer outlet mid-transition at the same time still genuinely waits on its own child's readiness, it just never
+    displays a second, competing spinner.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Reference implementation — <code>apps/router-demo</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-8">
+    Every mechanism on this page has a router-mounted, <code class="text-amber-300">scale</code>d
+    chapter in <code class="text-amber-300">apps/router-demo</code> — 4 chapters
+    (<code class="text-amber-300">/navigate-and-params</code> through
+    <code class="text-amber-300">/loading-gate</code>), reachable with REWIND/FAST-FORWARD once
+    compiled and sideloaded. Unlike every other chapter app, where the router is just plumbing for
+    that app's own chapter-to-chapter navigation, this one treats the router's own behaviors as the
+    actual subject being taught: chapter 1 nests a real "list" -&gt; "detail" -&gt; back round trip
+    to exercise <code class="text-amber-300">router.params.*</code> and
+    <code class="text-amber-300">router.backJourneyData.*</code> against genuine navigation, not a
+    synthetic stand-in; chapter 2 is the directional-focus round trip described above, adapted from
+    <code class="text-amber-300">apps/sample-app</code>'s own
+    <code class="text-amber-300">DirectionalFocusDemo.thr</code>; chapter 3 narrates the outlet
+    transitions every chapter switch in this app is already playing, and explicitly contrasts
+    REWIND/FAST-FORWARD (always <code class="text-amber-300">navigate-out:</code>/<code class="text-amber-300">navigate-in:</code>)
+    against the physical Back key (the only thing in the app that ever plays
+    <code class="text-amber-300">back-out:</code>/<code class="text-amber-300">back-in:</code>);
+    chapter 4 demonstrates both loading-gate shapes — a default variant that defers
+    <code class="text-amber-300">router.markReady()</code> behind a short simulated delay, and a
+    customized variant that never calls it at all, relying purely on
+    <code class="text-amber-300">loadingTimeout</code> to force the reveal. See
+    <code class="text-amber-300">findings/router-demo-app.md</code> for what each chapter covers and
+    <code class="text-amber-300">findings/demo-app-conventions.md</code> for the app-structure convention it follows.
+  </p>
+
+  <NotSupported items={[
+    'Middleware/route guards (<code class="text-amber-300">canActivate</code>, redirects) — no async guard sequencing in this compiler\'s synchronous codegen yet.',
+    'Forward navigation — <code class="text-amber-300">back()</code> pops a plain stack, no <code class="text-amber-300">forward()</code>.',
+    'Dynamic <code class="text-amber-300">default-focus="{expr}"</code> — currently static-literal only.',
+    'Reactive <code class="text-amber-300">router.*</code> data reads — <code class="text-amber-300">router.path</code>/<code class="text-amber-300">router.params.*</code>/<code class="text-amber-300">router.isBackJourney</code> are plain snapshots, not live-bound (the router\'s own reactivity is a fresh remount, not a bound expression).',
+    'Route-scoped focus restoration only re-identifies a remembered element by its own <code class="text-amber-300">id</code> — an element with none can never be re-identified on a later mount (its nearest id-bearing ancestor, if any, is still tried), and the re-identifying search is app-wide, so two different components reusing the same static author-chosen id could in principle collide.',
+    'Restoration is only ever OBSERVED when returning to a route creates a genuine focus vacancy — the vacuum rule never steals focus from something still legitimately held (e.g. a persistent menu the user manually returned to before navigating away). Use <code class="text-amber-300">focus(&lt;id&gt;)</code>, optionally combined with <code class="text-amber-300">router.isBackJourney</code> (see "Directional focus" above), to force a specific target regardless of vacuum state.',
+    'A plain (non-router-mounted) child component never gets an automatic <code class="text-amber-300">setup()</code> call at all — only a router-mounted screen and the root Scene do.',
+    'Router-outlet transitions/<code class="text-amber-300">loadingComponent</code> have no per-route override — they\'re configured once, on the outlet itself, applying to every route it ever mounts.',
+    'A router-mounted screen that isn\'t compiled from <code class="text-amber-300">.thr</code> (a hand-authored component referenced directly as a route\'s <code class="text-amber-300">component:</code>) can still be gated by <code class="text-amber-300">loadingComponent</code>, but since it can\'t call <code class="text-amber-300">router.markReady()</code>, it always falls back to <code class="text-amber-300">loadingTimeout</code>.',
+    'No dynamic path segments — a route is matched as an exact static string, there\'s no <code class="text-amber-300">:id</code>-style URL composition; pass data between routes through <code class="text-amber-300">navigate(path, { params: { ... } })</code> instead.',
+  ]} />
+
+  <DocsFooterLinks grammarAnchor="#router" />
+</DocsLayout>

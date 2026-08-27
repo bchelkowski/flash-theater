@@ -1,0 +1,85 @@
+<script>
+import GlobalAccessHelper from "components/Classes/GlobalAccessHelper.flsh"
+
+' Chapter 3/3 — `theme`/`router`/`taskManager` reachable from a `.flsh` class method exactly like
+' from a `.thr` component's own script. See Classes/GlobalAccessHelper.flsh for the class this
+' drives (including its own doc comment on the four things that are NOT reachable from a class
+' body) and findings/classes-demo-app.md for the full writeup.
+'
+' Default: "Read theme.colors.accent" calls `helper.accentColorLabel()` — a class method reading
+' the app's own `<theme-template>` (Theme/Theme.thr) exactly like a `.thr` component would.
+' "Start a background task" calls `helper.startQuickTask()` — `taskManager.run(...)` from inside a
+' class method, against a real Task node (QuickTask.thr).
+'
+' Every button label here is short by design, not an afterthought — live-device-caught: an earlier
+' draft's longer labels ("... (from a class method)"/"... (taskManager.run, ...)") overflowed each
+' button's own declared width badly enough to skew FlashTheaterFocusManager's BoundingRect()-based
+' LRUD scoring (see findings/focus-runtime-bugs.md's entry on this), making `taskButton` completely
+' unreachable via Down from `themeButton` — `navButton`, overflowing less, kept winning despite
+' sitting farther away. See findings/classes-demo-app.md's device-pass writeup.
+'
+' Customized: "Go to Chapter 1" calls `helper.goToChapter("/fields-and-methods")` —
+' `router.navigate(...)` called from INSIDE the class method itself (not from this component's own
+' script), still a standalone statement there, still triggers the router's real navigation +
+' automatic focus hand-off. Known quirk, noted here rather than hidden: this button bypasses
+' MainScene's own `activeChapterIndex` tracker (that state lives in MainScene, unreachable from
+' this class or from `router.navigate()` itself), so the NEXT REWIND/FAST-FORWARD press after using
+' it computes from a now-stale index — physical BACK is unaffected (it walks the router's own
+' history, not the index).
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 460
+scale field buttonHeight: integer = 50
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state themeButtonTranslation: object = [40, 120]
+scale state taskButtonTranslation: object = [40, 180]
+scale state navButtonTranslation: object = [40, 240]
+scale state buttonLabelInset: object = [16, 12]
+scale state themeReadoutTranslation: object = [40, 320]
+scale state taskReadoutTranslation: object = [40, 360]
+
+state themeReadoutText: string = "(not read yet)"
+state taskReadoutText: string = "(not started yet)"
+
+public function setup() {
+  m.helper = GlobalAccessHelper()
+}
+
+private function readTheme(key: string, press: boolean) {
+  if (press) {
+    state themeReadoutText = m.helper.accentColorLabel()
+  }
+}
+
+private function startTask(key: string, press: boolean) {
+  if (press) {
+    id = m.helper.startQuickTask()
+    state taskReadoutText = "Task started: " + id
+  }
+}
+
+private function goToChapterOne(key: string, press: boolean) {
+  if (press) {
+    m.helper.goToChapter("/fields-and-methods")
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="3/3 — theme / router / taskManager from a class method" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="UP/DOWN between buttons, OK to run — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Rectangle id="themeButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{themeButtonTranslation}" on:key[OK]="{readTheme()}">
+    <Label id="themeButtonLabel" text="Read theme.colors.accent" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="taskButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{taskButtonTranslation}" on:key[OK]="{startTask()}">
+    <Label id="taskButtonLabel" text="Start a background task" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="navButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{navButtonTranslation}" on:key[OK]="{goToChapterOne()}">
+    <Label id="navButtonLabel" text="Go to Chapter 1" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="themeReadout" text="{themeReadoutText}" color="0x66FF99FF" translation="{themeReadoutTranslation}" />
+  <Label id="taskReadout" text="{taskReadoutText}" color="0xFFCC66FF" translation="{taskReadoutTranslation}" />
+</Rectangle>
+</component>

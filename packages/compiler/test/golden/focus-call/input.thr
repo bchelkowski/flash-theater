@@ -1,0 +1,11 @@
+<script>
+private function goToOther(key: string, press: boolean) {
+  if (press) {
+    focus("otherComponent")
+  }
+}
+</script>
+
+<component>
+<Rectangle id="card" focusable="true" on:key[OK]="{goToOther()}" />
+</component>

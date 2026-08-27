@@ -1,0 +1,163 @@
+---
+import DocsLayout from '../../components/DocsLayout.astro';
+import DocsHero from '../../components/DocsHero.astro';
+import CodePanel from '../../components/CodePanel.astro';
+import NotSupported from '../../components/NotSupported.astro';
+import DocsFooterLinks from '../../components/DocsFooterLinks.astro';
+
+const SCRIPT_OPEN = '<' + 'script>';
+const SCRIPT_CLOSE = '<' + '/script>';
+
+const fieldDerived = `${SCRIPT_OPEN}
+field width: integer = 200
+field height: integer = 60
+derived isWide: boolean = width > 300
+derived label: string = describeSize(width, height)
+
+private function describeSize(w: integer, h: integer): string {
+  return str(w) + "x" + str(h)
+}
+${SCRIPT_CLOSE}
+
+<component>
+<Rectangle id="box" width="{width}" height="{height}">
+  <Label id="caption" text="{label}" />
+</Rectangle>
+</component>`;
+
+const stateExample = `state showCelebration: boolean = false
+state tierLabel: string = "starting out"
+
+public function addFavorite() {
+  newCount = favoriteCount + 1
+  store(favoriteCount) = newCount
+  state tierLabel = newCount < 3 ? "starting out" : newCount < 10 ? "collector" : "super fan"
+}`;
+
+const storeExample = `${SCRIPT_OPEN}
+watch favoriteCount = store(favoriteCount)
+derived favoritesLabel: string = describeFavorites(favoriteCount)
+
+private function describeFavorites(count: integer): string {
+  if (count == 1) {
+    return "1 favorite"
+  }
+  return str(count) + " favorites"
+}
+
+public function addFavorite() {
+  store(favoriteCount) = favoriteCount + 1
+}
+${SCRIPT_CLOSE}
+
+<component>
+<Label id="label" text="{favoritesLabel}" />
+</component>`;
+
+const readVsWatch = `read initialCount = store(favoriteCount)     ' one-time snapshot, taken once
+watch favoriteCount = store(favoriteCount)   ' reactive — recomputes on every store write`;
+
+const arrayAA = `field tags: array = ["news", "sports"]
+field config: assocarray = { retries: 3, timeout: 10 }
+state items: array = []`;
+---
+<DocsLayout title="Reactive state" slug="reactive-state">
+  <DocsHero icon="🔄">
+    Reactive state
+    <br />
+    <span class="text-base text-slate-500 font-normal">field / derived / state, the global store, read/watch.</span>
+  </DocsHero>
+
+  <p class="text-slate-300 leading-relaxed mb-6">
+    flash-theater's core pitch is: declare data, bind it into the template, and never write an
+    <code class="text-amber-300">observeFieldScoped</code> or a manual <code class="text-amber-300">setField</code> call
+    yourself. Everything below compiles straight to SceneGraph <code class="text-amber-300">onChange</code> handlers.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3"><code>field</code> and <code>derived</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">field</code> declares a real SceneGraph interface field — public, externally-settable
+    data (a prop), typed as one of <code class="text-amber-300">string | integer | float | boolean | node | array | assocarray</code>,
+    with the default literal's own shape checked against the declared type at compile time.
+    <code class="text-amber-300">derived</code> declares a value recomputed automatically whenever anything it reads
+    changes — dependencies are inferred statically, not declared by hand, and a dependency cycle is a compile error.
+    Its own declared type is checked too: the compiler infers a best-effort static type for the expression (literals,
+    field/state/derived references, arithmetic, comparisons, a call to a same-script function or a
+    <code class="text-amber-300">ClassName(...).method()</code>) and rejects a confirmed mismatch — anything it can't
+    confidently infer (a builtin call, a <code class="text-amber-300">theme.*</code>/member access, ...) is never
+    flagged, so <code class="text-amber-300">object</code>/<code class="text-amber-300">dynamic</code> stays the escape
+    hatch for anything more dynamic than that.
+  </p>
+  <CodePanel code={fieldDerived} lang="xml" filename="Widget.thr" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3"><code>state</code> — private, writable, reactive</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    SceneGraph has no privacy mechanism for interface fields — every <code class="text-amber-300">&lt;field&gt;</code> is
+    externally reachable, so it can never be genuine component-local state. <code class="text-amber-300">state</code> is
+    a private <code class="text-amber-300">m.x</code> member instead — unreachable from outside the component — with
+    its own dedicated write statement, <code class="text-amber-300">state &lt;name&gt; = &lt;expr&gt;</code>, since a
+    private member has no SceneGraph field observer to auto-fire a change cascade the way a <code class="text-amber-300">field</code>
+    write does.
+  </p>
+  <CodePanel code={stateExample} lang="xml" filename="FavoriteCounter.thr (excerpt)" class="mb-8" />
+  <p class="text-slate-500 text-sm leading-relaxed mb-8">
+    A plain assignment to a name that happens to match a <code class="text-amber-300">field</code>'s name is
+    <strong class="text-slate-300">not</strong> a hidden field write — it's an ordinary new local, shadowing the field
+    for the rest of that function (real BrightScript scoping, deliberately not special-cased). There is currently no
+    syntax for mutating a <code class="text-amber-300">field</code> from inside the component's own code — use
+    <code class="text-amber-300">state</code> for anything that needs to be both private and writable.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">The global store</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    A schemaless, zero-declaration global key/value store, built in — no <code class="text-amber-300">&lt;store&gt;</code>
+    tag to write (that was removed). Read a value with <code class="text-amber-300">read</code> (one-time snapshot) or
+    <code class="text-amber-300">watch</code> (reactive — recomputes whenever that top-level key changes), and write
+    with the <code class="text-amber-300">store(&lt;key&gt;) = &lt;expr&gt;</code> statement.
+  </p>
+  <CodePanel code={storeExample} lang="xml" filename="FavoriteCounter.thr (excerpt)" class="mb-6" />
+  <CodePanel code={readVsWatch} lang="xml" filename="" class="mb-8" />
+  <p class="text-slate-500 text-sm leading-relaxed mb-8">
+    A store write can only ever replace a <strong class="text-slate-300">whole top-level key</strong>, never a nested
+    path (<code class="text-amber-300">store(some.value) = 2</code> is a compile error) — this traces back to real
+    SceneGraph semantics: a field observer only fires on reassignment of the field itself, never on an in-place
+    mutation of something already stored in it, so a nested-path write would either not work or silently fail to
+    notify any <code class="text-amber-300">watch</code>. <code class="text-amber-300">theme.a.b</code> access works the
+    same way — see the <a href="theme/" class="prose-link">Theme</a> page.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Array and assocarray defaults</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">field</code>/<code class="text-amber-300">state</code> both accept
+    <code class="text-amber-300">array</code>/<code class="text-amber-300">assocarray</code> as a declared type, with a
+    literal default — the literal's contents must be pure literals (no identifiers, no calls); use
+    <code class="text-amber-300">derived</code> for anything computed.
+  </p>
+  <CodePanel code={arrayAA} lang="xml" filename="Widget.thr" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Reference implementation — <code>apps/reactive-state-demo</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-8">
+    Every mechanism on this page has a router-mounted, <code class="text-amber-300">scale</code>d
+    chapter in <code class="text-amber-300">apps/reactive-state-demo</code> — 4 chapters
+    (<code class="text-amber-300">/field-and-derived</code> through
+    <code class="text-amber-300">/array-and-assocarray-defaults</code>), reachable with
+    REWIND/FAST-FORWARD once compiled and sideloaded. Each chapter shows a default,
+    no-customization example alongside a deliberately different, customized one — e.g.
+    <code class="text-amber-300">GlobalStoreDemo.thr</code> puts a <code class="text-amber-300">read</code>
+    and a <code class="text-amber-300">watch</code> on the SAME store key side by side, so pressing
+    "Bump store(demoCount)" visibly updates the <code class="text-amber-300">watch</code>-bound
+    label while the <code class="text-amber-300">read</code>-bound one stays frozen at its initial
+    value — the one-time-snapshot-vs-reactive distinction, live. This is the live, compiling
+    reference for the whole page — see <code class="text-amber-300">findings/reactive-state-demo-app.md</code>
+    for what each chapter covers and <code class="text-amber-300">findings/demo-app-conventions.md</code>
+    for the app-structure convention it follows.
+  </p>
+
+  <NotSupported items={[
+    'Writing to a plain <code class="text-amber-300">field</code> from inside the component\'s own code — there\'s no dedicated grammar for it; use <code class="text-amber-300">state</code> instead.',
+    'A nested-path store write (<code class="text-amber-300">store(a.b) = x</code>) — only a whole top-level key can be reassigned.',
+    '<code class="text-amber-300">state</code>\'s declared type is decorative, not checked against its default literal\'s shape (unlike <code class="text-amber-300">field</code>, which is checked) — only array/assocarray *contents* are validated for <code class="text-amber-300">state</code>.',
+  ]} />
+
+  <DocsFooterLinks grammarAnchor="#declarations-in-the-script-region" />
+</DocsLayout>

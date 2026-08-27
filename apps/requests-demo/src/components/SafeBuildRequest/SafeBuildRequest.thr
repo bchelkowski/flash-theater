@@ -1,0 +1,45 @@
+<script>
+' A `request Http {}` component whose `buildRequest` hook throws when the caller explicitly asks it
+' to (`requestData.simulateFailure`) — see BuildRequestSafetyDemo.thr and GRAMMAR.md's "Requests" →
+' "Build safety". This is caught by `prepareRequest()`'s own `try`/`catch` (generated automatically
+' — nothing about this component needs to know that) rather than crashing the caller's thread; the
+' request still proceeds with the static base options (no `userId` query filter), and
+' `resolvedOptions.buildSucceeded`/`buildErrorMessage` report what happened. Migrated as-is (in
+' shape) from apps/async-demo's own SafeBuildRequest.thr — see findings/requests-demo-app.md for
+' the split. `taskManager.onRequestSent(...)`'s own cross-component reporting story (this app's
+' async-demo predecessor's MainScene.thr had a persistent readout for it) is now the
+' task-manager-demo app's job, not this one's — this chapter shows only the LOCAL,
+' `resolvedOptions`-read-directly proof.
+'
+' A raw `Throw` (not a bare `requestData.brokenConfig.userId` dot-chain on an undeclared key) is
+' what actually simulates the failure — this compiler auto-inserts optional chaining into every
+' generated member access (see CLAUDE.md's "rewrite generated .brs member/index/call access to use
+' optional chaining"), so `requestData?.brokenConfig?.userId` on a genuinely missing key just
+' returns `invalid` safely and NEVER throws at all — a real, live-device-caught gotcha (this chapter
+' originally relied on exactly that dot-chain, which meant `buildStatusReadout` here always read
+' "buildRequest: OK", never "FAILED", even on the "throws" button — see
+' findings/requests-demo-app.md's device-pass writeup). Optional chaining only protects a MEMBER
+' ACCESS EXPRESSION; a raw BrightScript statement is unaffected by it, so `Throw` is the only way
+' this DSL can genuinely simulate a throwing hook today.
+request Http { method: "GET", url: "https://jsonplaceholder.typicode.com/posts" }
+
+private function buildRequest(requestData: object): object {
+  if (requestData.simulateFailure) {
+    ' flash-theater:raw
+    Throw "simulated buildRequest failure"
+    ' flash-theater:end-raw
+  }
+  return { query: { "userId": requestData.userId } }
+}
+
+private function parseResponse(response: object): object {
+  return { count: response.data.Count() }
+}
+
+private function parseError(response: object): object {
+  return { message: "HTTP " + response.httpStatusCode.ToStr() }
+}
+</script>
+
+<component extends="Task">
+</component>

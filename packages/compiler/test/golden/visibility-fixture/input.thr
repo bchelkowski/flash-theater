@@ -1,0 +1,25 @@
+<script>
+field enabled: boolean = false
+
+derived statusText: string = formatStatus(enabled)
+derived debugText: string = describePrivate(enabled)
+
+public function formatStatus(value: boolean): string {
+  if (value) {
+    return "Status: ON"
+  }
+  return "Status: OFF"
+}
+
+private function describePrivate(value: boolean): string {
+  if (value) return "debug:on"
+  return "debug:off"
+}
+</script>
+
+<component>
+<LayoutGroup id="root">
+  <Label id="statusLabel" text="{statusText}" />
+  <Label id="debugLabel" text="{debugText}" />
+</LayoutGroup>
+</component>

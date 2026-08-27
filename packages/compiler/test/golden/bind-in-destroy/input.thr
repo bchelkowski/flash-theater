@@ -1,0 +1,18 @@
+<script>
+state showInput: boolean = false
+state inputValue: string = ""
+
+public function toggleInput() {
+  state showInput = not showInput
+}
+</script>
+
+<component>
+<Rectangle id="root">
+  <Label id="summary" text="summary" />
+  {#if:destroy showInput}
+    <TextEditBox id="input" bind:text="{inputValue}" />
+    <Label id="echo" text="{inputValue}" />
+  {/if}
+</Rectangle>
+</component>

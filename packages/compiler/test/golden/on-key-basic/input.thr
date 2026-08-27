@@ -1,0 +1,11 @@
+<script>
+private function selectItem(key: string, press: boolean) {}
+public function fallback(key: string, press: boolean) {}
+private function goBack(key: string, press: boolean) {}
+</script>
+
+<component>
+<Rectangle id="root" on:key[back]="{goBack()}">
+  <Rectangle id="card" on:key[OK,play]="{selectItem()}" on:key[*]="{fallback()}" />
+</Rectangle>
+</component>

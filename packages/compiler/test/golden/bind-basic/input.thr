@@ -1,0 +1,10 @@
+<script>
+state inputValue: string = ""
+</script>
+
+<component>
+<LayoutGroup id="root">
+  <TextEditBox id="input" bind:text="{inputValue}" />
+  <Label id="echo" text="{inputValue}" />
+</LayoutGroup>
+</component>

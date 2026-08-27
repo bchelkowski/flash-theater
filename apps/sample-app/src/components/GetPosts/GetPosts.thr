@@ -1,0 +1,74 @@
+<script>
+' Real, live HTTP GET request/endpoint component — see GRAMMAR.md's "Requests" section. Driven by
+' RequestDemoScreen.thr the same way TaskDemoScreen.thr drives SlowTask.thr: taskManager.run(task)
+' plus the caller's own observeFieldScoped("result"/"error", ...), the only consumption style
+' implemented so far (see docs/features.md for the planned taskManager.onResult(...) promise-style
+' sugar). Targets https://jsonplaceholder.typicode.com/posts — a free, HTTPS, no-auth-required
+' public REST test API, no real backend of this app's own. Confirmed live end to end on a real
+' device — see findings/requests-runtime.md.
+'
+' method/url are the only STATIC config here — everything that varies per call (the `userId`
+' query filter) goes through `buildRequest(requestData)` below instead, reading whatever the
+' caller passed via `task.callFunc("prepareRequest", requestData)` before `taskManager.run(task)`.
+' This is the actual answer to "how do I parameterize a request" — `request Http {}`'s own config
+' literal can only ever hold compile-time-fixed values; anything that depends on a runtime value
+' (a caller-supplied id, a user's typed search text, a page number) has to flow through this hook
+' instead.
+request Http {
+  method: "GET",
+  url: "https://jsonplaceholder.typicode.com/posts"
+}
+
+' `buildRequest` runs on the RENDER thread, inside the compiler-generated `prepareRequest(...)` —
+' called by the caller (RequestDemoScreen.thr) via `task.callFunc("prepareRequest", requestData)`
+' BEFORE `taskManager.run(task)` ever starts this Task's own background thread — deliberately, not
+' inside `ft_runRequest()` (the actual Task-thread work function) the way phase 1 first shipped it.
+' Reason: if `buildRequest`'s own body ever read something outside this node — `store`/`theme`/
+' `m.global.*`/another node's field — doing that from a Task's background thread triggers a real
+' Roku *rendezvous* (the background thread blocks, waiting on the render thread to service that
+' foreign-node access). Resolving the whole request BEFORE the thread even exists sidesteps this
+' entirely — see GRAMMAR.md's "Requests" section and findings/requests-runtime.md for the full rationale.
+' jsonplaceholder's /posts endpoint supports ?userId=<n> filtering, so a different
+' `requestData.userId` per call visibly changes the result (10 posts per user, 100 total) — a
+' concrete way to prove the query string is actually per-call, not baked in at compile time.
+'
+' The `"userId"` key here is QUOTED, deliberately — not a style choice. A bareword key
+' (`{ userId: ... }`) gets case-folded to `userid` by BrightScript itself the moment this object
+' literal is actually built at runtime (confirmed live: the unquoted form silently sent
+' `?userid=1`, which jsonplaceholder's case-sensitive filter ignored, returning all 100 posts
+' instead of 10). `request Http {}`'s own STATIC config literal above doesn't have this trap —
+' the compiler always re-prints every static key as a quoted string, regardless of how it's
+' written in source — but a hook body like this one is ordinary BrightScript-shaped code the
+' compiler does not rewrite, so the bareword-key pitfall applies here exactly like it would in
+' hand-written BrightScript. Any key that must match a real HTTP query param/header name
+' case-exactly (as most APIs require) should be quoted for this reason — see findings/requests-runtime.md.
+private function buildRequest(requestData: object): object {
+  return { query: { "userId": requestData.userId } }
+}
+
+' parseResponse/parseError are `private function` here — safe because the compiler calls them by
+' their compiled name (`private_parseResponse`), not a bare string, unlike `observeFieldScoped`'s
+' target in RequestDemoScreen.thr (see that file's own comment on the distinction).
+'
+' response.data is the parsed JSON array (ft_httpFetch parses a non-empty response body as JSON
+' when it's valid JSON — see runtime-assets/Http/FlashTheaterHttp.brs) — reshaped here into just
+' what its two callers actually use: RequestDemoScreen.thr only ever reads `count`, while
+' RouterTransitionDemo.thr also renders `posts` as a real, dynamically-created, focusable
+' `{#each}` list (trimmed to `id`/`title` — the only two fields either caller needs, not the whole
+' per-post payload jsonplaceholder returns).
+private function parseResponse(response: object): object {
+  posts = []
+  for (i = 0 to response.data.Count() - 1) {
+    item = response.data[i]
+    posts.Push({ id: item.id, title: item.title })
+  }
+  return { count: response.data.Count(), posts: posts }
+}
+
+private function parseError(response: object): object {
+  return { message: "HTTP " + response.httpStatusCode.ToStr() }
+}
+</script>
+
+<component extends="Task">
+</component>

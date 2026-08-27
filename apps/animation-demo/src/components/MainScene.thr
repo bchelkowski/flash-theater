@@ -1,0 +1,81 @@
+<script>
+' This app's root Scene, compiled from .thr (like apps/sample-app's own MainScene — see that
+' file's own top comment).
+'
+' Router-mounted chapters, one per animation mechanism — see findings/demo-app-conventions.md for
+' why every demo app now uses `router`+`scale` instead of the hand-rolled {#if:destroy}/manual-
+' focus-claim switching this file used before. `router.navigate()` proposes AND claims each
+' incoming chapter's own default-focus element automatically (the vacuum rule) and unregisters the
+' outgoing chapter's focus tree as part of its own teardown — the ~70 lines of
+' `unregisterCurrentDemoFocus`/`claimActiveDemoFocus`/`setup()`'s manual `claimFocusIfVacant` this
+' file used to need are gone entirely, superseded by the router.
+'
+' Chapter-advance keys unchanged from before — `on:key[rewind]`/`on:key[fastforward]`, Roku's own
+' onKeyEvent strings for them (confirmed live via a temporary `on:key[*]` debug probe — the ECP key
+' names `Rev`/`Fwd` do NOT match the onKeyEvent key string directly, unlike most other keys).
+' Physical Back now does something new it never could before: it's the router's own automatic
+' back-key handling (see GRAMMAR.md's "Back key — automatic, no wiring needed"), walking back
+' through whichever chapters were actually visited, no `on:key[back]` handler written anywhere in
+' this app.
+scale field rootWidth: integer = 1920
+scale field rootHeight: integer = 1080
+scale state hintTranslation: object = [40, 1020]
+
+' The outlet itself carries the transition — see chapter 8 (outlet-transitions) for the narrated
+' version of what's already happening on every single chapter switch below. Same value grammar as
+' Layer 2's own transition:/in:/out: (GRAMMAR.md's "Router-outlet transitions"): a script-declared
+' `animation` name, always targeting the OUTLET, never the chapter screen itself (a routed screen
+' has no compile-time id an animation could reference).
+animation slideOutLeft     { target: outlet, duration: 0.25, translation: { key: [0, 1], keyValue: [[0, 0], [-1920, 0]], scaled: true } }
+animation slideInFromRight { target: outlet, duration: 0.25, translation: { key: [0, 1], keyValue: [[1920, 0], [0, 0]], scaled: true } }
+animation slideOutRight    { target: outlet, duration: 0.25, translation: { key: [0, 1], keyValue: [[0, 0], [1920, 0]], scaled: true } }
+animation slideInFromLeft  { target: outlet, duration: 0.25, translation: { key: [0, 1], keyValue: [[-1920, 0], [0, 0]], scaled: true } }
+
+field chapterPaths: array = [
+  "declared", "sequential", "parallel", "transition-toggle",
+  "transition-destroy", "animate-field", "shared-hook", "outlet-transitions"
+]
+state activeChapterIndex: integer = 0
+
+derived hintText: string = "Chapter " + (activeChapterIndex + 1).ToStr() + "/8 — REWIND / FAST-FORWARD to switch, BACK to return"
+
+private function nextChapter(key: string, press: boolean) {
+  if (press and activeChapterIndex < chapterPaths.Count() - 1) {
+    state activeChapterIndex = activeChapterIndex + 1
+    router.navigate("/" + chapterPaths[activeChapterIndex])
+  }
+}
+
+private function prevChapter(key: string, press: boolean) {
+  if (press and activeChapterIndex > 0) {
+    state activeChapterIndex = activeChapterIndex - 1
+    router.navigate("/" + chapterPaths[activeChapterIndex])
+  }
+}
+
+public function setup() {
+  router.setRouting([
+    { path: "declared", component: "BounceButtonDemo" },
+    { path: "sequential", component: "SequentialDemo" },
+    { path: "parallel", component: "ParallelDemo" },
+    { path: "transition-toggle", component: "TogglePresetDemo" },
+    { path: "transition-destroy", component: "DestroyCustomDemo" },
+    { path: "animate-field", component: "AnimateAttrDemo" },
+    { path: "shared-hook", component: "SharedAnimationHookDemo" },
+    { path: "outlet-transitions", component: "OutletTransitionsDemo" }
+  ])
+  router.navigate("/" + chapterPaths[0])
+}
+</script>
+
+<component extends="Scene" on:key[fastforward]="{nextChapter()}" on:key[rewind]="{prevChapter()}">
+<Rectangle id="root" color="0x101010FF" width="{rootWidth}" height="{rootHeight}">
+  <FlashTheaterRouterOutlet
+    id="outlet"
+    width="{rootWidth}" height="{rootHeight}"
+    navigate-out:slideOutLeft navigate-in:slideInFromRight
+    back-out:slideOutRight back-in:slideInFromLeft
+  />
+  <Label id="hint" text="{hintText}" color="0x888888FF" translation="{hintTranslation}" />
+</Rectangle>
+</component>

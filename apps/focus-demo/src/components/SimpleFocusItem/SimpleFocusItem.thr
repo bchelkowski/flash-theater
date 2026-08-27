@@ -1,0 +1,28 @@
+<script>
+' `box`'s own default-focus="true" (below) is this chapter's actual entry point once mounted by
+' the router — CrossSiblingRelayDemo (the hand-written parent that composes this alongside
+' FocusGroup/ScrollFocusDemo) is NOT .thr-compiled, so it has no compiler-generated default-focus
+' registration of its own; its own setup() instead calls claimFocusIfVacant on THIS component
+' (matched by owner identity against the registration this file's own compiled init() already
+' makes) — see CrossSiblingRelayDemo.brs's own top comment.
+field label: string = "Item"
+field focusRequest: string = ""
+
+private function goToGroup(key: string, press: boolean) {
+  if (press) {
+    m.top.focusRequest = "focusGroup"
+  }
+}
+
+private function goToGrid(key: string, press: boolean) {
+  if (press) {
+    m.top.focusRequest = "scrollFocusDemo"
+  }
+}
+</script>
+
+<component>
+<Rectangle id="box" width="220" height="80" color="0x444444FF" focusable="true" default-focus="true" on:key[OK]="{goToGroup()}" on:key[play]="{goToGrid()}">
+  <Label id="boxLabel" text="{label}" color="0xFFFFFFFF" translation="{[16, 30]}" />
+</Rectangle>
+</component>

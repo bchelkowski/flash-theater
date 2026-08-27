@@ -1,0 +1,22 @@
+' Chapter 2/3 (/extends-override-super) base class — adapted from GRAMMAR.md's/
+' site/src/pages/docs/classes.astro's own Counter.flsh/LabeledCounter.flsh worked example (also
+' shipped verbatim in apps/sample-app/src/components/Classes/) into this chapter's own scoring
+' framing. See BonusScoreTracker.flsh for the extending class and
+' ExtendsOverrideSuperDemo.thr for the `.thr` component that constructs BOTH side by side.
+class ScoreTracker {
+  constructor(start: integer) {
+    private score: integer = start
+  }
+
+  public function add(points: integer) {
+    m.score = m.score + points
+  }
+
+  public function value(): integer {
+    return m.score
+  }
+
+  public function describe(): string {
+    return "Score: " + str(m.score)
+  }
+}

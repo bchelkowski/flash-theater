@@ -1,0 +1,13 @@
+{
+  "variables": {
+    "environmentLabel": { "value": "prod" },
+    "apiBaseUrl": { "value": "https://api.example.com" },
+    "enableBetaFeatures": { "value": "false" },
+    "buildLabel": { "fromEnv": "ENVIRONMENTS_DEMO_BUILD_LABEL" }
+  },
+  "manifestOverrides": {
+    "title": "Flash Theater Environments Demo (Prod)"
+  },
+  "exclude": ["images/dev-only/**"],
+  "include": ["images/prod-only/**"]
+}

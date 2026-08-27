@@ -1,0 +1,15 @@
+class RawBlockClass {
+  constructor(a: string) {
+    private a: string = a
+    ' flash-theater:raw
+    print "constructing"
+    ' flash-theater:end-raw
+  }
+
+  public function describe(): string {
+    ' flash-theater:raw
+    result = "a is " + m.a
+    ' flash-theater:end-raw
+    return result
+  }
+}

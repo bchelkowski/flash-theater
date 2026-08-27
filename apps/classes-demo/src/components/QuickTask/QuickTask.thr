@@ -1,0 +1,15 @@
+<script>
+' A trivial background Task, existing purely so GlobalAccessHelper.flsh's `startQuickTask()` has a
+' real node to hand `taskManager.run(...)`. See apps/task-manager-demo/src/components/SlowTask/
+' SlowTask.thr for the fuller version of this same shape (label/durationSeconds/result/error) —
+' this chapter's own point is reachability from a class method, not taskManager's own queueing/
+' alerting surface (that's apps/task-manager-demo's job), so this stays deliberately minimal.
+field durationSeconds: integer = 1
+
+public function doWork() {
+  Sleep(durationSeconds * 1000)
+}
+</script>
+
+<component extends="Task">
+</component>

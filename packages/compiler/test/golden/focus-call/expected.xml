@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="FocusCallFixture" extends="Group">
+  <interface>
+    <field id="ft_routeReady" type="boolean" value="false" />
+    <function name="ft_unmount" />
+  </interface>
+  <children>
+    <Rectangle id="card" focusable="true" />
+  </children>
+  <script type="text/brightscript" uri="FocusCallFixture.brs" />
+</component>

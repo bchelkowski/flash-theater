@@ -1,0 +1,92 @@
+<script>
+' This app's root Scene, compiled from .thr like every other component in this app — see
+' apps/focus-demo/src/components/MainScene.brs for the deliberately-kept-old-style counterpart (hand-
+' composed BrightScript, no template of its own) that proves the two architectures interoperate.
+' See GRAMMAR.md's "`<component>` — the mandatory root tag" section for what makes a Scene-rooted
+' .thr component possible at all, and its "Router" section for what this file demonstrates.
+'
+' Test harness for the router feature — nested routing with persistent chrome:
+'   - "/splash" (the app's own first-ever route, see setup() below) activates SplashScreen.thr — a
+'     genuine "nothing has focus yet" vacuum, filled explicitly once its own delayed default-focus
+'     element appears; see that file's own top comment and findings/focus-system.md.
+'   - "/browse" activates Shell.thr, a persistent menu (wraps FavoriteCounter) that stays mounted
+'     across every navigation within "/browse/*" — its own nested FlashTheaterRouterOutlet
+'     independently swaps HomeScreen.thr/ScheduleScreen.thr/LoadingDemoScreen.thr/
+'     CardsScreen.thr/TaskDemoScreen.thr/StreamDemo.thr/RequestDemoScreen.thr/
+'     RouterTransitionDemo.thr/DirectionalFocusDemo.thr/DirectionalFocusDemoDetail.thr inside it.
+'     Verify live that navigating "/browse" -> "/browse/schedule" does NOT rebuild Shell/
+'     FavoriteCounter (confirms the persistent-chrome mechanism, not just that it compiles) — see
+'     findings/router.md.
+'   - `router.isBackJourney` + explicit `focus(<id>)` — DirectionalFocusDemo.thr/
+'     DirectionalFocusDemoDetail.thr demonstrate choosing a route's own initial focus based on
+'     which DIRECTION it was entered from, reached via HomeScreen.thr's own second prompt. See
+'     DirectionalFocusDemo.thr's own top comment and findings/router-focus-integration.md.
+'   - router.navigate(path, params)/router.navigate(path, params, skipInHistory), router.back(),
+'     router.params.*, router.updateBackJourneyData(...) — see HomeScreen.thr/ScheduleScreen.thr
+'     for the actual demonstrations. Shell's own childOutlet — navigate-out:/navigate-in:/
+'     back-out:/back-in: slide transitions, loadingComponent + router.markReady() — see Shell.thr's
+'     own top comment and RouterTransitionDemo.thr for the router-outlet-transitions feature.
+'   - default-focus="true" — each screen marks its own natural entry point; a router-mounted
+'     component is always a brand-new instance, so there is never a "remembered last focus" to
+'     fall back on instead (see FlashTheaterFocusManager.brs's firstRegistrantOfOwner).
+'   - The physical/ECP "back" key needs no on:key[back] handler anywhere in this file (or any
+'     screen below) — it's the compiler's own generated onKeyEvent fallthrough (see
+'     codegen/brs-emitter.ts's emitOnKeyEventFunction) that walks the router's history, and stops
+'     consuming the key once history is empty so Roku's own default behavior can exit the app.
+'
+' Shell itself declares its own focusable sidebar menu (two entries, navigating between "/browse"
+' and "/browse/schedule" without ever taking focus WITH it — see Shell.thr's own top comment for
+' the vacuum rule this demonstrates) — this used to be impossible for persistent chrome (an earlier
+' outlet design would have stolen focus back from whatever a nested outlet's own decision already
+' set); see findings/router.md's "Persistent-chrome components must declare no focusable elements
+' of their own — restriction removed" entry for the fix that made it safe.
+
+public function setup() {
+  m.top.backgroundColor = "0x101010FF"
+
+  ' Must run before Shell's own FavoriteCounter (created moments later, synchronously, as part of
+  ' the router.navigate() call right below) ever reads it — same store-seed-before-first-read
+  ' ordering concern this app's own original demo already established for the same reason.
+  store(favoriteCount) = 0
+
+  router.setRouting([
+    { path: "splash", component: "SplashScreen" },
+    {
+      path: "browse",
+      component: "Shell",
+      children: [
+        { path: "", component: "HomeScreen" },
+        { path: "schedule", component: "ScheduleScreen" },
+        { path: "loading", component: "LoadingDemoScreen" },
+        { path: "cards", component: "CardsScreen" },
+        { path: "tasks", component: "TaskDemoScreen" },
+        { path: "streams", component: "StreamDemo" },
+        { path: "requests", component: "RequestDemoScreen" },
+        { path: "transition-demo", component: "RouterTransitionDemo" },
+        { path: "directional-focus", component: "DirectionalFocusDemo" },
+        { path: "directional-focus-detail", component: "DirectionalFocusDemoDetail" }
+      ]
+    }
+  ])
+
+  ' Triggers the whole outlet-mount-and-focus cascade synchronously, here, AFTER screen.show()
+  ' (source/Main.brs calls scene.callFunc("setup") after show(), not before — see that file's own
+  ' comment for the real-device hang this order avoids).
+  '
+  ' Nothing else is needed to establish focus: the compiler emits its own shallow
+  ' applyPendingFocus() call as a sibling statement directly after this one (look at the generated
+  ' MainScene.brs), which applies whatever the mount cascade proposed. SplashScreen itself proposes
+  ' nothing at mount time (its own default-focus element doesn't exist until its Timer fires, well
+  ' after this call already returned) — so this specific navigate() leaves a genuine vacuum, and
+  ' SplashScreen.thr's own explicit claimFocusIfVacant() call fills it once "Enter app" actually
+  ' exists. Deliberately NO m.top.setFocus(true) after this: focusing the Scene itself would leave
+  ' the Scene holding focus (it only handles "back"), which real-device testing caught as "no key
+  ' press below back reaches any screen". See findings/router.md and runtime-assets/FocusManager's
+  ' "Deferred focus application"/claimFocusIfVacant doc comments.
+  router.navigate("/splash")
+}
+</script>
+
+<component extends="Scene">
+<FlashTheaterRouterOutlet id="rootOutlet" />
+</component>

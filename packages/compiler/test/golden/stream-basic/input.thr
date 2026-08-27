@@ -1,0 +1,18 @@
+<script>
+stream dataLoaded: string
+state message: string = ""
+
+private function loadData() {
+  dataLoaded.emit("payload-ready")
+}
+
+public function setup() {
+  dataLoaded.subscribe(function (value: string) {
+    state message = value
+  })
+}
+</script>
+
+<component>
+<Label id="out" text="{message}" />
+</component>

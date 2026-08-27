@@ -1,0 +1,27 @@
+<script>
+field score: integer = 0
+
+derived grade: string = classify(score)
+
+private function classify(value: integer): string {
+  if (value >= 90) {
+    return "A"
+  } else if (value >= 80) {
+    return "B"
+  } else {
+    return "C"
+  }
+}
+
+public function sign(value: integer): integer {
+  if (value > 0) return 1
+  else if (value < 0) return -1
+  else return 0
+}
+</script>
+
+<component>
+<LayoutGroup id="root">
+  <Label id="out" text="{grade}" />
+</LayoutGroup>
+</component>

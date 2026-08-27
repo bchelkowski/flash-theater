@@ -1,0 +1,118 @@
+<script>
+' The "select a card, then OK drills into it, arrow keys navigate only its own internal
+' elements, back exits back to card-level navigation" pattern — the documented parent -> child
+' focus handoff (GRAMMAR.md's "Focus system", "Reactive registration for a dynamic
+' focusable={expr}") applied end to end in one real component. `cardRoot` is
+' focusable="{not entered}"; the two internal buttons are focusable="{entered}" — the two
+' are never simultaneously registered, so ownership of real focus hands off cleanly in either
+' direction. No default-focus="true" anywhere here — it requires a STATIC focusable="true" on
+' the same element (`template/default-focus-requires-static-focusable`), which `cardRoot`'s
+' own dynamic toggle rules out by construction. Unneeded anyway: whenever a card isn't
+' entered, `cardRoot` is the only registered/focusable node in the whole component, so a
+' cross-owner arrow-key entry (RIGHT from Shell's menu, or UP/DOWN from a neighboring card)
+' already lands on it as the plain geometric winner, no declared default required.
+'
+' `on:key[back]` lives on EACH button, not on <component> or on cardRoot: a component-level
+' on:key[back] fires unconditionally (no IsInFocusChain() guard at all — see GRAMMAR.md's
+' "on:key at the component level"), which would swallow physical "back" even while cardRoot
+' itself holds focus (not entered), breaking the screen's own back-navigation out to Shell's
+' menu. A per-button on:key[back] only fires while that button is genuinely in the focus
+' chain — i.e. only while entered — so back falls through to the router's own automatic
+' back-key fallthrough exactly when the card isn't entered. Verified live; see
+' findings/focus-system.md.
+
+' Every size AND position below is authored for this app's configured design resolution (HD —
+' see flash-theater.config.json; this whole app's layout was originally built against a 1280x720
+' canvas, so HD is its real baseline, not FHD) and `scale`d at runtime to whatever resolution the
+' device actually renders at (a no-op on an HD device; confirmed live on both a real 720p and a
+' real 1080p device — see findings/scale.md — with the app's manifest declaring ui_resolutions=
+' fhd,hd so Roku renders natively at each instead of auto-upscaling/-downscaling from a fixed
+' virtual canvas). Every child element's
+' own translation/width/height is scaled too, not just cardRoot's — SceneGraph never clips a
+' node's children to its own bounds, so scaling the container alone while leaving a child's
+' position/size hardcoded at FHD values would make that child visibly spill past the
+' now-smaller card (confirmed live — see findings/scale.md's own writeup of this exact mistake
+' during development). pressCount demonstrates the statement form (scale state ... = ...) —
+' every button press bumps a scaled counter.
+scale field cardWidth: integer = 500
+scale field cardHeight: integer = 110
+scale field buttonWidth: integer = 200
+scale field buttonHeight: integer = 40
+' A 2-element [x, y] translation pair, scaled element-wise by `ft_scale` — a real `scale field
+' <name>: array = [...]` declaration, not a `scale derived` workaround (an array literal used to
+' be rejected as a `field`/`state` default entirely; see GRAMMAR.md's "field" section).
+scale field buttonLabelInset: array = [10, 10]
+field cardTitle: string = ""
+state entered: boolean = false
+state pressedLabel: string = "-"
+scale state pressCount: integer = 0
+' A plain (unscaled) `assocarray` state default — `cardMeta.pinned` is read below, `cardMeta.note`
+' is authored but unused here on purpose (an assocarray value doesn't need every key consumed to
+' be a valid default, same as an unused field).
+state cardMeta: assocarray = { pinned: true, note: "sample card" }
+
+' The remaining translations stay `scale state` (a literal never reassigned) rather than `scale
+' field`, since `titleTranslation`/`statusTranslation` sit right next to `buttonLabelInset` above —
+' both forms compile to the same `ft_scale([x, y], factor)` call either way; this is just proof
+' the two forms coexist in one real component. (Not `scale derived`: nothing here is actually
+' computed from another field/state/derived, so `derived` — "always computed from its own
+' expression," GRAMMAR.md's "derived" section — would misdescribe a plain constant.)
+scale state titleTranslation: object = [16, 10]
+scale state statusTranslation: object = [16, 86]
+scale state btnLeftTranslation: object = [16, 38]
+scale state btnRightTranslation: object = [284, 38]
+
+derived statusText: string = statusFor(entered, pressedLabel, pressCount, cardMeta.pinned)
+
+private function statusFor(isEntered: boolean, pressed: string, presses: integer, pinned: boolean): string {
+  pinnedSuffix = ""
+  if (pinned) {
+    pinnedSuffix = " (pinned)"
+  }
+  if (isEntered) {
+    return "entered - pressed: " + pressed + " (" + presses.ToStr() + ")" + pinnedSuffix
+  }
+  return "not entered" + pinnedSuffix
+}
+
+private function enterCard(key: string, press: boolean) {
+  if (press) {
+    state entered = true
+    focus("btnLeft")
+  }
+}
+
+private function exitCard(key: string, press: boolean) {
+  if (press) {
+    state entered = false
+    focus("cardRoot")
+  }
+}
+
+private function pressLeft(key: string, press: boolean) {
+  if (press) {
+    state pressedLabel = "left"
+    scale state pressCount = pressCount + 1
+  }
+}
+
+private function pressRight(key: string, press: boolean) {
+  if (press) {
+    state pressedLabel = "right"
+    scale state pressCount = pressCount + 1
+  }
+}
+</script>
+
+<component>
+<Rectangle id="cardRoot" focusable="{not entered}" color="0x1A1A1AFF" width="{cardWidth}" height="{cardHeight}" on:key[OK]="{enterCard()}">
+  <Label id="titleLabel" text="{cardTitle}" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="statusLabel" text="{statusText}" color="0x66FF99FF" translation="{statusTranslation}" />
+  <Rectangle id="btnLeft" focusable="{entered}" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{btnLeftTranslation}" on:key[OK]="{pressLeft()}" on:key[back]="{exitCard()}">
+    <Label id="btnLeftLabel" text="Left" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="btnRight" focusable="{entered}" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{btnRightTranslation}" on:key[OK]="{pressRight()}" on:key[back]="{exitCard()}">
+    <Label id="btnRightLabel" text="Right" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+</Rectangle>
+</component>

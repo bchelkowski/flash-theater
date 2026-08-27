@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="EachBasicFixture" extends="Group">
+  <interface>
+    <field id="prefix" type="string" value="&quot;Day: &quot;" onChange="on_prefixChange" />
+    <field id="ft_routeReady" type="boolean" value="false" />
+    <function name="ft_unmount" />
+  </interface>
+  <children>
+    <Rectangle id="root">
+      <Label id="title" />
+      <Group id="ft_each_1" />
+    </Rectangle>
+  </children>
+  <script type="text/brightscript" uri="EachBasicFixture.brs" />
+</component>

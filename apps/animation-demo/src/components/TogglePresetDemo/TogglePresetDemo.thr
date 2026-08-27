@@ -1,0 +1,72 @@
+<script>
+' Chapter 4/8 — transition:fade (a built-in preset) on a toggle-mode {#if} block. The panel carries
+' its own focusable content, proving the focus-safety retrofit: hiding it unregisters/recovers
+' focus at the moment the fade-out STARTS, not when it finishes — see findings/focus-system.md.
+'
+' `panel2` (Replay key) is the "customized" counterpart: `transition:` also accepts a
+' script-declared `animation` name instead of a built-in preset — same one-attribute-for-both
+' in+out mechanism, just author-defined keyframes instead of `fade`'s fixed opacity-only shape. See
+' GRAMMAR.md's "Layer 2 — transition:/in:/out:".
+animation customPop {
+  target: panel2
+  duration: 0.35
+  easeFunction: "outExpo"
+  opacity: [0, 1]
+  scale: [0.85, 1]
+}
+
+state showPanel: boolean = false
+state showPanel2: boolean = false
+
+private function togglePanel(key: string, press: boolean) {
+  if (press) {
+    state showPanel = not showPanel
+  }
+}
+
+private function togglePanel2(key: string, press: boolean) {
+  if (press) {
+    state showPanel2 = not showPanel2
+  }
+}
+
+' Static layout below is `scale`d so this screen looks the same at any declared ui_resolutions
+' tier — see findings/scale.md. `transition:fade` only interpolates `opacity` (unitless), so its
+' own config needs no scaling.
+scale field rootWidth: integer = 1920
+scale field rootHeight: integer = 1080
+scale state titleTranslation: object = [40, 40]
+scale state subtitleTranslation: object = [40, 90]
+scale field triggerWidth: integer = 300
+scale field triggerHeight: integer = 60
+scale state triggerTranslation: object = [40, 140]
+scale state triggerLabelTranslation: object = [16, 16]
+scale field panelWidth: integer = 500
+scale field panelHeight: integer = 300
+scale state panelTranslation: object = [710, 390]
+scale state panelLabelTranslation: object = [24, 24]
+scale field panel2Width: integer = 500
+scale field panel2Height: integer = 200
+scale state panel2Translation: object = [710, 730]
+scale state panel2LabelTranslation: object = [24, 24]
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="4/8 — transition: preset vs. a custom declared animation" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="OK: built-in transition:fade — Replay: transition:customPop (own animation {})" color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+  <Rectangle id="trigger" focusable="true" default-focus="true" color="0x2A2A6AFF" width="{triggerWidth}" height="{triggerHeight}" translation="{triggerTranslation}" on:key[OK]="{togglePanel()}" on:key[replay]="{togglePanel2()}">
+    <Label id="triggerLabel" text="OK: toggle preset panel — Replay: toggle custom panel" color="0xFFFFFFFF" translation="{triggerLabelTranslation}" />
+  </Rectangle>
+  {#if showPanel}
+  <Rectangle id="panel" transition:fade="{{duration: 0.3}}" focusable="true" color="0x2A6A6AFF" width="{panelWidth}" height="{panelHeight}" translation="{panelTranslation}" on:key[OK]="{togglePanel()}">
+    <Label id="panelLabel" text="Preset panel — press OK to hide (fades out)" color="0xFFFFFFFF" translation="{panelLabelTranslation}" />
+  </Rectangle>
+  {/if}
+  {#if showPanel2}
+  <Rectangle id="panel2" transition:customPop="" focusable="true" color="0x6A6A2AFF" width="{panel2Width}" height="{panel2Height}" translation="{panel2Translation}" on:key[OK]="{togglePanel2()}">
+    <Label id="panel2Label" text="Custom panel — a script-declared animation, not a preset" color="0xFFFFFFFF" translation="{panel2LabelTranslation}" />
+  </Rectangle>
+  {/if}
+</Rectangle>
+</component>

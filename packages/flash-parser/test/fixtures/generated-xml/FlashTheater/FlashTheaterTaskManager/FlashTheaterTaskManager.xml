@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- flash-theater:generated — do not edit by hand, copied from packages/compiler/runtime-assets/TaskManager -->
+<component name="FlashTheaterTaskManager" extends="Node">
+  <interface>
+    <!-- Plain fields, not reactive — a snapshot read via taskManager.runningCount/.queuedCount,
+         same "read", non-`watch` treatment router.path/params already get. See init()'s own
+         doc comment for exactly what drives each one. `alertLevel` is the one exception meant to
+         be observed directly (hysteresis-gated — only changes on a real threshold crossing, see
+         reevaluateAlertLevel()) — taskManager.onAlertChanged(...) generates exactly that
+         ObserveFieldScoped registration. -->
+    <field id="runningCount" type="integer" value="0" />
+    <field id="queuedCount" type="integer" value="0" />
+    <field id="alertLevel" type="string" value="none" />
+    <function name="runTask" />
+    <function name="cancel" />
+    <function name="setMaxConcurrent" />
+    <function name="setAlertThresholds" />
+  </interface>
+  <script type="text/brightscript" uri="FlashTheaterTaskManager.brs" />
+</component>

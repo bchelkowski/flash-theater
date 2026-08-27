@@ -1,0 +1,23 @@
+' Chapter 3/3 (bound-method-sugar) — the SAME subscription as RawDescriptorListener.flsh, but
+' using the `.subscribe(m.methodName)` sugar form instead of writing out the `{ target, action }`
+' descriptor by hand. The compiler lowers this bare bound-method-reference argument (no call
+' parens) to `.subscribe({ target: m, action: "onPulse" })` automatically — see
+' `analysis/class-identifier-rewrite.ts`'s `rewriteClassStreamSubscribeBoundReferences` and
+' GRAMMAR.md's "`stream`" section.
+class SugarFormListener {
+  constructor() {
+    private fireCount: integer = 0
+  }
+
+  public function subscribeTo(broadcaster: object) {
+    broadcaster.pulse.subscribe(m.onPulse)
+  }
+
+  public function onPulse(value: string) {
+    m.fireCount = m.fireCount + 1
+  }
+
+  public function fireCountValue(): integer {
+    return m.fireCount
+  }
+}

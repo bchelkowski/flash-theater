@@ -1,0 +1,134 @@
+---
+import DocsLayout from '../../components/DocsLayout.astro';
+import DocsHero from '../../components/DocsHero.astro';
+import CodePanel from '../../components/CodePanel.astro';
+import NotSupported from '../../components/NotSupported.astro';
+import DocsFooterLinks from '../../components/DocsFooterLinks.astro';
+
+const runCancel = `private function startWork(key: string, press: boolean) {
+  if (press) {
+    task = CreateObject("roSGNode", "MyDownloadTask")
+    task.url = "https://example.com/data.json"
+    taskId = taskManager.run(task)             ' priority: "normal"
+
+    urgentTask = CreateObject("roSGNode", "MyDownloadTask")
+    urgentId = taskManager.run(urgentTask, "high")
+  }
+}
+
+public function setup() {
+  taskManager.setMaxConcurrent(75)   ' typically called once, from the root Scene's own setup()
+}`;
+
+const alerting = `public function setup() {
+  taskManager.setAlertThresholds({ warning: 30, critical: 50 })
+  taskManager.onAlertChanged(onQueueAlert)
+}
+
+private function onQueueAlert(level: string) {
+  if (level == "critical") {
+    ' forward level, taskManager.runningCount, taskManager.queuedCount to reporting
+  }
+}`;
+
+const onResult = `private function loadPosts(key: string, press: boolean) {
+  if (press) {
+    task = CreateObject("roSGNode", "GetPosts")
+    taskManager.run(task)
+    taskManager.onResult(task, onPostsLoaded, onPostsFailed)
+  }
+}
+
+private function onPostsLoaded(result: dynamic) {
+  ' result is exactly what parseResponse(...) returned — already unwrapped
+}
+
+private function onPostsFailed(error: dynamic) {
+  ' same shape as parseError(...)'s own return value
+}`;
+
+const interceptors = `public function setup() {
+  taskManager.onRequestSent(function (sentInfo: dynamic) {
+    ' fires for every request Http {} component in the app, app-wide
+    ' ("request" itself is a reserved DSL keyword, so the parameter needs another name)
+  })
+  taskManager.onResponseReceived(function (response: dynamic) {
+    ' the RAW ft_httpFetch response, plus parseSucceeded/parseErrorMessage
+  })
+}`;
+---
+<DocsLayout title="Task manager" slug="task-manager">
+  <DocsHero icon="⚙️">
+    Task manager
+    <br />
+    <span class="text-base text-slate-500 font-normal">taskManager.run/cancel, priority queues, alerting, onResult.</span>
+  </DocsHero>
+
+  <p class="text-slate-300 leading-relaxed mb-6">
+    A built-in global singleton that throttles how many Roku <code class="text-amber-300">Task</code> nodes run at
+    once, app-wide (RokuOS's own soft/hard concurrency limits). <code class="text-amber-300">taskManager</code> never
+    creates a Task itself — you construct it the ordinary way and hand it off.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3"><code>run</code> / <code>cancel</code> / concurrency</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">taskManager.run(node, [priority])</code> starts (or queues, FIFO within
+    <code class="text-amber-300">"high"</code>/<code class="text-amber-300">"normal"</code>/<code class="text-amber-300">"low"</code>
+    tiers) and returns a task id for <code class="text-amber-300">cancel(id)</code>. Defaults to a concurrency budget
+    of 50 (below Roku's hard 100 limit, leaving headroom for tasks started outside this compiler entirely).
+  </p>
+  <CodePanel code={runCancel} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Queue-depth alerting</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">onAlertChanged</code> fires only on a real hysteresis-gated crossing
+    (<code class="text-amber-300">"none"</code>/<code class="text-amber-300">"warning"</code>/<code class="text-amber-300">"critical"</code>) —
+    not on every queue mutation — so a fluctuating queue near a threshold doesn't spam a subscriber.
+  </p>
+  <CodePanel code={alerting} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Promise-style request consumption</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">taskManager.onResult(task, onSuccess, [onError])</code> — sugar over hand-wiring
+    <code class="text-amber-300">observeFieldScoped</code> on a <a href="requests/" class="prose-link">request Http {}</a>
+    task's own <code class="text-amber-300">result</code>/<code class="text-amber-300">error</code> fields. Pass the
+    task <strong class="text-slate-200">node itself</strong>, not the id.
+  </p>
+  <CodePanel code={onResult} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Global request/response interceptors</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    <code class="text-amber-300">onRequestSent</code>/<code class="text-amber-300">onResponseReceived</code> — register
+    once, anywhere, and see every <code class="text-amber-300">request Http {'{}'}</code> call app-wide, regardless of
+    which component or screen created it. Useful for one centralized telemetry/logging hook.
+  </p>
+  <CodePanel code={interceptors} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Reference implementation — <code>apps/task-manager-demo</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-8">
+    Every mechanism on this page has a router-mounted, <code class="text-amber-300">scale</code>d
+    chapter in <code class="text-amber-300">apps/task-manager-demo</code> — 4 chapters
+    (<code class="text-amber-300">/run-cancel</code> through <code class="text-amber-300">/interceptors</code>),
+    reachable with REWIND/FAST-FORWARD once compiled and sideloaded. Each chapter shows a default
+    example alongside a deliberately different, customized one — e.g.
+    <code class="text-amber-300">RunCancelDemo.thr</code>'s priority burst at
+    <code class="text-amber-300">maxConcurrent=1</code> next to the same burst re-run at
+    <code class="text-amber-300">maxConcurrent=3</code>, directly contrasting which tasks win an
+    immediate slot against which ones only ever affect queue drain order. See
+    <code class="text-amber-300">findings/task-manager-demo-app.md</code> for what each chapter
+    covers and <code class="text-amber-300">findings/demo-app-conventions.md</code> for the
+    app-structure convention it follows.
+  </p>
+
+  <NotSupported items={[
+    'No automatic cleanup when a tracked node\'s owning component is destroyed — keep the returned id and call <code class="text-amber-300">cancel(id)</code> yourself if early-stop matters.',
+    'Task nodes created outside <code class="text-amber-300">.thr</code>/<code class="text-amber-300">.flsh</code> (hand-written BrightScript) are invisible to the manager unless explicitly routed through <code class="text-amber-300">run(...)</code>.',
+    'No preemption — a burst of <code class="text-amber-300">"high"</code>-priority work still waits for already-running <code class="text-amber-300">"low"</code>-priority tasks to finish naturally.',
+    'Re-prioritizing an already-queued task — calling <code class="text-amber-300">run(...)</code> again with a different priority has no effect once queued.',
+    '<code class="text-amber-300">onAlertChanged</code>/<code class="text-amber-300">onResult</code>/<code class="text-amber-300">onRequestSent</code>/<code class="text-amber-300">onResponseReceived</code> are not callable from a <a href="classes/" class="prose-link">.flsh class</a> body — call them from the owning <code class="text-amber-300">.thr</code> component instead.',
+    'No timeout for a task whose own <code class="text-amber-300">state</code> never leaves <code class="text-amber-300">"init"</code> — a hung task occupies a concurrency slot indefinitely, with no built-in watchdog to reclaim it.',
+    '<code class="text-amber-300">runningCount</code>/<code class="text-amber-300">queuedCount</code>/<code class="text-amber-300">alertLevel</code> are plain snapshots, not <code class="text-amber-300">watch</code>-able — a live "N tasks running" display has to poll rather than bind reactively.',
+  ]} />
+
+  <DocsFooterLinks grammarAnchor="#task-manager" />
+</DocsLayout>

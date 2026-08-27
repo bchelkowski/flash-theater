@@ -1,0 +1,110 @@
+<script>
+' Chapter 1/4 — if/else if/else (block form + the inline braceless single-statement form) and the
+' ternary cond ? a : b, including a NESTED ternary. See GRAMMAR.md's "Statements in function
+' bodies" -> "else"/"else if" and "Ternary (? :)" for the full grammar this exercises.
+'
+' Default example: "Bump streak" (OK) increments a counter and drives a tier label through a
+' block-form if/else if/else chain assigned to a `state` write. "Reset streak" (Rewind-local OK on
+' a second button) uses the INLINE braceless single-statement form (`if (press) state ... = 0`) for
+' direct contrast with the block form above it — same `if`, no braces, runs to end of line.
+'
+' Customized addition: two independent booleans (`isHappy`/`isVeryHappy`), each toggled by its own
+' button, drive a single `state` write through a NESTED ternary —
+' `isHappy ? (isVeryHappy ? "ecstatic" : "content") : "grumpy"` — parenthesized nesting in the
+' true branch, exactly the shape GRAMMAR.md's own worked example (`cond1 ? (cond2 ? a : b) : c`)
+' documents. A ternary is only legal as the entire right-hand side of a plain assignment or a
+' `state <name> = <expr>` write — never inside a `derived` default or a dynamic template attribute
+' — so both tier/mood labels here are computed in a function body and written with `state`, never
+' read straight off a `derived`.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 420
+scale field buttonHeight: integer = 50
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state bumpButtonTranslation: object = [40, 110]
+scale state resetButtonTranslation: object = [40, 170]
+scale state tierReadoutTranslation: object = [40, 240]
+scale state happyButtonTranslation: object = [40, 300]
+scale state veryHappyButtonTranslation: object = [40, 360]
+scale state moodReadoutTranslation: object = [40, 430]
+scale state buttonLabelInset: object = [16, 12]
+
+state streakCount: integer = 0
+state tierLabel: string = "starting out"
+
+state isHappy: boolean = false
+state isVeryHappy: boolean = false
+state moodLabel: string = "grumpy"
+
+derived tierReadout: string = "streak: " + streakCount.ToStr() + "  ->  " + tierLabel
+derived moodReadout: string = "isHappy=" + isHappy.ToStr() + "  isVeryHappy=" + isVeryHappy.ToStr() + "  ->  " + moodLabel
+
+' Default: block-form if/else if/else chain, driving a `state` write.
+private function bumpStreak(key: string, press: boolean) {
+  if (press) {
+    state streakCount = streakCount + 1
+    if (streakCount < 3) {
+      state tierLabel = "starting out"
+    } else if (streakCount < 6) {
+      state tierLabel = "collector"
+    } else {
+      state tierLabel = "super fan"
+    }
+  }
+}
+
+private function doResetStreak() {
+  state streakCount = 0
+  state tierLabel = "starting out"
+}
+
+' Contrast: the inline, braceless single-statement form of `if` — no `{ }`, runs to end of line.
+' The inline form's single statement is an ordinary BrightScript statement region (a plain call
+' here), same as GRAMMAR.md's own `if (condition) doOneThing()` example — it does NOT dispatch
+' into the DSL's own `state`/`store`/`scale` statement forms the way a `{ }` block body does, so a
+' `state` write itself has to live inside the called function instead of directly after the
+' inline `if`.
+private function resetStreak(key: string, press: boolean) {
+  if (press) doResetStreak()
+}
+
+private function refreshMood() {
+  state moodLabel = isHappy ? (isVeryHappy ? "ecstatic" : "content") : "grumpy"
+}
+
+private function toggleHappy(key: string, press: boolean) {
+  if (press) {
+    state isHappy = !isHappy
+    refreshMood()
+  }
+}
+
+private function toggleVeryHappy(key: string, press: boolean) {
+  if (press) {
+    state isVeryHappy = !isVeryHappy
+    refreshMood()
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="1/4 — if/else if/else + ternary" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="UP/DOWN between buttons, OK to trigger — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Rectangle id="bumpButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{bumpButtonTranslation}" on:key[OK]="{bumpStreak()}">
+    <Label id="bumpButtonLabel" text="Bump streak (block if/else if/else)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="resetButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{resetButtonTranslation}" on:key[OK]="{resetStreak()}">
+    <Label id="resetButtonLabel" text="Reset streak (inline braceless if)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="tierReadoutLabel" text="{tierReadout}" color="0x66FF99FF" translation="{tierReadoutTranslation}" />
+  <Rectangle id="happyButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{happyButtonTranslation}" on:key[OK]="{toggleHappy()}">
+    <Label id="happyButtonLabel" text="Toggle isHappy" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="veryHappyButton" focusable="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{veryHappyButtonTranslation}" on:key[OK]="{toggleVeryHappy()}">
+    <Label id="veryHappyButtonLabel" text="Toggle isVeryHappy" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="moodReadoutLabel" text="{moodReadout}" color="0xFFCC66FF" translation="{moodReadoutTranslation}" />
+</Rectangle>
+</component>

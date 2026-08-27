@@ -1,0 +1,76 @@
+<script>
+import ScoreTracker from "components/Classes/ScoreTracker.flsh"
+import BonusScoreTracker from "components/Classes/BonusScoreTracker.flsh"
+
+' Chapter 2/3 — `extends`/`override`/`super`. See Classes/ScoreTracker.flsh (base) and
+' Classes/BonusScoreTracker.flsh (`extends ScoreTracker`) for the class pair this drives, and
+' findings/classes-demo-app.md for the full writeup.
+'
+' Default: the base class used directly (`baseTracker`).
+' Customized: the derived class (`bonusTracker`, `BonusScoreTracker(0, 3)`) — calls `super(0)` and
+' overrides both `add`/`describe`. BOTH instances are constructed from the exact same starting
+' score and driven by the SAME button, so the override's actual effect is visible by direct
+' comparison: pressing "Add 10 points to both" adds 10 to baseTracker (plain `add`) but 30 to
+' bonusTracker (`add`'s override multiplies by the bonus field) — the labels below diverge
+' immediately, side by side.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 460
+scale field buttonHeight: integer = 50
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state addButtonTranslation: object = [40, 120]
+scale state buttonLabelInset: object = [16, 12]
+scale state baseLabelTranslation: object = [40, 200]
+scale state bonusLabelTranslation: object = [40, 240]
+
+state trackerVersion: integer = 0
+
+derived baseLabel: string = baseTrackerText(trackerVersion)
+derived bonusLabel: string = bonusTrackerText(trackerVersion)
+
+' Guarded against `m.baseTracker`/`m.bonusTracker` still being `invalid` — `derived`'s own initial
+' value is computed in init(), before setup() (where these are constructed) ever runs. Live-device-
+' caught: without this guard, the app crashed on its very first mount trying to concatenate a
+' string with the Invalid these safely-chained calls resolve to before construction — see
+' findings/classes-demo-app.md's device-pass writeup (same root cause as FieldsAndMethodsDemo.thr's
+' own accountSummaryText()).
+private function baseTrackerText(_version: integer): string {
+  if (m.baseTracker = invalid) {
+    return "Base (no override): (not initialized yet)"
+  }
+  return "Base (no override): " + m.baseTracker.describe()
+}
+
+private function bonusTrackerText(_version: integer): string {
+  if (m.bonusTracker = invalid) {
+    return "Derived (override): (not initialized yet)"
+  }
+  return "Derived (override): " + m.bonusTracker.describe()
+}
+
+public function setup() {
+  m.baseTracker = ScoreTracker(0)
+  m.bonusTracker = BonusScoreTracker(0, 3)
+}
+
+private function addToBoth(key: string, press: boolean) {
+  if (press) {
+    m.baseTracker.add(10)
+    m.bonusTracker.add(10)
+    state trackerVersion = trackerVersion + 1
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="2/3 — extends / override / super" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="OK to add 10 points to both trackers — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Rectangle id="addButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{addButtonTranslation}" on:key[OK]="{addToBoth()}">
+    <Label id="addButtonLabel" text="Add 10 points to both" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="baseReadout" text="{baseLabel}" color="0x66CCFFFF" translation="{baseLabelTranslation}" />
+  <Label id="bonusReadout" text="{bonusLabel}" color="0x66FF99FF" translation="{bonusLabelTranslation}" />
+</Rectangle>
+</component>

@@ -1,0 +1,124 @@
+<script>
+' Extracted from ScrollFocusDemo.thr (chapter 2/7) so automatic scroll-into-view works correctly —
+' GRAMMAR.md's "Scroll-into-view" section requires the `scrollOffsetX`/`scrollOffsetY`-declaring
+' component's own TEMPLATE ROOT to be the stable viewport window itself (`scrollNode.GetChild(0)`
+' is what the focus manager reads for the reference bounds). ScrollFocusDemo's own root used to be
+' a full-screen background Rectangle with this viewport nested one level inside it — the focus
+' manager was computing scroll offsets against the FULL SCREEN's bounds (1920x1080), not the
+' actually-clipped 1000x500 window, so any tile far enough down the grid never really scrolled into
+' view despite scrollOffsetY changing to a nonzero value. Confirmed live: a device screenshot showed
+' the focused tile off-screen while the JSON node tree reported a "successful" scroll. Splitting the
+' full-screen chrome (title/subtitle/hint/background) into the parent and making THIS component's
+' own root directly the viewport fixes it structurally, matching GRAMMAR.md's own worked example.
+field scrollOffsetX: float = 0
+field scrollOffsetY: float = 0
+state loaded: boolean = false
+state tiles: object = invalid
+
+private function makeTile(col: integer, row: integer): object {
+  tile = {}
+  tile.id = "tile" + col.ToStr() + "_" + row.ToStr()
+  tile.label = "Tile " + (row * 6 + col + 1).ToStr()
+  scale x = col * 220
+  scale y = row * 160
+  scale width = 200
+  scale height = 140
+  tile.x = x
+  tile.y = y
+  tile.width = width
+  tile.height = height
+  return tile
+}
+
+private function makeIrregularTile(id: string, label: string, rawX: integer, rawY: integer, rawWidth: integer, rawHeight: integer): object {
+  tile = {}
+  tile.id = id
+  tile.label = label
+  scale x = rawX
+  scale y = rawY
+  scale width = rawWidth
+  scale height = rawHeight
+  tile.x = x
+  tile.y = y
+  tile.width = width
+  tile.height = height
+  return tile
+}
+
+private function buildGrid(): object {
+  grid = []
+  for (row = 0 to 4) {
+    for (col = 0 to 5) {
+      grid.Push(makeTile(col, row))
+    }
+  }
+  ' A handful of irregular, non-grid-aligned cards mixed into the same collection/registry as the
+  ' uniform grid above -- exercises navigate()'s LRUD scoring against messy real-world geometry
+  ' (varying size, not row/column-aligned), not just a perfectly uniform grid.
+  grid.Push(makeIrregularTile("wide1", "Wide banner", 0, 900, 640, 100))
+  grid.Push(makeIrregularTile("tall1", "Tall card", 700, 900, 180, 300))
+  grid.Push(makeIrregularTile("small1", "Small chip", 950, 950, 100, 70))
+  return grid
+}
+
+' The {#each} below lives inside {#if:destroy loaded} — not for a construct/destroy toggle demo
+' (unlike ScheduleList's use of the same pattern), but because the grid is deterministic and
+' state's own grammar only accepts a literal initial value, never a function-call expression: the
+' each block would otherwise reconcile unconditionally during init(), before this function has ever
+' run, and read a still-Invalid `tiles` — confirmed live (see findings/focus-system.md). Setting
+' `tiles` before `loaded` guarantees the {#if:destroy} construction (triggered by `loaded` turning
+' true) always sees an already-valid collection.
+'
+' NOT auto-called by the router — this is a plain nested child of ScrollFocusDemo, not itself
+' router-mounted (see findings/router-setup-lifecycle.md's "setup() is NOT auto-called for a plain,
+' non-router-mounted child component" gotcha). ScrollFocusDemo's own setup() calls this explicitly,
+' the same way apps/sample-app's ScheduleScreen.thr calls ScheduleList's load().
+public function setup() {
+  state tiles = buildGrid()
+  state loaded = true
+}
+
+' Declared ONCE, on this component's own root below — on:key does not require `focusable` on the
+' same element (GRAMMAR.md's "on:key" section: "it fires purely from being on the currently-focused
+' node's ancestor chain"), so a single container-level on:key[fastforward]/[rewind] here captures
+' the keys for WHICHEVER tile currently holds focus, with no per-tile on:key wiring needed at all —
+' unlike this file's own earlier revision, which bound jumpDown()/jumpUp() on every individual tile
+' inside the {#each} (functionally identical, but real per-element boilerplate this bubbling
+' behavior makes unnecessary).
+private function jumpDown(key: string, press: boolean) {
+  jumpFocus("down", 2, press)
+}
+
+private function jumpUp(key: string, press: boolean) {
+  jumpFocus("up", 2, press)
+}
+
+private function selectTile(key: string, press: boolean, tile: object) {
+  if (press) {
+    print "[ScrollableTileGrid] selected tile: "; tile.label
+    ' Raw BrightScript passthrough — FormatJson() is a real BrightScript global with no DSL sugar;
+    ' copied into generated .brs completely unchanged. See findings/raw-brightscript-passthrough.md.
+    ' flash-theater:raw
+    print "[ScrollableTileGrid] tile payload: "; FormatJson(tile)
+    ' flash-theater:end-raw
+  }
+}
+
+scale field viewportWidth: integer = 1000
+scale field viewportHeight: integer = 500
+scale state viewportClippingRect: object = [0, 0, 1000, 500]
+</script>
+
+<component>
+<Rectangle id="root" color="0x222222FF" width="{viewportWidth}" height="{viewportHeight}" clippingRect="{viewportClippingRect}" on:key[fastforward]="{jumpDown()}" on:key[rewind]="{jumpUp()}">
+  <Group id="track" translation="{[-scrollOffsetX, -scrollOffsetY]}">
+    {#if:destroy loaded}
+      {#each tiles as tile (tile.id)}
+        <Rectangle id="tile" width="{tile.width}" height="{tile.height}" color="0x3A6EA5FF" translation="{[tile.x, tile.y]}" focusable="true" on:key[OK]="{selectTile(tile)}">
+          <Label id="tileLabel" text="{tile.label}" color="0xFFFFFFFF" translation="{[16, 16]}" />
+        </Rectangle>
+      {/each}
+    {/if}
+  </Group>
+</Rectangle>
+</component>

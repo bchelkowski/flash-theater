@@ -1,0 +1,30 @@
+class ItemTotal {
+  constructor(items: object) {
+    sum = 0
+    for each (item in items) {
+      sum = sum + item
+    }
+    private total: integer = sum
+  }
+
+  public function retryUntilPositive(attempts: integer): integer {
+    tries = 0
+    while (tries < attempts) {
+      if (m.total > 0) {
+        return m.total
+      }
+      tries = tries + 1
+    }
+    return -1
+  }
+
+  public function safeTotal(): integer {
+    result = 0
+    try {
+      result = m.total
+    } catch (e) {
+      result = 0
+    }
+    return result
+  }
+}

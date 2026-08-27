@@ -1,0 +1,28 @@
+<script>
+field profile: node = invalid
+field cache: node = invalid
+
+derived displayName: string = profile.user.name
+derived summaryLabel: string = describeCache(cache)
+
+private function logEvent(label: string) {
+  print label
+}
+
+private function describeCache(cacheNode: node): string {
+  return "cache: " + cacheNode.tracker.summarize()
+}
+
+private function refresh() {
+  cache.tracker.recordVisit()
+  logEvent(cache.tracker.summarize())
+  cache.counters.total = 0
+}
+</script>
+
+<component>
+<LayoutGroup id="root">
+  <Label id="out" text="{displayName}" />
+  <Label id="summary" text="{summaryLabel}" />
+</LayoutGroup>
+</component>

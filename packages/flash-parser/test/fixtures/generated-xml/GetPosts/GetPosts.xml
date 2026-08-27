@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- flash-theater:generated — do not edit by hand, source: GetPosts.thr -->
+<component name="GetPosts" extends="Task">
+  <interface>
+    <field id="resolvedOptions" type="assocarray" />
+    <field id="result" type="assocarray" />
+    <field id="error" type="assocarray" />
+    <function name="prepareRequest" />
+  </interface>
+  <children>
+  </children>
+  <script type="text/brightscript" uri="GetPosts.brs" />
+  <script type="text/brightscript" uri="pkg:/components/FlashTheater/Http/FlashTheaterHttp.brs" />
+</component>

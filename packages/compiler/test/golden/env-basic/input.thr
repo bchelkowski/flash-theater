@@ -1,0 +1,7 @@
+<script>
+derived apiBaseUrlLabel: string = "API: " + env.apiBaseUrl
+</script>
+
+<component>
+<Label id="a" text="{apiBaseUrlLabel}" />
+</component>

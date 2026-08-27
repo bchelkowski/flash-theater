@@ -1,0 +1,13 @@
+<script>
+request Http {
+  method: "GET",
+  url: "https://jsonplaceholder.typicode.com/posts"
+}
+
+private function parseResponse(response: object): object {
+  return { items: response.data }
+}
+</script>
+
+<component extends="Task">
+</component>

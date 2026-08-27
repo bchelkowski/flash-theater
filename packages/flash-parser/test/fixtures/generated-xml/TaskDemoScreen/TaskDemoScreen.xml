@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- flash-theater:generated — do not edit by hand, source: TaskDemoScreen.thr -->
+<component name="TaskDemoScreen" extends="Group">
+  <interface>
+    <field id="rootWidth" type="integer" value="880" onChange="on_rootWidthChange" />
+    <field id="rootHeight" type="integer" value="720" onChange="on_rootHeightChange" />
+    <field id="buttonWidth" type="integer" value="300" onChange="on_buttonWidthChange" />
+    <field id="buttonHeight" type="integer" value="60" onChange="on_buttonHeightChange" />
+    <function name="setup" />
+    <function name="onPollTimerFire" />
+  </interface>
+  <children>
+    <Rectangle id="root" color="0x151515FF">
+      <Label id="title" text="Task manager demo — max 2 concurrent, alert at 2/4 queued" color="0xFFFFFFFF" />
+      <Rectangle id="startButton" focusable="true" color="0x2A2A2AFF">
+        <Label id="startButtonLabel" text="Start 5 tasks" color="0xFFFFFFFF" />
+      </Rectangle>
+      <Rectangle id="startHighButton" focusable="true" color="0x2A2A2AFF">
+        <Label id="startHighButtonLabel" text="Start 1 (high)" color="0xFFFFFFFF" />
+      </Rectangle>
+      <Rectangle id="cancelButton" focusable="true" color="0x2A2A2AFF">
+        <Label id="cancelButtonLabel" text="Cancel last" color="0xFFFFFFFF" />
+      </Rectangle>
+      <Rectangle id="classDiagButton" focusable="true" color="0x2A2A4AFF">
+        <Label id="classDiagButtonLabel" text="Class: start task + read theme" color="0xFFFFFFFF" />
+      </Rectangle>
+      <Rectangle id="classGoHomeButton" focusable="true" color="0x2A2A4AFF">
+        <Label id="classGoHomeButtonLabel" text="Class: go home (tests focus)" color="0xFFFFFFFF" />
+      </Rectangle>
+      <Label id="runningReadout" color="0x66FF99FF" />
+      <Label id="queuedReadout" color="0xFFCC66FF" />
+      <Label id="alertReadout" color="0xFF6666FF" />
+      <Label id="classDiagReadout" color="0x66CCFFFF" />
+    </Rectangle>
+  </children>
+  <script type="text/brightscript" uri="TaskDemoScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/Classes/GlobalAccessDemo.brs" />
+  <script type="text/brightscript" uri="pkg:/components/FlashTheater/Scale/FlashTheaterScale.brs" />
+</component>

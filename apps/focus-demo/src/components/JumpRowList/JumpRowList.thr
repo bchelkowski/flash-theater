@@ -1,0 +1,82 @@
+<script>
+' Extracted from JumpFocusDemo.thr (chapter 7/7) — device-found bug this fixes: `title` and every
+' row used to be registered under the SAME owner (JumpFocusDemo's own `m.top`, since both lists'
+' rows were plain elements directly in that one component's template, not a separate component
+' instance). `navigateBy()`'s hop search treats "owner" as the ONLY scoping boundary it knows about
+' — a plain wrapping `<Group>` (this file's own predecessor) gives `on:key` a real ancestor-chain
+' boundary to bubble through (see JumpFocusDemo.thr's own top comment), but it does NOT give
+' `navigate()`/`navigateBy()` a boundary, since those only ever consult registry `owner` identity,
+' never template/DOM nesting. Confirmed live: a held REWIND from the topmost row of a list escaped
+' straight to the header `Label` above it — same owner, so even a same-owner-restricted
+' `navigateBy()` (see FlashTheaterFocusManager.brs's own fix) still found it. Making each list its
+' own component instance gives it a genuinely distinct owner, so a hop can never leave it.
+field jumpSize: integer = 1
+field rowCount: integer = 1
+field labelPrefix: string = "Row"
+field rowColor: string = "0x3A6EA5FF"
+field rawX: integer = 0
+field selectedLabel: string = ""
+
+scale field rowWidth: integer = 500
+scale field rowHeight: integer = 48
+
+state loaded: boolean = false
+state rows: object = invalid
+
+private function makeRow(index: integer): object {
+  row = {}
+  row.label = labelPrefix + " " + (index + 1).ToStr()
+  row.id = row.label
+  scale x = rawX
+  scale y = index * 58
+  row.x = x
+  row.y = y
+  return row
+}
+
+private function buildRows(): object {
+  built = []
+  for (i = 0 to rowCount - 1) {
+    built.Push(makeRow(i))
+  }
+  return built
+}
+
+' NOT auto-called by the router — a plain nested child of JumpFocusDemo, not itself router-mounted
+' (see findings/router-setup-lifecycle.md). JumpFocusDemo's own setup() calls this explicitly.
+public function setup() {
+  state rows = buildRows()
+  state loaded = true
+}
+
+private function jumpDown(key: string, press: boolean) {
+  jumpFocus("down", jumpSize, press)
+}
+
+private function jumpUp(key: string, press: boolean) {
+  jumpFocus("up", jumpSize, press)
+}
+
+private function selectRow(key: string, press: boolean, row: object) {
+  if (press) {
+    ' Plain field write (not `state`) — this pushes OUT to the parent via `bind:selectedLabel`,
+    ' the same child->parent relay `bind:` already documents (GRAMMAR.md's "Two-way binding"
+    ' section) — a bare assignment to a name matching a declared field would just create an
+    ' ordinary new local (see findings/reactivity-state.md's own field-shadowing gotcha), so this
+    ' goes through `m.top` explicitly.
+    m.top.selectedLabel = "Selected: " + row.label
+  }
+}
+</script>
+
+<component>
+<Group id="root" on:key[fastforward]="{jumpDown()}" on:key[rewind]="{jumpUp()}">
+  {#if:destroy loaded}
+    {#each rows as row (row.id)}
+      <Rectangle id="row" width="{rowWidth}" height="{rowHeight}" color="{rowColor}" translation="{[row.x, row.y]}" focusable="true" on:key[OK]="{selectRow(row)}">
+        <Label id="rowLabel" text="{row.label}" color="0xFFFFFFFF" translation="{[16, 12]}" />
+      </Rectangle>
+    {/each}
+  {/if}
+</Group>
+</component>

@@ -1,0 +1,23 @@
+' Chapter 3/3 (bound-method-sugar) — the RAW, hand-written `{ target: m, action: "methodName" }`
+' descriptor form passed to `.subscribe(...)` directly, NOT the `.subscribe(m.methodName)` sugar
+' (that's SugarFormListener.flsh, this chapter's other half). This is exactly what the sugar
+' lowers to automatically — written out by hand here so a live run can confirm both forms actually
+' work identically, not just assert it via a comment. See GRAMMAR.md's "`stream`" section ("Bound
+' method reference sugar") and findings/streams.md.
+class RawDescriptorListener {
+  constructor() {
+    private fireCount: integer = 0
+  }
+
+  public function subscribeTo(broadcaster: object) {
+    broadcaster.pulse.subscribe({ target: m, action: "onPulse" })
+  }
+
+  public function onPulse(value: string) {
+    m.fireCount = m.fireCount + 1
+  }
+
+  public function fireCountValue(): integer {
+    return m.fireCount
+  }
+}

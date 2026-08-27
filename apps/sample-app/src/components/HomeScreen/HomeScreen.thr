@@ -1,0 +1,100 @@
+<script>
+' The default ("" path) child of Shell — reuses ScheduleDateMenuItem purely as decoration (the
+' same real component GRAMMAR.md's own worked examples already use, see
+' apps/sample-app/src/components/ScheduleDateMenuItem). The router-specific content is the "prompt"
+' below: pressing OK writes backJourneyData onto THIS route (visitedSchedule), then navigates to
+' "/browse/schedule" with a params object — the whole point of exercising both router.params.* and
+' router.updateBackJourneyData(...) end to end.
+'
+' welcomeText reads router.backJourneyData.visitedSchedule, which is `invalid` (never a crash — a
+' missing AA key just reads invalid) on this route's first-ever activation, and `true` once the
+' user has been to /browse/schedule and pressed OK there to come back — see ScheduleScreen.thr's
+' own goBack(). Confirms backJourneyData genuinely survives a full destroy+recreate round trip
+' through the back-journey history stack, not just a same-instance field read.
+'
+' Local template coordinates are relative to the content pane Shell.thr's own
+' <FlashTheaterRouterOutlet> already offsets by [400, 0] (scaled, see Shell.thr) — this root's own
+' width (880) is exactly the remaining screen width (1280 - 400 sidebar), same HD baseline as
+' every other screen. `prompt` sits at y=220, the same absolute row as Shell's own "Home" menu
+' item, so the two genuinely overlap on the Y axis — required for "right" from that menu row to
+' reach straight into this prompt (see runtime-assets/FocusManager's bestCandidate()). Both are
+' `scale`d by the same app-wide factor, so this alignment holds at every resolution, not just HD —
+' confirmed live (an earlier, unscaled version of this screen broke that alignment once Shell's
+' own menu started scaling — see findings/scale.md).
+scale field rootWidth: integer = 880
+scale field rootHeight: integer = 720
+scale field itemWidth: integer = 300
+scale field itemHeight: integer = 120
+scale field promptWidth: integer = 620
+scale field promptHeight: integer = 60
+' FavoriteCounter lives here (moved from Shell.thr's own sidebar, 2026-08-19 — the sidebar is
+' navigation-only; see Shell.thr's own top comment) — real routed CONTENT, not chrome, so it
+' belongs on a content screen. Positioned below `prompt` (which ends at y=280) with a 40px margin;
+' its own widest line comfortably fits this screen's 880-unit width with room to spare, unlike the
+' narrow ~340-unit sidebar it used to fight for space in.
+scale state favoriteCounterTranslation: object = [40, 320]
+' A second entry point, well below FavoriteCounter's own ~252px-tall content (which ends around
+' y=572) — links to DirectionalFocusDemo.thr, this app's own showcase for choosing a route's
+' initial focus based on which direction it was entered from (`router.isBackJourney` +
+' `focus(<id>)`). See that file's own top comment and findings/router-focus-integration.md.
+scale state directionalFocusPromptTranslation: object = [40, 600]
+' These two stay `scale derived`, not `scale state` (unlike every other translation in this app) —
+' `state`'s default must be a pure literal (`dsl/state-default-not-literal` otherwise; every leaf
+' literal, no arithmetic), while `derived`'s RHS accepts any expression. `(880 - 300) / 2` centers
+' itemWidth inside rootWidth (self-documenting on purpose) — it has no field/state/derived
+' dependency, so it's still computed exactly once, same as every sibling `scale state` translation,
+' but the DSL's grammar requires `derived` for it regardless.
+scale derived itemTranslation: object = [(880 - 300) / 2, 60]
+scale derived promptTranslation: object = [(880 - 620) / 2, 220]
+scale state promptLabelInset: object = [16, 20]
+
+private function buildItemContent(): node {
+  content = CreateObject("roSGNode", "ContentNode")
+  content.addFields({title: "Mon 12", dayName: "Monday", isContentAvailable: true})
+  return content
+}
+
+derived welcomeText: string = pickWelcomeText(router.backJourneyData.visitedSchedule)
+
+' Takes the raw (possibly invalid) backJourneyData value rather than comparing it inline in a
+' `derived` expression, which is a plain, shallow local-parameter comparison — safe and proven
+' (see FavoriteCounter.thr's own `favoriteCount = 0` for the same shallow-comparison shape).
+private function pickWelcomeText(visitedSchedule: dynamic): string {
+  if (visitedSchedule = true) {
+    return "Welcome back! OK: view schedule again"
+  }
+  return "OK: view schedule"
+}
+
+private function goToSchedule(key: string, press: boolean) {
+  if (press) {
+    router.updateBackJourneyData({ visitedSchedule: true })
+    router.navigate("/browse/schedule", { day: "Mon" })
+  }
+}
+
+private function goToDirectionalFocusDemo(key: string, press: boolean) {
+  if (press) {
+    router.navigate("/browse/directional-focus")
+  }
+}
+
+' Reveals this screen immediately instead of waiting out childOutlet's own loadingTimeout safety
+' net — see Shell.thr's own top comment and findings/router-transitions.md.
+public function setup() {
+  router.markReady()
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x101010FF" width="{rootWidth}" height="{rootHeight}">
+  <ScheduleDateMenuItem id="item" width="{itemWidth}" height="{itemHeight}" translation="{itemTranslation}" itemContent="{buildItemContent()}" />
+  <Rectangle id="prompt" focusable="true" default-focus="true" color="0x3A3A3AFF" width="{promptWidth}" height="{promptHeight}" translation="{promptTranslation}" on:key[OK]="{goToSchedule()}">
+    <Label id="promptLabel" text="{welcomeText}" color="0xFFFFFFFF" translation="{promptLabelInset}" />
+  </Rectangle>
+  <FavoriteCounter id="favoriteCounter" translation="{favoriteCounterTranslation}" />
+  <Rectangle id="directionalFocusPrompt" focusable="true" color="0x3A3A3AFF" width="{promptWidth}" height="{promptHeight}" translation="{directionalFocusPromptTranslation}" on:key[OK]="{goToDirectionalFocusDemo()}">
+    <Label id="directionalFocusPromptLabel" text="OK: directional focus demo (router.isBackJourney)" color="0xFFFFFFFF" translation="{promptLabelInset}" />
+  </Rectangle>
+</Rectangle>
+</component>

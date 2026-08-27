@@ -1,0 +1,17 @@
+<script>
+state showDetails: boolean = false
+
+public function toggleDetails() {
+  state showDetails = not showDetails
+}
+</script>
+
+<component>
+<Rectangle id="root">
+  <Label id="summary" text="summary" />
+  {#if:destroy showDetails}
+    <Label id="detailTitle" text="Details" />
+    <Label id="detailBody" text="{showDetails.toStr()}" />
+  {/if}
+</Rectangle>
+</component>

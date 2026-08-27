@@ -1,0 +1,13 @@
+<script>
+field prefix: string = "Day: "
+state schedule: object = invalid
+</script>
+
+<component>
+<Rectangle id="root">
+  <Label id="title" text="{prefix}" />
+  {#each schedule as day (day.id)}
+    <Label id="row" text="{prefix + day.title}" />
+  {/each}
+</Rectangle>
+</component>

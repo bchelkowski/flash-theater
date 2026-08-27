@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- flash-theater:generated — do not edit by hand, source: Theme.thr -->
+<component name="FlashTheaterTheme" extends="Node">
+  <interface>
+    <field id="colors" type="assocarray" />
+    <function name="switchTheme" />
+  </interface>
+  <script type="text/brightscript" uri="FlashTheaterTheme.brs" />
+</component>

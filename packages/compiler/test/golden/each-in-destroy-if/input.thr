@@ -1,0 +1,14 @@
+<script>
+field hasLoaded: boolean = false
+state schedule: object = invalid
+</script>
+
+<component>
+<Rectangle id="root">
+  {#if:destroy hasLoaded}
+    {#each schedule as day (day.id)}
+      <Label id="row" text="{day.title}" />
+    {/each}
+  {/if}
+</Rectangle>
+</component>

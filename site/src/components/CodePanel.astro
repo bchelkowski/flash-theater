@@ -1,0 +1,31 @@
+---
+import { highlight } from '../utils/highlight';
+
+interface Props {
+  code: string;
+  lang?: string;
+  filename?: string;
+  class?: string;
+}
+
+const { code, lang = 'xml', filename, class: className } = Astro.props;
+const html = await highlight(code, lang);
+---
+<div class:list={['not-prose relative', className]}>
+  {filename && (
+    <div class="flex items-center gap-2 px-4 py-2 bg-[#161b22] border border-b-0 border-[#1f2c42] rounded-t-lg">
+      <span class="text-xs text-slate-400 font-mono">{filename}</span>
+    </div>
+  )}
+  <div class:list={['code-wrapper', { 'rounded-t-none!': filename }]} set:html={html} />
+</div>
+
+<style>
+  .code-wrapper :global(.shiki) {
+    border-radius: 0.5rem;
+  }
+  .rounded-t-none\! :global(.shiki) {
+    border-top-left-radius: 0 !important;
+    border-top-right-radius: 0 !important;
+  }
+</style>

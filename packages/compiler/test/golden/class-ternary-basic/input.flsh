@@ -1,0 +1,21 @@
+class Bumper {
+  constructor(enabled: boolean) {
+    private enabled: boolean = enabled
+  }
+
+  public function bump(count: integer) {
+    if (m.enabled) {
+      label = count > 10 ? "big" : count > 0 ? "small" : "none"
+    }
+  }
+
+  public function computeNested(cond1: boolean, cond2: boolean, a: integer, b: integer, c: integer): integer {
+    value = cond1 ? (cond2 ? a : b) : c
+    return value
+  }
+
+  public function computeEmbedded(cond: boolean, a: integer, b: integer): integer {
+    value = 1 + (cond ? a : b)
+    return value
+  }
+}

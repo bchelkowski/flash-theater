@@ -1,0 +1,11 @@
+---
+interface Props {
+  grammarAnchor: string;
+}
+
+const { grammarAnchor } = Astro.props;
+---
+<p class="text-xs text-slate-600 mt-10 pt-6 border-t border-[#1f2c42]">
+  Exact grammar: <a href={`https://github.com/bchelkowski/flash-theater/blob/main/packages/compiler/GRAMMAR.md${grammarAnchor}`} class="prose-link" target="_blank">GRAMMAR.md</a>.
+  Full feature status: <a href="https://github.com/bchelkowski/flash-theater/blob/main/docs/features.md" class="prose-link" target="_blank">docs/features.md</a>.
+</p>

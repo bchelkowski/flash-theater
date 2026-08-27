@@ -1,0 +1,7 @@
+class Publisher {
+  public stream onChanged: string
+
+  public function change(value: string) {
+    m.onChanged.emit(value)
+  }
+}

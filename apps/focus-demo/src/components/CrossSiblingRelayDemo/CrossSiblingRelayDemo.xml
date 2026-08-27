@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="CrossSiblingRelayDemo" extends="Group">
+  <interface>
+    <function name="setup" />
+  </interface>
+  <script type="text/brightscript" uri="CrossSiblingRelayDemo.brs" />
+  <script type="text/brightscript" uri="pkg:/components/FlashTheater/Scale/FlashTheaterScale.brs" />
+</component>

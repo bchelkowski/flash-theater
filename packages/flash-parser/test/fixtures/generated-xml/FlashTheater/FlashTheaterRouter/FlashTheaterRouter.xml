@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- flash-theater:generated — do not edit by hand, copied from packages/compiler/runtime-assets/Router -->
+<component name="FlashTheaterRouter" extends="Node">
+  <interface>
+    <field id="activatedRoute" type="assocarray" />
+    <field id="renderedPath" type="string" value="" />
+    <!-- Bumped once, as the LAST step, by every navigate() call (including back()'s own internal
+         re-entry into navigate()) — the actual reactivity trigger every FlashTheaterRouterOutlet
+         observes, deliberately NOT `activatedRoute` itself. BrightScript's own field-change
+         notification is unambiguous for a plain scalar reassignment (this int always increases,
+         so it's never "reassigned to an equal value"); it is NOT well-defined for a complex
+         assocarray value the way this codebase's own findings already document for roSGNode `=`
+         comparison (see FlashTheaterRouterOutlet.brs's own top comment). -->
+    <field id="changeToken" type="integer" value="0" alwaysNotify="true" />
+    <!-- Plain field, not a callFunc — a ROOT FlashTheaterRouterOutlet reads this from its own
+         init(), which runs synchronously DURING roSGNode construction (CreateScene/CreateObject),
+         not from an already-dispatched top-level callFunc. A callFunc issued from within another
+         node's own construction hung indefinitely on a real device (confirmed live — see
+         findings/router.md); a plain field read carries no such rendezvous requirement. -->
+    <field id="routing" type="array" value="[]" />
+    <function name="setRouting" />
+    <function name="navigate" />
+    <function name="back" />
+    <function name="resetHistory" />
+    <function name="appendBackJourneyData" />
+    <function name="updateBackJourneyData" />
+  </interface>
+  <script type="text/brightscript" uri="FlashTheaterRouter.brs" />
+</component>

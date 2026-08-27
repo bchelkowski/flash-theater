@@ -1,0 +1,36 @@
+<script>
+' The "next step" DirectionalFocusDemo.thr navigates forward to — pressing OK on `backPrompt` here
+' calls `router.back()`, which is what makes the return trip to DirectionalFocusDemo.thr a genuine
+' BACK JOURNEY (`router.isBackJourney = true`), the exact case that screen's own setup() branches
+' on. See DirectionalFocusDemo.thr's own top comment for the full round-trip demo this is one half
+' of. `backPrompt` relies on plain `default-focus="true"` (not an explicit `focus(<id>)` call) —
+' this screen has only one focusable element and nothing else ever competes for the vacuum, so the
+' ordinary default-focus mechanism is already sufficient; the explicit-override showcase lives on
+' the OTHER half of this round trip instead.
+scale field rootWidth: integer = 880
+scale field rootHeight: integer = 720
+scale field promptWidth: integer = 620
+scale field promptHeight: integer = 60
+scale state titleTranslation: object = [40, 20]
+scale state backPromptTranslation: object = [40, 220]
+scale state promptLabelInset: object = [16, 20]
+
+public function setup() {
+  router.markReady()
+}
+
+private function goBack(key: string, press: boolean) {
+  if (press) {
+    router.back()
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x101010FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="Directional focus demo — detail step" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Rectangle id="backPrompt" focusable="true" default-focus="true" color="0x3A3A3AFF" width="{promptWidth}" height="{promptHeight}" translation="{backPromptTranslation}" on:key[OK]="{goBack()}">
+    <Label id="backPromptLabel" text="OK: back to Directional Focus Demo (as a BACK journey)" color="0xFFFFFFFF" translation="{promptLabelInset}" />
+  </Rectangle>
+</Rectangle>
+</component>

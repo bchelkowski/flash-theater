@@ -1,0 +1,60 @@
+<script>
+import SugarBroadcaster from "components/Classes/SugarBroadcaster.flsh"
+import RawDescriptorListener from "components/Classes/RawDescriptorListener.flsh"
+import SugarFormListener from "components/Classes/SugarFormListener.flsh"
+
+' Chapter 3/3 — `.subscribe(<target>.<methodName>)` sugar, structurally recognized and lowered to
+' a `{ target, action }` descriptor automatically (since passing a bare stored function value
+' across this boundary is unreliable for a `.flsh` class instance — no SceneGraph identity, `m`
+' binding does not survive detachment — see GRAMMAR.md's "`stream`" section and
+' findings/streams.md).
+'
+' Default: `RawDescriptorListener` uses the RAW, hand-written `{ target: m, action: "onPulse" }`
+' descriptor form, passed to `.subscribe(...)` directly.
+' Customized: `SugarFormListener` subscribes to the exact SAME `SugarBroadcaster.pulse` stream
+' using `.subscribe(m.onPulse)` — the sugar form the compiler lowers to that same descriptor
+' automatically. One press of "Fire pulse" fires `SugarBroadcaster.pulse.emit(...)` once, and BOTH
+' listeners' independently-tracked fire counts increment together — visible, distinguishable proof
+' both forms compile to working, identical behavior, not just an assertion in a comment.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 420
+scale field buttonHeight: integer = 50
+scale state titleTranslation: object = [40, 30]
+scale state hintTranslation: object = [40, 70]
+scale state fireButtonTranslation: object = [40, 120]
+scale state rawReadoutTranslation: object = [40, 200]
+scale state sugarReadoutTranslation: object = [40, 230]
+scale state buttonLabelInset: object = [16, 12]
+
+state rawFireCountText: string = "raw descriptor fired: 0 times"
+state sugarFireCountText: string = "sugar form fired: 0 times"
+
+public function setup() {
+  m.broadcaster = SugarBroadcaster()
+  m.rawListener = RawDescriptorListener()
+  m.sugarListener = SugarFormListener()
+  m.rawListener.subscribeTo(m.broadcaster)
+  m.sugarListener.subscribeTo(m.broadcaster)
+}
+
+private function firePulse(key: string, press: boolean) {
+  if (press) {
+    m.broadcaster.fire("pulse")
+    state rawFireCountText = "raw descriptor fired: " + m.rawListener.fireCountValue().ToStr() + " times"
+    state sugarFireCountText = "sugar form fired: " + m.sugarListener.fireCountValue().ToStr() + " times"
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="3/3 — raw { target, action } descriptor vs. .subscribe(m.method) sugar" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="hint" text="OK to fire — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Rectangle id="fireButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{fireButtonTranslation}" on:key[OK]="{firePulse()}">
+    <Label id="fireButtonLabel" text="Fire pulse (fires both listeners)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Label id="rawReadout" text="{rawFireCountText}" color="0x66FF99FF" translation="{rawReadoutTranslation}" />
+  <Label id="sugarReadout" text="{sugarFireCountText}" color="0x66CCFFFF" translation="{sugarReadoutTranslation}" />
+</Rectangle>
+</component>

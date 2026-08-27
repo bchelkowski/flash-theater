@@ -1,0 +1,119 @@
+---
+import DocsLayout from '../../components/DocsLayout.astro';
+import DocsHero from '../../components/DocsHero.astro';
+import CodePanel from '../../components/CodePanel.astro';
+import NotSupported from '../../components/NotSupported.astro';
+import DocsFooterLinks from '../../components/DocsFooterLinks.astro';
+
+const SCRIPT_OPEN = '<' + 'script>';
+const SCRIPT_CLOSE = '<' + '/script>';
+
+const basicUsage = `${SCRIPT_OPEN}
+state ready: boolean = false
+
+public function setup() {
+  setTimeout(function() {
+    state ready = true
+  }, 1500)
+}
+${SCRIPT_CLOSE}`;
+
+const intervalUsage = `${SCRIPT_OPEN}
+public function setup() {
+  m.pollHandle = setInterval(onPoll, 500)
+}
+
+private function onPoll() {
+  state runningCount = taskManager.runningCount
+}
+
+private function stopPolling(key: string, press: boolean) {
+  if (press) {
+    clearInterval(m.pollHandle)
+  }
+}
+${SCRIPT_CLOSE}`;
+
+const msExample = `setTimeout(fn, 1000)   ' fires after 1 second — milliseconds, JS-shaped
+setInterval(fn, 500)   ' fires every 0.5 seconds`;
+---
+<DocsLayout title="Timer statements" slug="timers">
+  <DocsHero icon="⏱️">
+    Timer statements
+    <br />
+    <span class="text-base text-slate-500 font-normal">setTimeout / setInterval / clearTimeout / clearInterval — JS-shaped Timer sugar.</span>
+  </DocsHero>
+
+  <p class="text-slate-300 leading-relaxed mb-6">
+    <code class="text-amber-300">setTimeout(&lt;callback&gt;, &lt;ms&gt;)</code> and
+    <code class="text-amber-300">setInterval(&lt;callback&gt;, &lt;ms&gt;)</code> are bare global
+    functions — not namespaced like <a href="task-manager/" class="prose-link">taskManager.run(...)</a> —
+    that generate and hide the full BrightScript <code class="text-amber-300">Timer</code> node
+    lifecycle (creation, field wiring, <code class="text-amber-300">ObserveField</code>, start,
+    cleanup) behind one call. <code class="text-amber-300">&lt;callback&gt;</code> can be an
+    anonymous function or a named function reference.
+  </p>
+  <CodePanel code={basicUsage} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Milliseconds, not seconds</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    True JS parity — <code class="text-amber-300">setTimeout(fn, 1000)</code> fires after 1 second.
+    Roku's own <code class="text-amber-300">Timer.duration</code> field is in seconds; the
+    conversion happens for you, at compile time when the duration is a literal.
+  </p>
+  <CodePanel code={msExample} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Handles, <code>setInterval</code>, and clearing</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Both calls return a <strong class="text-slate-200">handle</strong> — capture it (a plain local
+    or an <code class="text-amber-300">m.&lt;field&gt;</code>) to cancel later with
+    <code class="text-amber-300">clearTimeout(&lt;handle&gt;)</code>/<code class="text-amber-300">clearInterval(&lt;handle&gt;)</code>.
+    A <code class="text-amber-300">setInterval</code> callback is called with no arguments, repeatedly,
+    until cleared.
+  </p>
+  <CodePanel code={intervalUsage} lang="xml" filename="" class="mb-8" />
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Automatic cleanup on unmount</h2>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    Every pending timer a component creates is <strong class="text-slate-200">automatically stopped</strong>
+    when that component's own node is removed — navigating away from a
+    <a href="router/" class="prose-link">router</a>-mounted screen, an ancestor
+    <code class="text-amber-300">{'{'}#if:destroy{'}'}</code> tearing down a subtree that contains it,
+    or an <code class="text-amber-300">{'{'}#each{'}'}</code> block removing an item that contains
+    it — any nesting depth, in all three cases. You don't need to call
+    <code class="text-amber-300">clearTimeout</code>/<code class="text-amber-300">clearInterval</code>
+    yourself just to avoid a timer outliving its component — call them only when you want to cancel
+    <strong class="text-slate-200">early</strong>, while the component is still mounted.
+  </p>
+  <p class="text-slate-400 leading-relaxed mb-4">
+    This same automatic cleanup doesn't yet extend to <a href="task-manager/" class="prose-link">taskManager</a>'s
+    own tracked tasks — a component's own timers are always cleaned up, but a task it started via
+    <code class="text-amber-300">taskManager.run(...)</code> keeps running/queued after that component is
+    destroyed unless you cancel it yourself. See task-manager's own "Not (yet) supported" list.
+  </p>
+
+  <h2 class="text-xl font-semibold text-white mt-10 mb-3">Reference implementation — <code>apps/timers-demo</code></h2>
+  <p class="text-slate-400 leading-relaxed mb-8">
+    Every mechanism on this page has a router-mounted, <code class="text-amber-300">scale</code>d
+    chapter in <code class="text-amber-300">apps/timers-demo</code> — 3 chapters
+    (<code class="text-amber-300">/basic-lifecycle</code> through
+    <code class="text-amber-300">/focus-teardown-ordering</code>), reachable with REWIND/FAST-FORWARD
+    once compiled and sideloaded. Chapter 1 covers the one-shot/recurring basics, including
+    cancelling a pending <code class="text-amber-300">setTimeout</code> before it ever fires; chapter
+    2 proves the automatic unmount cleanup through a genuinely two-component-level-deep nested
+    cascade and an <code class="text-amber-300">{'{'}#each{'}'}</code> list-item removal; chapter 3
+    proves the ordering between focus-recovery and the <code class="text-amber-300">ft_unmount</code>
+    cascade for a synchronous (non-animated) teardown of a currently-focused, ticking widget. See
+    <code class="text-amber-300">findings/timers-demo-app.md</code> for what each chapter covers and
+    <code class="text-amber-300">findings/demo-app-conventions.md</code> for the app-structure convention it follows.
+  </p>
+
+  <NotSupported items={[
+    '<code class="text-amber-300">setTimeout</code>/<code class="text-amber-300">setInterval</code> may appear only as a bare statement, or the entire right-hand side of a plain <code class="text-amber-300">&lt;local&gt; = </code> assignment — never nested inside a larger expression, a condition, or a loop header. <code class="text-amber-300">clearTimeout</code>/<code class="text-amber-300">clearInterval</code> may appear only as a bare statement.',
+    'None of the four may be used inside a <code class="text-amber-300">derived</code> expression, a dynamic template <code class="text-amber-300">{expr}</code> binding, or an <code class="text-amber-300">&#123;#if&#125;</code>/<code class="text-amber-300">&#123;#each&#125;</code> condition/collection/key expression — all recompute repeatedly, which would leak (or try to clear) a new Timer node every time.',
+    'Not supported inside a <a href="classes/" class="prose-link">.flsh class</a> body — same reasons <code class="text-amber-300">taskManager.onAlertChanged</code>/<code class="text-amber-300">onResult</code> aren\'t.',
+    'The names <code class="text-amber-300">setTimeout</code>/<code class="text-amber-300">setInterval</code>/<code class="text-amber-300">clearTimeout</code>/<code class="text-amber-300">clearInterval</code> are reserved — they cannot be used as a field/derived/state/function/parameter name.',
+  ]} />
+
+  <DocsFooterLinks grammarAnchor="#timer-statements" />
+</DocsLayout>

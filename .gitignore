@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.zip
+.flash-theater-cache/
+.astro/
+
+# Each app's out/ is 100% generated/copied by `flash-theater compile` (wiped and rebuilt every
+# run — see findings/build-layout.md) from that app's own src/ — never hand-edited, never tracked.
+apps/*/out/
+# An active --env/FLASH_THEATER_ENV build writes to out-<env>/ instead of out/ — see
+# findings/environments.md. Same treatment: 100% generated, never tracked.
+apps/*/out-*/
+
+# A developer's own local override of an environment's config (secrets, localhost URLs) — never
+# committed. environments/<name>.config.json (no ".local.") is the shared, tracked file. See
+# GRAMMAR.md's "Environments" section and findings/environments.md.
+**/environments/*.local.config.json

@@ -1,0 +1,48 @@
+<script>
+' This app's root Scene, compiled from .thr (like every other chapter app's — see
+' apps/animation-demo/src/components/MainScene.thr for the pattern this copies). Router-mounted
+' chapters, one per `.flsh` classes mechanism from site/src/pages/docs/classes.astro — see
+' findings/demo-app-conventions.md for why every demo app uses `router`+`scale` instead of manual
+' focus bookkeeping. `router.navigate()`'s own default-focus proposal+claim and per-navigation
+' vacuum supersede all of that outright.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale state hintTranslation: object = [40, 630]
+
+field chapterPaths: array = [
+  "fields-and-methods", "extends-override-super", "global-singletons-from-class"
+]
+state activeChapterIndex: integer = 0
+
+derived hintText: string = "Chapter " + (activeChapterIndex + 1).ToStr() + "/3 — REWIND / FAST-FORWARD to switch, BACK to return"
+
+private function nextChapter(key: string, press: boolean) {
+  if (press and activeChapterIndex < chapterPaths.Count() - 1) {
+    state activeChapterIndex = activeChapterIndex + 1
+    router.navigate("/" + chapterPaths[activeChapterIndex])
+  }
+}
+
+private function prevChapter(key: string, press: boolean) {
+  if (press and activeChapterIndex > 0) {
+    state activeChapterIndex = activeChapterIndex - 1
+    router.navigate("/" + chapterPaths[activeChapterIndex])
+  }
+}
+
+public function setup() {
+  router.setRouting([
+    { path: "fields-and-methods", component: "FieldsAndMethodsDemo" },
+    { path: "extends-override-super", component: "ExtendsOverrideSuperDemo" },
+    { path: "global-singletons-from-class", component: "GlobalSingletonsDemo" }
+  ])
+  router.navigate("/" + chapterPaths[0])
+}
+</script>
+
+<component extends="Scene" on:key[fastforward]="{nextChapter()}" on:key[rewind]="{prevChapter()}">
+<Rectangle id="root" color="0x101010FF" width="{rootWidth}" height="{rootHeight}">
+  <FlashTheaterRouterOutlet id="outlet" width="{rootWidth}" height="{rootHeight}" />
+  <Label id="hint" text="{hintText}" color="0x888888FF" translation="{hintTranslation}" />
+</Rectangle>
+</component>

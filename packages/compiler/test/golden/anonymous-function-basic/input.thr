@@ -1,0 +1,30 @@
+<script>
+field prefix: string = "Item: "
+state lastKey: string = ""
+
+private function makeGreeter(): object {
+  greet = function (name: string): string {
+    return "Hello, " + name
+  }
+  return greet
+}
+
+private function runDemo(): string {
+  greeter = makeGreeter()
+  return greeter("World")
+}
+
+public function registerHandler() {
+  onSelect = function (key: string, press: boolean) {
+    if (press) {
+      print prefix + key
+    }
+  }
+  onSelect("OK", true)
+  state lastKey = "OK"
+}
+</script>
+
+<component>
+<LayoutGroup id="root" />
+</component>

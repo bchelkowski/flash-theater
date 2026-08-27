@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="WatchFunctionBodyOnlyFixture" extends="Group">
+  <interface>
+    <field id="ft_routeReady" type="boolean" value="false" />
+    <function name="ft_unmount" />
+  </interface>
+  <children>
+    <Label id="out" text="ready" />
+  </children>
+  <script type="text/brightscript" uri="WatchFunctionBodyOnlyFixture.brs" />
+</component>

@@ -1,0 +1,16 @@
+<script>
+' The plain, no-custom-hooks-beyond-parseResponse shape from GRAMMAR.md's "Requests" section —
+' a real GET that always succeeds. Reused by two chapters: DeclareCallDemo.thr (chapter 1,
+' /declare-call — the DEFAULT example of declaring+calling a request) and ParseSafetyDemo.thr
+' (chapter 4, /parse-safety — the happy-path baseline contrasted against GetPostParseBroken.thr's
+' deliberately-broken parseError). Migrated as-is (in shape) from apps/async-demo's own
+' GetPostOk.thr — see findings/requests-demo-app.md for the split.
+request Http { method: "GET", url: "https://jsonplaceholder.typicode.com/posts/1" }
+
+private function parseResponse(response: object): object {
+  return { title: response.data.title }
+}
+</script>
+
+<component extends="Task">
+</component>

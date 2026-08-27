@@ -1,0 +1,11 @@
+<theme-template default="ocean">
+colors: {
+  background: string = "0x202020FF"
+  text: string = "0xCCCCCCFF"
+  accent: string = "0x888888FF"
+}
+spacing: {
+  gutter: integer = 24
+  cardPadding: integer = 12
+}
+</theme-template>

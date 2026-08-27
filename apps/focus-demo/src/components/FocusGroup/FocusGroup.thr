@@ -1,0 +1,21 @@
+<script>
+private function jumpToTop(key: string, press: boolean) {
+  if (press) {
+    focus("row0")
+  }
+}
+</script>
+
+<component>
+<Group id="rows" on:key[OK]="{jumpToTop()}">
+  <Rectangle id="row0" width="220" height="60" color="0x444444FF" translation="{[0, 0]}" focusable="true">
+    <Label id="row0Label" text="Row 1" color="0xFFFFFFFF" translation="{[16, 18]}" />
+  </Rectangle>
+  <Rectangle id="row1" width="220" height="60" color="0x444444FF" translation="{[0, 70]}" focusable="true">
+    <Label id="row1Label" text="Row 2" color="0xFFFFFFFF" translation="{[16, 18]}" />
+  </Rectangle>
+  <Rectangle id="row2" width="220" height="60" color="0x444444FF" translation="{[0, 140]}" focusable="true">
+    <Label id="row2Label" text="Row 3" color="0xFFFFFFFF" translation="{[16, 18]}" />
+  </Rectangle>
+</Group>
+</component>

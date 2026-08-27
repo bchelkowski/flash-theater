@@ -1,0 +1,6 @@
+{
+  "variables": {
+    "apiBaseUrl": { "value": "http://localhost:3000" },
+    "buildLabel": { "value": "dev" }
+  }
+}

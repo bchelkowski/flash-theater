@@ -1,0 +1,75 @@
+<script>
+' Chapter 4/4 — loadingComponent/loadingMinDuration/loadingTimeout, held up until this screen calls
+' router.markReady() or the timeout elapses. Configured on MainScene.thr's own top-level outlet (see
+' that file's own top comment for why this chapter is gated by that SAME outlet every other chapter
+' also mounts through, rather than a nested outlet of its own — unlike chapter 1, this stays a single
+' flat screen).
+'
+' Two variants, chosen by router.params.mode (read fresh in setup() on every mount):
+'   - Default (mode <> "timeout", including the very first entry, which has no params at all):
+'     defers router.markReady() behind a 1.5s setTimeout, simulating real async work (a fetch, say)
+'     — RouterDemoLoadingSpinner genuinely shows for that whole delay.
+'   - Customized ("never ready" variant, mode = "timeout"): NEVER calls router.markReady() at all —
+'     relies purely on loadingTimeout (4s, see MainScene.thr's own outlet) to force the reveal,
+'     demonstrating the "opt-in, never a way to accidentally strand a screen behind a spinner
+'     forever" guarantee GRAMMAR.md documents.
+'
+' Both variants are reached by navigating to THIS SAME route with different params
+' (router.navigate("/loading-gate", { mode: ... })) — since this outlet is the LEAF for that
+' navigation, a params-only change still forces a genuine destroy-and-recreate remount (see
+' findings/router-outlet-runtime.md's "only the leaf outlet ... cares about params changes"), so
+' setup() and its loading-gate logic genuinely re-run from scratch each time, exactly like a real
+' first-time navigation would.
+scale field rootWidth: integer = 1280
+scale field rootHeight: integer = 720
+scale field buttonWidth: integer = 520
+scale field buttonHeight: integer = 60
+scale state titleTranslation: object = [40, 30]
+scale state explanationTranslation: object = [40, 80]
+scale state statusTranslation: object = [40, 140]
+scale state defaultButtonTranslation: object = [40, 220]
+scale state timeoutButtonTranslation: object = [40, 300]
+scale state buttonLabelInset: object = [16, 20]
+
+derived modeParam: string = router.params.mode
+
+state statusText: string = "..."
+
+public function setup() {
+  if (modeParam = "timeout") {
+    state statusText = "This mount never calls router.markReady() -- waiting for loadingTimeout (4s) to force the reveal"
+  } else {
+    state statusText = "Loading (router.markReady() deferred behind a 1.5s simulated fetch)..."
+    m.readyTimer = setTimeout(function() {
+      state statusText = "Ready! router.markReady() called from the setTimeout callback above"
+      router.markReady()
+    }, 1500)
+  }
+}
+
+private function reloadDefaultVariant(key: string, press: boolean) {
+  if (press) {
+    router.navigate("/loading-gate", {})
+  }
+}
+
+private function reloadTimeoutVariant(key: string, press: boolean) {
+  if (press) {
+    router.navigate("/loading-gate", { mode: "timeout" })
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" color="0x101010FF" width="{rootWidth}" height="{rootHeight}">
+  <Label id="title" text="4/4 -- loading gate (loadingComponent + router.markReady())" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="explanation" text="Reload with either variant below to see the two shapes this gate supports" color="0x888888FF" translation="{explanationTranslation}" />
+  <Label id="status" text="{statusText}" color="0x66FF99FF" translation="{statusTranslation}" />
+  <Rectangle id="defaultButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{defaultButtonTranslation}" on:key[OK]="{reloadDefaultVariant()}">
+    <Label id="defaultButtonLabel" text="Reload: default (markReady after 1.5s)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+  <Rectangle id="timeoutButton" focusable="true" color="0x4A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{timeoutButtonTranslation}" on:key[OK]="{reloadTimeoutVariant()}">
+    <Label id="timeoutButtonLabel" text="Reload: never ready (relies on loadingTimeout)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
+  </Rectangle>
+</Rectangle>
+</component>

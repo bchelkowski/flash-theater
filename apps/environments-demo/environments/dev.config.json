@@ -1,0 +1,13 @@
+{
+  "variables": {
+    "environmentLabel": { "value": "dev" },
+    "apiBaseUrl": { "value": "http://localhost:3000" },
+    "enableBetaFeatures": { "value": "true" },
+    "buildLabel": { "fromEnv": "ENVIRONMENTS_DEMO_BUILD_LABEL" }
+  },
+  "manifestOverrides": {
+    "title": "Flash Theater Environments Demo (Dev)"
+  },
+  "exclude": ["images/prod-only/**"],
+  "include": ["images/dev-only/**"]
+}
