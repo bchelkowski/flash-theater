@@ -1,0 +1,32 @@
+<script>
+' Task-manager auto-cancel-on-teardown demo (issues/task-manager-no-auto-cancel-on-teardown.md,
+' findings/task-manager-core.md) — a nested, non-router {#if:destroy}-toggled child, started/removed
+' from RunCancelDemo.thr's own root on:key[OK]/on:key[backspace] handlers. Deliberately NEVER keeps
+' or cancels its own taskManager.run(...) return value — the whole point is proving the task gets
+' auto-cancelled anyway. RunCancelDemo's own polled "Running: N" readout (already on screen, driven
+' by the same taskManager.runningCount every chapter reads) is the observable proof: it drops back to
+' 0 the moment this widget is removed via Backspace, well before the task's own 10s duration would
+' otherwise let it finish naturally.
+scale field rootWidth: integer = 700
+scale field rootHeight: integer = 60
+scale state labelTranslation: object = [16, 16]
+
+state label: string = "OK: start a long (10s) task here, then Backspace to remove this widget"
+
+private function startLongTask(key: string, press: boolean) {
+  if (press) {
+    task = CreateObject("roSGNode", "SlowTask")
+    task.functionName = "doWork"
+    task.label = "LongTask"
+    task.durationSeconds = 10
+    taskManager.run(task)
+    state label = "Long task running (10s, id never kept) — Backspace removes this widget and auto-cancels it"
+  }
+}
+</script>
+
+<component>
+<Rectangle id="root" focusable="true" color="0x2A2A4AFF" width="{rootWidth}" height="{rootHeight}" on:key[OK]="{startLongTask()}">
+  <Label id="labelReadout" text="{label}" color="0xFFFFFFFF" translation="{labelTranslation}" />
+</Rectangle>
+</component>

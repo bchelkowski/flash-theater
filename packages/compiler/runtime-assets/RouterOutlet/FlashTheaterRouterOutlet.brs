@@ -636,7 +636,7 @@ sub _unregisterCurrentChildFocus()
   if m.global.HasField("ft_focus") then
     lastFocused = m.global.ft_focus.callFunc("mostRecentlyFocusedWithin", m.currentChild)
     m.global.ft_focus.callFunc("captureRouteFocusMemory", m._renderedGlobalRouteKey, lastFocused)
-    m.global.ft_focus.callFunc("unregisterSubtree", m.currentChild)
+    m.global.ft_focus.callFunc("unregisterSubtree", m.currentChild, invalid)
   end if
   m._currentChildFocusUnregistered = true
 end sub

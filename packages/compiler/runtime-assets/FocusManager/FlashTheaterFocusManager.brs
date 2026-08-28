@@ -164,7 +164,21 @@ end sub
 ' `unregister(node)` call per descendant isn't an option here, since the caller has no way to
 ' enumerate them. Called BEFORE RemoveChild, same requirement `unregister()` already documents
 ' (GetParent() needs the still-attached tree) — see FlashTheaterRouterOutlet.brs's own call site.
-sub unregisterSubtree(root as object)
+'
+' `recoveryOwner` (`invalid` for RouterOutlet's own call, which handles its own post-mount focus
+' proposal separately) is the enclosing `.thr` component's own `m.top` for a `{#if:destroy}`
+' destroy sub's call (see codegen/conditional-block-emitter.ts's emitConditionalDestroySub) —
+' NEEDED so that component's own LATER, deliberately-deferred `recoverFocusFor(m.top)` call (run
+' AFTER RemoveChild, so it never targets something a sibling teardown in the same cascade is about
+' to remove too — see recoverFocusFor's own doc comment) can still succeed even when the lost focus
+' belonged to a NESTED CUSTOM COMPONENT's own content (registered under THAT component's own m.top,
+' not the enclosing one). `recoverFocusFor`'s own match is a trivial IsSameNode() compare with no
+' tree-walking of its own — by the time it runs, RemoveChild has already cut `root`'s own link to
+' its former parent, so any ancestry walk attempted AT THAT POINT (from the nested owner up to the
+' enclosing m.top) would fail partway, right at the cut link. Rewriting m.focusLostFromOwner to
+' `recoveryOwner` HERE instead — while `root` is still fully attached and the walk is guaranteed to
+' succeed — sidesteps that entirely. See issues/focus-destroy-nested-component-orphaned-registration.md.
+sub unregisterSubtree(root as object, recoveryOwner as object)
   i = m.registry.Count() - 1
   while i >= 0
     if isDescendantOrSelf(m.registry[i].owner, root) then
@@ -182,6 +196,10 @@ sub unregisterSubtree(root as object)
     if isDescendantOrSelf(m.focusStateSubscribers[i], root) then m.focusStateSubscribers.Delete(i)
     i = i - 1
   end while
+
+  if recoveryOwner <> invalid and m.focusLostFromOwner <> invalid and isDescendantOrSelf(root, recoveryOwner) then
+    m.focusLostFromOwner = recoveryOwner
+  end if
 end sub
 
 ' True when `node` IS `root`, or `root` is one of `node`'s ancestors — walks GetParent() up from

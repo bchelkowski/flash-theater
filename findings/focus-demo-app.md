@@ -159,12 +159,14 @@ dynamically-computed hint label correctly read "N/7". Fixed by updating all six 
   fields agree) and a nested custom component's own button (`FocusStateChild` — `isInFocusChain`
   only). New leaf component `FocusStateChild.thr`, existing for no reason other than to give this
   chapter a genuine one-level-nested subtree to focus into.
-- **`DestroyNestedGapDemo`** (chapter 6) — see the `focus-router-free-and-nested-gaps.md` update
-  above; the current live demonstration of the `{#if:destroy}`-plus-nested-custom-component gap's
-  workaround (`unregisterSubtree` before the destroying state write, `claimFocusIfVacant` after
-  the recreating one). Always uses the workaround — there's no compiler diagnostic or safe
-  fallback for the gap itself, so demonstrating the BROKEN shape live would risk a genuine stale-
-  node crash with no way to verify the exact failure mode without a device this session.
+- **`DestroyNestedGapDemo`** (chapter 6) — originally demonstrated a manual two-call workaround for
+  the `{#if:destroy}`-plus-nested-custom-component gap (`unregisterSubtree` before the destroying
+  state write, `claimFocusIfVacant` after the recreating one); the UNREGISTER half is now automatic
+  at the compiler level (`issues/focus-destroy-nested-component-orphaned-registration.md`, fixed —
+  see `focus-router-free-and-nested-gaps.md`'s updated writeup), so this chapter's own manual
+  `unregisterSubtree` call was removed as redundant. Only the `claimFocusIfVacant` call remains,
+  deliberately still manual (wiring it automatically into `{#if:destroy}`'s own create path would
+  reintroduce a real, already-fixed ordering bug — see that same finding).
 - **`FocusableBasicsDemo`** (chapter 1) folds in a second, customized example beyond the plain
   `focusable`/`on:key`/`default-focus` basics: a parent→child dynamic `focusable={expr}`
   drill-down/back-out card, adapted from `apps/sample-app`'s `RichCard.thr` (the original,
@@ -346,3 +348,20 @@ Remaining, not yet exercised: `JumpFocusDemo`'s own **short-list overshoot-avoid
 (a held REWIND from `customRows`' own bottom row settling exactly on row 1) and the header/list
 FF-RW-meaning handoff in the `up`-from-top-row direction specifically — see
 [jump-focus-demo-app.md](jump-focus-demo-app.md)'s own "Not yet exercised" note.
+
+**`DestroyNestedGapDemo`'s own "surviving two toggle cycles" result above is now stale** — it was
+confirmed against the ORIGINAL source, which called `unregisterSubtree` manually itself before the
+automatic compiler fix existed (`issues/focus-destroy-nested-component-orphaned-registration.md`).
+The chapter's own `.thr` source changed (the manual call was removed as redundant — see this file's
+own chapter-6 entry above) when that issue was fixed; the fix itself IS live-confirmed, but via
+`apps/task-manager-demo`'s `LongTaskWidget` instead (a different real nested-custom-component
+`{#if:destroy}` case — see `focus-router-free-and-nested-gaps.md` and
+`issues/focus-destroy-nested-component-orphaned-registration.md`'s own "Live-confirmed AFTER the
+fix" section for that readout). This app's own chapter 6 was NOT independently re-verified in that
+same session — chapter 2 (`ScrollFocusDemo`) deliberately captures FAST-FORWARD/REWIND for as long
+as a tile holds focus (see that file's own top comment), with no on-screen escape hatch, so
+sequential FF/RW navigation from chapter 1 can't reach chapter 6 at all; reaching it needs a
+different approach (e.g. temporarily reordering `chapterPaths`, or driving `router.navigate`
+directly) that wasn't attempted. **A future session should re-walk chapter 6 specifically** (toggle
+`FocusGroup` in/out while it holds focus, confirm no stale-node crash and that `claimFocusIfVacant`
+still lands focus correctly) and record the result here.

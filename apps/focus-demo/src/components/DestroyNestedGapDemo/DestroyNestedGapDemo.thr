@@ -1,27 +1,22 @@
 <script>
-' Chapter 6/7 — the {#if:destroy}-with-a-nested-custom-component gap, and its workaround.
-' {#if:destroy}'s own generated teardown only walks THIS component's own template for focusable
-' descendants to unregister before removeChild — it has no visibility into a nested custom
-' component's own internal template (FocusGroup is opaque from here), so it correctly emits no
-' unregister call at all for a block whose content is a nested custom component. Left alone, that
-' leaves a dangling registry entry pointing at an already-destroyed node — see
-' findings/focus-router-free-and-nested-gaps.md.
+' Chapter 6/7 — the {#if:destroy}-with-a-nested-custom-component gap. Originally demonstrated a
+' manual workaround for BOTH halves of this gap; the UNREGISTER half is now fixed automatically at
+' the compiler level (issues/task-manager-no-auto-cancel-on-teardown.md's own live-verification
+' session incidentally reproduced this exact gap, which led to fixing it here too) — see
+' findings/focus-router-free-and-nested-gaps.md. `{#if:destroy}`'s generated destroy sub now asks
+' the focus manager to unregister the outgoing subtree by OWNERSHIP (a live registry walk, not
+' compile-time template visibility), so it correctly reaches FocusGroup's own focusable content even
+' though FocusGroup is a separate .thr file, opaque to this component's own template analysis.
 '
-' This chapter always uses the WORKAROUND (there's no compiler diagnostic or fallback for the
-' gap itself — omitting the workaround is a real, silent bug, not something safe to demonstrate
-' live without risking navigate() actually crashing on a stale node reference): unregisterSubtree
-' on the nested component BEFORE the state write that triggers destruction (while the subtree is
-' still attached — unregister()'s own doc comment requires this ordering), then
-' claimFocusIfVacant to hand focus back into the vacancy the removal just created, the same
-' pattern apps/animation-demo's DestroyCustomDemo.thr already uses for its own cross-component
-' unmount cascade.
+' The RECLAIM half is still manual, deliberately (see the findings entry for why wiring it
+' automatically into {#if:destroy}'s own create path would reintroduce a real, already-fixed
+' ordering bug): claimFocusIfVacant hands focus back into the vacancy the automatic unregister just
+' created, the same pattern apps/animation-demo's DestroyCustomDemo.thr already uses for its own
+' cross-component unmount cascade.
 state showNested: boolean = false
 
 private function toggleNested(key: string, press: boolean) {
   if (press) {
-    if (showNested) {
-      m.global.ft_focus.callFunc("unregisterSubtree", m.nestedGroup)
-    }
     state showNested = not showNested
     if (showNested) {
       m.global.ft_focus.callFunc("claimFocusIfVacant", m.toggle)
@@ -42,8 +37,8 @@ scale state nestedTranslation: object = [40, 260]
 
 <component>
 <Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
-  <Label id="title" text="6/7 — {#if:destroy} + a nested custom component, correctly worked around" color="0xFFFFFFFF" translation="{titleTranslation}" />
-  <Label id="subtitle" text="OK toggles FocusGroup in/out — the surrounding unregisterSubtree/claimFocusIfVacant is required" color="0xAAAAAAFF" translation="{subtitleTranslation}" />
+  <Label id="title" text="6/7 — {#if:destroy} + a nested custom component" color="0xFFFFFFFF" translation="{titleTranslation}" />
+  <Label id="subtitle" text="OK toggles FocusGroup in/out — unregister is automatic now, claimFocusIfVacant on entry is still required" color="0xAAAAAAFF" translation="{subtitleTranslation}" />
   <Rectangle id="toggle" focusable="true" default-focus="true" color="0x2A2A6AFF" width="{toggleWidth}" height="{toggleHeight}" translation="{toggleTranslation}" on:key[OK]="{toggleNested()}">
     <Label id="toggleLabel" text="OK: toggle the nested FocusGroup" color="0xFFFFFFFF" translation="{toggleLabelInset}" />
   </Rectangle>

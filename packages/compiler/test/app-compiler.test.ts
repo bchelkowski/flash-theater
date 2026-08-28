@@ -748,11 +748,16 @@ describe('compileApp — a component using taskManager.run/cancel/setMaxConcurre
     // statement is a reserved word, so a function literally named `run` can't parse. The DSL-facing
     // spelling (`taskManager.run(...)`) is unaffected — see global-bindings.ts's
     // `TASK_MANAGER_RUNTIME_METHOD_NAMES`. Omitting the priority argument defaults to the literal
-    // "normal".
-    expect(widgetOutput.brs).to.include('m?.global?.ft_taskManager?.callFunc?("runTask", node, "normal")');
-    expect(widgetOutput.brs).to.include('m?.global?.ft_taskManager?.callFunc?("runTask", urgentNode, "high")');
+    // "normal". The trailing `m?.top` is the calling component's own owner node, threaded through so
+    // `taskManager.cancelOwnedBy(...)` can auto-cancel this task if this component is torn down
+    // before it finishes — see issues/task-manager-no-auto-cancel-on-teardown.md.
+    expect(widgetOutput.brs).to.include('m?.global?.ft_taskManager?.callFunc?("runTask", node, "normal", m?.top)');
+    expect(widgetOutput.brs).to.include('m?.global?.ft_taskManager?.callFunc?("runTask", urgentNode, "high", m?.top)');
     expect(widgetOutput.brs).to.include('m.global.ft_taskManager.callFunc("cancel", id)');
     expect(widgetOutput.brs).to.include('m.global.ft_taskManager.callFunc("setMaxConcurrent", 10)');
+    // This component calls taskManager.run(...) at least once, so its own generated ft_unmount()
+    // asks the manager to cancel everything it registered under its own m.top.
+    expect(widgetOutput.brs).to.include('m.global.ft_taskManager.callFunc("cancelOwnedBy", m.top)');
 
     const bsResult = parseBrightScript(widgetOutput.brs);
     expect(bsResult.diagnostics, JSON.stringify(bsResult.diagnostics)).to.have.lengthOf(0);
@@ -762,6 +767,32 @@ describe('compileApp — a component using taskManager.run/cancel/setMaxConcurre
     expect(result.globalsBrs).to.include(`CreateObject("roSGNode", "${FLASH_THEATER_TASK_MANAGER_COMPONENT_NAME}")`);
     const globalsResult = parseBrightScript(result.globalsBrs!);
     expect(globalsResult.diagnostics, JSON.stringify(globalsResult.diagnostics)).to.have.lengthOf(0);
+  });
+
+  it('a component that reads taskManager but never calls run(...) gets the plain empty ft_unmount cascade — no cancelOwnedBy line', () => {
+    // See issues/task-manager-no-auto-cancel-on-teardown.md: only a component that itself started a
+    // task via run(...) could ever have anything registered under its own m.top for cancelOwnedBy to
+    // find, so a component that only reads runningCount/subscribes to onAlertChanged gets nothing
+    // extra in its own ft_unmount() — usesTaskManagerRunAnywhere (compile.ts) is narrower than
+    // usesTaskManagerAnywhere for exactly this reason.
+    const files = [
+      componentFile(
+        '/app/Widget.thr',
+        'Widget',
+        ['derived running: integer = taskManager.runningCount', 'public function setup() {', '  taskManager.onAlertChanged(function(level: string) {', '    print level', '  })', '}'].join('\n'),
+        '<Label id="a" text="{running}" />',
+      ),
+    ];
+
+    const result = compileApp(files);
+    expect(result.usesTaskManager).to.be.true;
+
+    const widgetOutput = result.outputs.find((o) => o.componentName === 'Widget')!;
+    expect(widgetOutput.brs).to.not.include('cancelOwnedBy');
+    expect(widgetOutput.brs).to.include('sub ft_unmount()\n  if m.a <> invalid then m.a.callFunc("ft_unmount")\nend sub');
+
+    const bsResult = parseBrightScript(widgetOutput.brs);
+    expect(bsResult.diagnostics, JSON.stringify(bsResult.diagnostics)).to.have.lengthOf(0);
   });
 });
 

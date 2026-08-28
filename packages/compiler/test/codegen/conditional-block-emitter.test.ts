@@ -148,22 +148,84 @@ describe('emitConditionalDestroySub — focus-recovery vs. ft_unmount-cascade or
     const cascadeCheck = emitConditionalBlockCascadeCheck(block, buildScriptBindings(parseScriptFixture('state hasLoaded: boolean = false')), NO_GLOBAL_BINDINGS, new Map(), 1, COMPONENT_NAME, transition).join('\n');
 
     expect(cascadeCheck).to.include('callFunc("unregister"');
+    expect(cascadeCheck).to.include('callFunc("unregisterSubtree"');
     expect(cascadeCheck).to.include('callFunc("recoverFocusFor"');
     // Starts the exit animation instead of calling the destroy sub directly.
     expect(cascadeCheck).to.include('.control = "start"');
     expect(cascadeCheck).to.not.include(`${COMPONENT_NAME}__destroy_if`);
   });
 
-  it('transitioning (out:): the destroy sub itself (animation-stop time) still cascades ft_unmount, but emits no unregister/recoverFocusFor lines — those already ran at animation-start', () => {
+  it('transitioning (out:): the destroy sub itself (animation-stop time) still cascades ft_unmount, but emits no unregister/unregisterSubtree/recoverFocusFor lines — those already ran at animation-start', () => {
     const block = buildBlock();
     // Mirrors emitConditionalBlockSubs's own call: skipFocusHandling = (transition?.outConfig != null).
     const destroySub = emitConditionalDestroySub(block, COMPONENT_NAME, true);
 
     expect(destroySub).to.not.include('callFunc("unregister"');
+    expect(destroySub).to.not.include('callFunc("unregisterSubtree"');
     expect(destroySub).to.not.include('callFunc("recoverFocusFor"');
     expect(destroySub).to.include('m.card.callFunc("ft_unmount")');
     expect(destroySub).to.include('m.widget.callFunc("ft_unmount")');
     expect(destroySub).to.include('.removeChild(');
+  });
+});
+
+// issues/focus-destroy-nested-component-orphaned-registration.md: the per-id unregisterLines above
+// only ever unregister a PLAIN focusable element THIS component's own template scan found — a
+// nested custom component's own focusable content (registered under ITS OWN m.top from inside its
+// own generated init()) is opaque to that scan. `unregisterSubtree(blockRef)` closes this by asking
+// the focus manager to walk its own flat registry by OWNER ancestry instead of relying on
+// compile-time template visibility.
+describe('emitConditionalDestroySub — unregisterSubtree closes the opaque-nested-component gap (issues/focus-destroy-nested-component-orphaned-registration.md)', () => {
+  function buildOpaqueOnlyBlock() {
+    // No `focusable` attribute anywhere the compiler's own template scan can see — TimerWidget is a
+    // nested custom component tag, exactly the shape that gap describes: zero PLAIN focusable ids,
+    // but potentially real focusable content one level down, invisible to this file's own analysis.
+    const widget = element('TimerWidget', 'widget');
+    const root = element('Rectangle', 'root', [ifBlock('destroy', 'hasLoaded', [widget])]);
+    const { conditional } = analyzeTemplateBlocks(root);
+    return conditional.blocks[0];
+  }
+
+  it('non-transitioning: emits an unconditional unregisterSubtree(blockRef) call, before removeChild', () => {
+    const block = buildOpaqueOnlyBlock();
+    const destroySub = emitConditionalDestroySub(block, COMPONENT_NAME);
+
+    expect(destroySub).to.include(`m.global.ft_focus.callFunc("unregisterSubtree", m["$$${block.id}"], m.top)`);
+    const subtreeIdx = destroySub.indexOf('callFunc("unregisterSubtree"');
+    const removeChildIdx = destroySub.indexOf('.removeChild(');
+    expect(subtreeIdx).to.be.greaterThan(-1);
+    expect(subtreeIdx).to.be.lessThan(removeChildIdx);
+  });
+
+  it('non-transitioning: recoverFocusFor still fires even though the compiler\'s own template scan found ZERO plain focusable ids — the actual behavior change this fix makes', () => {
+    const block = buildOpaqueOnlyBlock();
+    const destroySub = emitConditionalDestroySub(block, COMPONENT_NAME);
+
+    // Before this fix, recoverFocusFor was gated on nestedFocusableIds.length > 0 — a block whose
+    // only content is an opaque nested component (like this one) has zero PLAIN focusable ids, so
+    // it would never have been called at all, even if that nested component's own focusable content
+    // held focus at the moment of teardown.
+    expect(destroySub).to.include('callFunc("recoverFocusFor", m.top)');
+  });
+
+  it('transitioning (out:): unregisterSubtree also runs at cascade-check time for an opaque-only block', () => {
+    const block = buildOpaqueOnlyBlock();
+    const transition = fakeTransition(fakeOutConfig('widgetOut'));
+    const cascadeCheck = emitConditionalBlockCascadeCheck(block, buildScriptBindings(parseScriptFixture('state hasLoaded: boolean = false')), NO_GLOBAL_BINDINGS, new Map(), 1, COMPONENT_NAME, transition).join('\n');
+
+    expect(cascadeCheck).to.include('callFunc("unregisterSubtree"');
+    expect(cascadeCheck).to.include('callFunc("recoverFocusFor"');
+  });
+
+  it('produces .brs that parses as valid BrightScript with zero diagnostics', () => {
+    const widget = element('TimerWidget', 'widget');
+    const root = element('Rectangle', 'root', [ifBlock('destroy', 'hasLoaded', [widget])]);
+    const { conditional, each } = analyzeTemplateBlocks(root);
+    const bindings = buildScriptBindings(parseScriptFixture('state hasLoaded: boolean = false'));
+    const subs = emitConditionalBlockSubs(conditional, each, bindings, COMPONENT_NAME);
+    const result = parse(subs.join('\n\n'));
+
+    expect(result.diagnostics, JSON.stringify(result.diagnostics)).to.have.lengthOf(0);
   });
 });
 

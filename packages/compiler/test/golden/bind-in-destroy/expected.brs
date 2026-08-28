@@ -37,6 +37,7 @@ sub BindInDestroyFixture__destroy_if_1()
     if m.input <> invalid then
       m.input.UnobserveFieldScoped("text")
     end if
+    m.global.ft_focus.callFunc("unregisterSubtree", m["$$ft_if_1"], m.top)
     if m.input <> invalid then
       m.input.callFunc("ft_unmount")
     end if
@@ -47,6 +48,7 @@ sub BindInDestroyFixture__destroy_if_1()
     m.input = invalid
     m.echo = invalid
     m["$$ft_if_1"] = invalid
+    m.global.ft_focus.callFunc("recoverFocusFor", m.top)
   end if
 end sub
 

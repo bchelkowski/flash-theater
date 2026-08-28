@@ -23,12 +23,14 @@ end sub
 
 sub ConditionalDestroySiblingsFixture__destroy_if_1()
   if m["$$ft_if_1"] <> invalid then
+    m.global.ft_focus.callFunc("unregisterSubtree", m["$$ft_if_1"], m.top)
     if m.middle <> invalid then
       m.middle.callFunc("ft_unmount")
     end if
     m.root.removeChild(m["$$ft_if_1"])
     m.middle = invalid
     m["$$ft_if_1"] = invalid
+    m.global.ft_focus.callFunc("recoverFocusFor", m.top)
   end if
 end sub
 

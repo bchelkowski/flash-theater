@@ -101,6 +101,94 @@ describe('TaskManager/FlashTheaterTaskManager.brs — cancel() never itself muta
 });
 
 /**
+ * Structural regression guards for the auto-cancel-on-teardown fix
+ * (issues/task-manager-no-auto-cancel-on-teardown.md) — `runTask`/`enqueue`/`startNode` all thread an
+ * `owner` through to every tracked entry, and `cancelOwnedBy` snapshots matching ids before cancelling
+ * (never mutates m.active/the queues while walking them). Again a text-structure check, not a
+ * behavior test — no BrightScript execution harness exists in this package.
+ */
+describe('TaskManager/FlashTheaterTaskManager.brs — owner tracking and cancelOwnedBy', () => {
+  const source = readFileSync(join(RUNTIME_ASSETS_DIR, 'TaskManager', 'FlashTheaterTaskManager.brs'), 'utf8');
+
+  it('runTask/enqueue/startNode all take an owner parameter and store it on every tracked entry', () => {
+    expect(source).to.match(/function runTask\(node as object, priority as string, owner as object\) as string/);
+    expect(source).to.match(/sub enqueue\(taskId as string, node as object, owner as object, priority as string\)/);
+    expect(source).to.match(/sub startNode\(taskId as string, node as object, owner as object\)/);
+    expect(source).to.include('entry = { id: taskId, node: node, owner: owner }');
+    expect(source).to.include('m.active.Push({ id: taskId, node: node, owner: owner })');
+  });
+
+  it('drainQueue forwards the dequeued entry\'s own owner into startNode, not a hardcoded invalid', () => {
+    const fnBody = source.slice(source.indexOf('sub drainQueue('), source.indexOf('end sub', source.indexOf('sub drainQueue(')));
+    expect(fnBody).to.include('startNode(entry.id, entry.node, entry.owner)');
+  });
+
+  it('cancelOwnedBy no-ops on an invalid owner (a .flsh class-body run() call has no node of its own)', () => {
+    const fnBody = source.slice(source.indexOf('sub cancelOwnedBy('), source.indexOf('end sub', source.indexOf('sub cancelOwnedBy(')));
+    expect(fnBody).to.match(/if owner = invalid then return/);
+  });
+
+  it('matchingOwnerIds guards entry.owner <> invalid before calling IsSameNode — never compares against invalid', () => {
+    const fnBody = source.slice(source.indexOf('function matchingOwnerIds('), source.indexOf('end function', source.indexOf('function matchingOwnerIds(')));
+    expect(fnBody).to.match(/if entry\.owner <> invalid and entry\.owner\.IsSameNode\(owner\) then/);
+  });
+
+  it('cancelOwnedBy snapshots ids via ownedTaskIds BEFORE cancelling any of them — never mutates m.active/the queues while walking them', () => {
+    const fnBody = source.slice(source.indexOf('sub cancelOwnedBy('), source.indexOf('end sub', source.indexOf('sub cancelOwnedBy(')));
+    const snapshotIdx = fnBody.indexOf('ownedTaskIds(owner)');
+    const loopIdx = fnBody.indexOf('for each taskId in ids');
+    expect(snapshotIdx).to.be.greaterThan(-1);
+    expect(loopIdx).to.be.greaterThan(snapshotIdx);
+    expect(fnBody).to.include('cancel(taskId)');
+  });
+
+  it('ownedTaskIds scans m.active and all three priority queues', () => {
+    const fnBody = source.slice(source.indexOf('function ownedTaskIds('), source.indexOf('end function', source.indexOf('function ownedTaskIds(')));
+    expect(fnBody).to.include('matchingOwnerIds(m.active, owner)');
+    expect(fnBody).to.include('matchingOwnerIds(m.queueHigh, owner)');
+    expect(fnBody).to.include('matchingOwnerIds(m.queueNormal, owner)');
+    expect(fnBody).to.include('matchingOwnerIds(m.queueLow, owner)');
+  });
+});
+
+/**
+ * Structural regression guards for `unregisterSubtree`'s `recoveryOwner` rewrite —
+ * issues/focus-destroy-nested-component-orphaned-registration.md. `recoverFocusFor`'s own match is
+ * a trivial `IsSameNode()` compare (no tree-walking) precisely because this rewrite already did the
+ * ancestry-dependent work earlier, while the subtree was still attached — see
+ * `findings/focus-router-free-and-nested-gaps.md`'s updated writeup for why doing this the other
+ * way around (a generalized ancestry check inside `recoverFocusFor` itself, run AFTER `removeChild`)
+ * would fail: the exact link `removeChild(root)` cuts is the one such a walk would need to cross.
+ */
+describe('FocusManager/FlashTheaterFocusManager.brs — unregisterSubtree rewrites focusLostFromOwner to recoveryOwner while the subtree is still attached', () => {
+  const source = readFileSync(join(RUNTIME_ASSETS_DIR, 'FocusManager', 'FlashTheaterFocusManager.brs'), 'utf8');
+
+  it('unregisterSubtree takes a recoveryOwner parameter', () => {
+    expect(source).to.match(/sub unregisterSubtree\(root as object, recoveryOwner as object\)/);
+  });
+
+  it('the recoveryOwner rewrite runs AFTER the unregister loop (so it sees whatever that loop just wrote to focusLostFromOwner), and is guarded on recoveryOwner/focusLostFromOwner both being non-invalid', () => {
+    const fnBody = source.slice(source.indexOf('sub unregisterSubtree('), source.indexOf('end sub', source.indexOf('sub unregisterSubtree(')));
+    const loopIdx = fnBody.indexOf('noteFocusLoss(m.registry[i].node, m.registry[i].owner)');
+    const rewriteGuardIdx = fnBody.indexOf('if recoveryOwner <> invalid and m.focusLostFromOwner <> invalid');
+    const rewriteIdx = fnBody.indexOf('m.focusLostFromOwner = recoveryOwner');
+    expect(loopIdx).to.be.greaterThan(-1);
+    expect(rewriteGuardIdx).to.be.greaterThan(loopIdx);
+    expect(rewriteIdx).to.be.greaterThan(rewriteGuardIdx);
+  });
+
+  it('the rewrite additionally checks isDescendantOrSelf(root, recoveryOwner) before rewriting — never blindly trusts the caller', () => {
+    const fnBody = source.slice(source.indexOf('sub unregisterSubtree('), source.indexOf('end sub', source.indexOf('sub unregisterSubtree(')));
+    expect(fnBody).to.include('isDescendantOrSelf(root, recoveryOwner)');
+  });
+
+  it('FlashTheaterRouterOutlet.brs\'s own call site passes invalid explicitly — it handles its own post-mount focus proposal separately, not via this rewrite', () => {
+    const outletSource = readFileSync(join(RUNTIME_ASSETS_DIR, 'RouterOutlet', 'FlashTheaterRouterOutlet.brs'), 'utf8');
+    expect(outletSource).to.include('m.global.ft_focus.callFunc("unregisterSubtree", m.currentChild, invalid)');
+  });
+});
+
+/**
  * Structural regression guards for the priority queue and alert hysteresis — again a text-structure
  * check, not a behavior test (no BrightScript execution harness exists in this package). See
  * findings/task-manager-core.md.

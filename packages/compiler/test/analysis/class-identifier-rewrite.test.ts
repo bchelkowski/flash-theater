@@ -212,9 +212,9 @@ describe('rewriteClassExpression / rewriteClassStatement — global singletons v
     expect(result).to.equal('ft_globalAA.global.ft_router.callFunc("navigate", {path: "/home", params: {}, skipInHistory: false})');
   });
 
-  it('rewrites a "taskManager.run(...)" call, as a statement, defaulting priority to "normal"', () => {
+  it('rewrites a "taskManager.run(...)" call, as a statement, defaulting priority to "normal", with owner "invalid" — a .flsh class instance has no node of its own to be an owner', () => {
     expect(rewriteClassStatement('taskManager.run(m.node)', shape({ node: { name: 'node', kind: 'field', visibility: 'public', returnType: null } }), bindings, 'm', 'method "go"')).to.equal(
-      'ft_globalAA.global.ft_taskManager.callFunc("runTask", m?.node, "normal")',
+      'ft_globalAA.global.ft_taskManager.callFunc("runTask", m?.node, "normal", invalid)',
     );
   });
 

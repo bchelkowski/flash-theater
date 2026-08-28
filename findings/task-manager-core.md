@@ -108,17 +108,43 @@ id is minted instead of silently aliasing two unrelated tasks under one id. Wort
 "simplifying" this away: without it, `cancel(taskId)` on a collided id could stop (or worse, look up
 state for) the wrong task.
 
-## No automatic cleanup when a tracked node's owning component is destroyed — accepted, not fixed
+## No automatic cleanup when a tracked node's owning component is destroyed — fixed via ownership tracking in the manager itself, not call-argument dataflow analysis
 
-Unlike `focusable`/`bind:` (structural template attributes `analysis/*` already walks, so
-`{#if:destroy}`/`{#each}` teardown codegen can automatically `unregister()`/`UnobserveField` them),
-`taskManager.run(x)` is an opaque BrightScript function call sitting inside a function body — nothing
-in this compiler's analysis layer tracks *which* node references were ever passed to it. Teaching the
-compiler to notice would mean parsing/tracking arbitrary call-argument dataflow, a much larger change
-than this feature's own "namespace call, not new grammar" scope. Accepted as the app author's
-responsibility instead, the same way `focus(<id>)`/`state` already are: an app that wants to stop a
-task early when its owning component tears down keeps the returned id and calls
-`taskManager.cancel(id)` itself (e.g. from the same `{#if:destroy}` teardown handler, or `unload()`).
+Originally accepted as a permanent gap: unlike `focusable`/`bind:` (structural template attributes
+`analysis/*` already walks, so `{#if:destroy}`/`{#each}` teardown codegen can automatically
+`unregister()`/`UnobserveField` them), `taskManager.run(x)` is an opaque BrightScript function call
+sitting inside a function body — nothing in this compiler's analysis layer tracks *which* node
+references were ever passed to it, and teaching the compiler to notice would mean parsing/tracking
+arbitrary call-argument dataflow, a much larger change than this feature's own "namespace call, not
+new grammar" scope.
+
+**The actual fix sidesteps that problem entirely** by not tracking call-argument dataflow at all —
+instead, every `taskManager.run(node, priority)` call site (in an ordinary `.thr` component; see the
+class-body carve-out below) is lowered with a THIRD argument, the calling component's own `m.top`
+(`identifier-rewrite.ts`'s `buildTaskManagerActionReplacement`: `owner = accessRoot === 'm.global' ?
+'m.top' : 'invalid'`). The compiler never needs to know *which* node argument was passed to `run(...)`
+— it only needs to know *which component's own generated code* the call site lives in, which is
+already trivially known at codegen time (it's the component currently being compiled). The runtime
+manager (`FlashTheaterTaskManager.brs`) stores `owner` on every `{id, node, owner}` entry in
+`m.active`/the three priority queues, and exposes `cancelOwnedBy(owner)` — snapshot every entry whose
+`owner` `IsSameNode()`-matches the given owner, then `cancel(id)` each one via the EXISTING `cancel()`
+sub (reusing its queued-removal/running-stop branching and `m.active` decrement bookkeeping, never
+duplicating it). Every compiled component's own generated `ft_unmount()` gets exactly one new,
+gated line — `taskManager.callFunc("cancelOwnedBy", m.top)` — emitted only when that component itself
+has at least one `run(...)` call site (`compile.ts`'s `usesTaskManagerRunAnywhere`, narrower than
+`usesTaskManagerAnywhere`: a component that only reads `runningCount` or subscribes via
+`onAlertChanged` never registers anything under its own `m.top`, so it gets nothing extra). This is
+the second real (not hypothetical) example of the `usesTimer`-shaped per-component boolean gate
+`findings/component-unmount-hook.md`'s "How a feature opts in" section describes.
+
+**Scope boundary, deliberate**: a `.flsh` class-body `run(...)` call passes `owner = invalid` instead
+of a node — `ft_unmount` is a SceneGraph-node concept, and a class instance has no node of its own and
+no destroy hook at all (the same boundary the four `onAlertChanged`/`onResult`/`onRequestSent`/
+`onResponseReceived` hooks already draw against classes). `cancelOwnedBy`'s own `owner = invalid`
+early-return, plus `matchingOwnerIds`'s `entry.owner <> invalid` guard before calling `IsSameNode()`,
+mean an `invalid`-owned (class-started) task is simply never matched by any teardown cascade — the
+app author still keeps the returned id and calls `taskManager.cancel(id)` itself for that case,
+exactly as before this fix. See `issues/task-manager-no-auto-cancel-on-teardown.md` (now `Fixed`).
 
 ## Priority is three separate FIFO arrays, never a sort
 

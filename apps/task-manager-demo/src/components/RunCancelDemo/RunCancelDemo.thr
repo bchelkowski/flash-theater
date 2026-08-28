@@ -34,6 +34,15 @@
 ' `functionName` just transitions straight to a terminal state with `doWork()` never invoked at all,
 ' so `Sleep(durationSeconds * 1000)` never runs and every started/stopped pair in the log lands
 ' within single-digit milliseconds of each other instead of ~2 real seconds apart.
+'
+' Second customized example (auto-cancel-on-teardown, issues/task-manager-no-auto-cancel-on-teardown.md):
+' `longTaskWidget` (LongTaskWidget.thr) is a nested, non-router {#if:destroy}-toggled child that
+' starts its own long-running SlowTask via a bare `taskManager.run(task)` — deliberately never
+' keeping or cancelling the returned id itself, unlike every other task in this chapter. Backspace
+' (on this screen's own root, mirroring apps/timers-demo's FocusedTeardownDemo.thr) removes the
+' widget; this screen's own polled "Running: N" readout dropping back to 0 immediately, well before
+' the task's own 10s duration would otherwise let it finish naturally, is the observable proof that
+' the widget's generated ft_unmount() auto-cancelled it.
 scale field rootWidth: integer = 1280
 scale field rootHeight: integer = 720
 scale field buttonWidth: integer = 420
@@ -47,6 +56,7 @@ scale state cancelButtonTranslation: object = [40, 260]
 scale state runningReadoutTranslation: object = [40, 330]
 scale state queuedReadoutTranslation: object = [40, 360]
 scale state logTranslation: object = [40, 400]
+scale state longTaskWidgetTranslation: object = [40, 460]
 scale state buttonLabelInset: object = [16, 12]
 
 state runningCount: integer = 0
@@ -54,6 +64,7 @@ state queuedCount: integer = 0
 state maxConcurrent: integer = 1
 state log: string = "(no tasks started yet)"
 state taskIds: array = []
+state showLongTaskWidget: boolean = true
 
 derived runningLabel: string = "Running: " + runningCount.ToStr()
 derived queuedLabel: string = "Queued: " + queuedCount.ToStr()
@@ -123,12 +134,18 @@ private function cancelMostRecent(key: string, press: boolean) {
     }
   }
 }
+
+private function removeLongTaskWidget(key: string, press: boolean) {
+  if (press) {
+    state showLongTaskWidget = false
+  }
+}
 </script>
 
 <component>
-<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}">
+<Rectangle id="root" color="0x151515FF" width="{rootWidth}" height="{rootHeight}" on:key[backspace]="{removeLongTaskWidget()}">
   <Label id="title" text="1/4 — taskManager.run/cancel + priority queueing" color="0xFFFFFFFF" translation="{titleTranslation}" />
-  <Label id="hint" text="UP/DOWN between buttons, OK to run — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
+  <Label id="hint" text="UP/DOWN between buttons, OK to run, Backspace removes the long-task widget below — REWIND/FAST-FORWARD to switch chapters, BACK to return" color="0x888888FF" translation="{hintTranslation}" />
   <Label id="maxConcurrentReadout" text="{maxConcurrentLabel}" color="0xAAAAAAFF" translation="{maxConcurrentTranslation}" />
   <Rectangle id="burstButton" focusable="true" default-focus="true" color="0x2A2A2AFF" width="{buttonWidth}" height="{buttonHeight}" translation="{burstButtonTranslation}" on:key[OK]="{runBurst()}">
     <Label id="burstButtonLabel" text="Run burst: Low, Normal, High, Normal, Low (maxConcurrent=1)" color="0xFFFFFFFF" translation="{buttonLabelInset}" />
@@ -142,5 +159,8 @@ private function cancelMostRecent(key: string, press: boolean) {
   <Label id="runningReadout" text="{runningLabel}" color="0x66FF99FF" translation="{runningReadoutTranslation}" />
   <Label id="queuedReadout" text="{queuedLabel}" color="0xFFCC66FF" translation="{queuedReadoutTranslation}" />
   <Label id="logReadout" text="{log}" color="0x66CCFFFF" translation="{logTranslation}" />
+  {#if:destroy showLongTaskWidget}
+  <LongTaskWidget id="longTaskWidget" translation="{longTaskWidgetTranslation}" />
+  {/if}
 </Rectangle>
 </component>

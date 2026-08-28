@@ -159,7 +159,7 @@ private function jumpUp(key: string, press: boolean) {
   <NotSupported items={[
     'Two elements at any nesting depth both statically <code class="text-amber-300">focusable="true"</code> — rejected at compile time as a provable ambiguity.',
     'A router-free app needs an explicit boot-time claim (a hand-written <code class="text-amber-300">setup()</code> calling into the focus manager) — nothing applies a proposed default focus into a vacuum on its own outside the router\'s automatic hand-off.',
-    'A <code class="text-amber-300">{#if:destroy}</code> block whose content is a nested custom component needs an explicit unregister/reclaim around the switch — generated teardown can\'t see into another component\'s own focusable content.',
+    'A <code class="text-amber-300">{#if:destroy}</code> block whose newly-mounted content is a nested custom component still needs an explicit <code class="text-amber-300">claimFocusIfVacant</code> call to hand focus into it — unregistering the OUTGOING content is now automatic (generated teardown asks the focus manager to walk its own registry by ownership, not by what this component\'s own template scan can see), but nothing claims focus for the incoming content on its own.',
     'No DSL-exposed timing configuration for <code class="text-amber-300">jumpFocus</code>\'s own hold-to-repeat — it always reuses the fixed <code class="text-amber-300">repeatTuning()</code> constants arrow-key repeat already uses.',
   ]} />
 

@@ -10,11 +10,17 @@
 ' findings/task-manager-core.md/findings/task-manager-alerting.md/findings/task-manager-request-callbacks.md
 ' for the full design rationale.
 '
-' `m.active`/`m.queueHigh`/`m.queueNormal`/`m.queueLow` hold `{id, node}` pairs, keyed by a task id
-' — never by node reference. Every external caller (this component's own `<interface>`, i.e. the
-' DSL's `taskManager.*` surface) only ever deals in that id string, returned by runTask() and passed
-' back into cancel(). The one place a raw node reference is still compared via IsSameNode() is
-' resolveTaskId()'s own collision guard.
+' `m.active`/`m.queueHigh`/`m.queueNormal`/`m.queueLow` hold `{id, node, owner}` triples, keyed by a
+' task id — never by node reference. Every external caller (this component's own `<interface>`, i.e.
+' the DSL's `taskManager.*` surface) only ever deals in that id string, returned by runTask() and
+' passed back into cancel(). `owner` is the CALLING .thr component's own top node (`m.top` at the
+' generated call site — see identifier-rewrite.ts's buildTaskManagerActionReplacement), invalid for a
+' call from a .flsh class body (which has no node of its own) — it exists solely so cancelOwnedBy()
+' can auto-cancel every task a since-destroyed component started, without this manager needing to
+' parse/track arbitrary call-argument dataflow itself (see issues/task-manager-no-auto-cancel-on-teardown.md
+' and findings/task-manager-core.md's own "No automatic cleanup..." section for why this is the
+' chosen fix). The one place a raw node reference is still compared via IsSameNode() for TASK
+' identity is resolveTaskId()'s own collision guard; cancelOwnedBy() is the second, for OWNER identity.
 '
 ' `m.active` is the concurrency GATE — a task is added to it synchronously, at commit time (the
 ' moment this manager decides to actually set control = "RUN"), never only once the observer
@@ -93,7 +99,7 @@ end sub
 ' spelling stays `taskManager.run(node, [priority])`; only this runtime function name and the string
 ' passed to `callFunc(...)` differ — see `analysis/global-bindings.ts`'s
 ' `TASK_MANAGER_RUNTIME_METHOD_NAMES`.
-function runTask(node as object, priority as string) as string
+function runTask(node as object, priority as string, owner as object) as string
   if node = invalid then return ""
 
   taskId = resolveTaskId(node)
@@ -101,9 +107,9 @@ function runTask(node as object, priority as string) as string
   if isQueuedById(taskId) then return taskId
 
   if m.active.Count() < m.maxConcurrent then
-    startNode(taskId, node)
+    startNode(taskId, node, owner)
   else
-    enqueue(taskId, node, priority)
+    enqueue(taskId, node, owner, priority)
   end if
 
   return taskId
@@ -112,8 +118,8 @@ end function
 ' Pushes onto the tier matching `priority`, defaulting to the normal tier for anything that isn't
 ' exactly "high" or "low" — a typo'd or unexpected priority value degrades to ordinary FIFO
 ' scheduling rather than being silently dropped or erroring.
-sub enqueue(taskId as string, node as object, priority as string)
-  entry = { id: taskId, node: node }
+sub enqueue(taskId as string, node as object, owner as object, priority as string)
+  entry = { id: taskId, node: node, owner: owner }
   if priority = "high" then
     m.queueHigh.Push(entry)
   else if priority = "low" then
@@ -196,7 +202,7 @@ end function
 ' unconditionally for every task: an ordinary hand-written Task (SlowTask.thr, etc.) has no
 ' `resolvedOptions`/`rawResponse` fields at all, and this avoids ever needing to find out whether
 ' ObserveFieldScoped on a field that doesn't exist on the target node is a safe no-op.
-sub startNode(taskId as string, node as object)
+sub startNode(taskId as string, node as object, owner as object)
   node.ObserveFieldScoped("state", "onTaskStateChange")
 
   if node.ft_isRequestComponent = true then
@@ -204,7 +210,7 @@ sub startNode(taskId as string, node as object)
     node.ObserveFieldScoped("rawResponse", "on_ft_taskManagerRawResponse")
   end if
 
-  m.active.Push({ id: taskId, node: node })
+  m.active.Push({ id: taskId, node: node, owner: owner })
   m.top.runningCount = m.active.Count()
   node.control = "RUN"
 end sub
@@ -262,7 +268,7 @@ sub drainQueue()
     entry = dequeueNext()
     if entry = invalid then return
     setQueuedCount(totalQueuedCount())
-    startNode(entry.id, entry.node)
+    startNode(entry.id, entry.node, entry.owner)
   end while
 end sub
 
@@ -302,6 +308,43 @@ function removeFromQueueById(taskId as string) as boolean
     return true
   end if
   return false
+end function
+
+' Cancels every task (queued or running, any priority tier) registered under the given `owner` — the
+' auto-cancel-on-teardown fix (see this file's own top comment and
+' issues/task-manager-no-auto-cancel-on-teardown.md). Called once, unconditionally, by name from the
+' OWNING .thr component's own generated ft_unmount() (codegen/brs-emitter.ts's emitUnmountFunction,
+' gated on that component having at least one taskManager.run(...) call site) — never by a caller
+' cancelling on someone else's behalf. `owner = invalid` (a .flsh class-body run() call has no node
+' of its own to be an owner) never matches anything, since no tracked entry's own `owner` is ever
+' compared against an invalid `owner` argument here — see matchingOwnerIds's own guard.
+'
+' Snapshots every matching id FIRST, then cancels each via the existing cancel() sub — never mutates
+' m.active/the queues while walking them, and reuses cancel()'s own queued-removal/running-stop
+' branching + m.active decrement bookkeeping instead of duplicating it.
+sub cancelOwnedBy(owner as object)
+  if owner = invalid then return
+  ids = ownedTaskIds(owner)
+  for each taskId in ids
+    cancel(taskId)
+  end for
+end sub
+
+function ownedTaskIds(owner as object) as object
+  ids = []
+  ids.Append(matchingOwnerIds(m.active, owner))
+  ids.Append(matchingOwnerIds(m.queueHigh, owner))
+  ids.Append(matchingOwnerIds(m.queueNormal, owner))
+  ids.Append(matchingOwnerIds(m.queueLow, owner))
+  return ids
+end function
+
+function matchingOwnerIds(entries as object, owner as object) as object
+  ids = []
+  for each entry in entries
+    if entry.owner <> invalid and entry.owner.IsSameNode(owner) then ids.Push(entry.id)
+  end for
+  return ids
 end function
 
 ' Updates the concurrent-task budget in either direction. Raising it immediately drains the queue —

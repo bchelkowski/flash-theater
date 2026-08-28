@@ -2,7 +2,13 @@
 
 **Type:** Gap
 **Area:** task-manager
-**Status:** Open
+**Status:** Fixed — every `taskManager.run(...)` call from an ordinary `.thr` component now threads
+its own `m.top` through as a third runtime argument (`identifier-rewrite.ts`'s
+`buildTaskManagerActionReplacement`); `FlashTheaterTaskManager.brs` stores it per task and exposes
+`cancelOwnedBy(owner)`, which each component's generated `ft_unmount()` calls with its own `m.top`
+when it has at least one `run(...)` call site (`compile.ts`'s `usesTaskManagerRunAnywhere`, gating
+`codegen/brs-emitter.ts`'s `emitUnmountFunction`). A `.flsh` class-body `run(...)` call still passes
+`owner = invalid` and is unaffected — see `findings/task-manager-core.md`'s updated writeup.
 
 ## Problem
 

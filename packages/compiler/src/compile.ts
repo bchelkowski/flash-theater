@@ -419,6 +419,7 @@ export function compileThrSource(source: string, componentName: string, options:
     scriptUsesTimer(script),
     animationOnFinishNames,
     resolvedOutletTransitions,
+    usesTaskManagerRunAnywhere(script, bindings.all, conditionalBlocks.blocks, eachBlocks.blocks),
   );
   if (validateOutput) {
     const result = validateGeneratedBrs(brs);
@@ -809,6 +810,82 @@ function ifHasTaskManagerAccess(stmt: IfStatement): boolean {
   if (clause.block && blockHasTaskManagerAccess(clause.block)) return true;
   if (clause.statement && textHasTaskManagerAccess(clause.statement.text, 'statement')) return true;
   if (clause.elseIf) return ifHasTaskManagerAccess(clause.elseIf);
+  return false;
+}
+
+/**
+ * True if `script` calls `taskManager.run(...)` anywhere — a narrower sibling of
+ * `usesTaskManagerAnywhere` (which is true for ANY `taskManager.*` access, including a bare
+ * `runningCount` read or an `onAlertChanged` registration that never calls `run` at all). Scans the
+ * same four surfaces `usesTaskManagerAnywhere` does (derived, function bodies, template bindings,
+ * `{#if}`/`{#each}` expressions) since `run(...)` has no restricted position of its own, unlike
+ * `onAlertChanged`/`onResult`/timer calls. Decides whether THIS component's own generated
+ * `ft_unmount()` needs the `cancelOwnedBy(m.top)` auto-cancel line at all (see
+ * `codegen/brs-emitter.ts`'s `emitUnmountFunction`) — a component that never itself starts a task has
+ * nothing of its own for the global manager to ever have registered under its `m.top`.
+ */
+function usesTaskManagerRunAnywhere(
+  script: ThrScriptAst,
+  bindingExpressions: readonly TemplateAttributeBinding[],
+  conditionalBlocks: readonly ConditionalBlock[],
+  eachBlocks: readonly EachBlock[],
+): boolean {
+  if (script.derived.some((d) => textHasTaskManagerRunCall(d.expression, 'expression'))) return true;
+  if (script.functions.some((f) => blockHasTaskManagerRunCall(f.block))) return true;
+  if (bindingExpressions.some((b) => textHasTaskManagerRunCall(b.expression, 'expression'))) return true;
+  if (conditionalBlocks.some((b) => textHasTaskManagerRunCall(b.expression, 'expression'))) return true;
+  if (eachBlocks.some((b) => textHasTaskManagerRunCall(b.collectionExpression, 'expression') || textHasTaskManagerRunCall(b.keyExpression, 'expression'))) return true;
+  return false;
+}
+
+function textHasTaskManagerRunCall(text: string, mode: 'expression' | 'statement'): boolean {
+  const parsed = mode === 'expression' ? parseEmbeddedExpression(text) : parseEmbeddedStatements(text);
+  if (parsed.result.diagnostics.length > 0) return false;
+  return findGlobalPathAccesses(parsed, TASK_MANAGER_ROOT_NAME, text).some((access) => access.isCallTarget && access.segments.length === 1 && access.segments[0] === 'run');
+}
+
+function blockHasTaskManagerRunCall(block: FlashBlock): boolean {
+  return block.statements.some((s) => {
+    if (s instanceof IfStatement) return ifHasTaskManagerRunCall(s);
+    if (s instanceof ForStatement) {
+      if (textHasTaskManagerRunCall(s.startExpr.text, 'expression')) return true;
+      if (textHasTaskManagerRunCall(s.endExpr.text, 'expression')) return true;
+      if (s.stepExpr && textHasTaskManagerRunCall(s.stepExpr.text, 'expression')) return true;
+      return blockHasTaskManagerRunCall(s.body);
+    }
+    if (s instanceof ForEachStatement) return textHasTaskManagerRunCall(s.collectionExpr.text, 'expression') || blockHasTaskManagerRunCall(s.body);
+    if (s instanceof WhileStatement) return textHasTaskManagerRunCall(s.condition.text, 'expression') || blockHasTaskManagerRunCall(s.body);
+    if (s instanceof TryStatement) return blockHasTaskManagerRunCall(s.tryBlock) || blockHasTaskManagerRunCall(s.catchClause.body);
+    if (s instanceof StateAssignment) {
+      return s.rhs instanceof AnonymousFunctionExpression ? blockHasTaskManagerRunCall(s.rhs.block) : textHasTaskManagerRunCall(reconstructTernaryText(s.rhs), 'expression');
+    }
+    if (s instanceof StoreWriteStatement) return textHasTaskManagerRunCall(s.expression, 'expression');
+    if (s instanceof FocusStatement) return textHasTaskManagerRunCall(s.expression, 'expression');
+    if (s instanceof JumpFocusStatement) {
+      return (
+        textHasTaskManagerRunCall(s.directionExpression, 'expression') ||
+        textHasTaskManagerRunCall(s.countExpression, 'expression') ||
+        textHasTaskManagerRunCall(s.pressExpression, 'expression')
+      );
+    }
+    if (s instanceof TernaryAssignmentStatement) return textHasTaskManagerRunCall(reconstructTernaryText(s.rhs), 'expression');
+    if (s instanceof AnonymousFunctionAssignmentStatement) return blockHasTaskManagerRunCall(s.value.block);
+    if (s instanceof ScaleLocalAssignmentStatement || s instanceof ScaleStateAssignmentStatement) {
+      return s.rhs instanceof AnonymousFunctionExpression ? blockHasTaskManagerRunCall(s.rhs.block) : textHasTaskManagerRunCall(reconstructTernaryText(s.rhs), 'expression');
+    }
+    return textHasTaskManagerRunCall(s.text, 'statement') || anyNestedAnonymousFunctionSatisfies(s.text, 'statement', blockHasTaskManagerRunCall);
+  });
+}
+
+function ifHasTaskManagerRunCall(stmt: IfStatement): boolean {
+  if (textHasTaskManagerRunCall(stmt.condition.text, 'expression')) return true;
+  if (stmt.thenBlock && blockHasTaskManagerRunCall(stmt.thenBlock)) return true;
+  if (stmt.thenStatement && textHasTaskManagerRunCall(stmt.thenStatement.text, 'statement')) return true;
+  const clause = stmt.elseClause;
+  if (!clause) return false;
+  if (clause.block && blockHasTaskManagerRunCall(clause.block)) return true;
+  if (clause.statement && textHasTaskManagerRunCall(clause.statement.text, 'statement')) return true;
+  if (clause.elseIf) return ifHasTaskManagerRunCall(clause.elseIf);
   return false;
 }
 

@@ -75,11 +75,18 @@ worst).
 ## Destroying a router-swapped subtree needed a new focus-manager capability
 
 `{#if:destroy}`/`{#each}` teardown always knows exactly which static ids it's removing, so
-`unregister(node)` (one call per known id) sufficed there. A router-swapped subtree is an arbitrary,
-dynamically-`CreateObject`'d component tree with compile-time-unknown contents — no way to enumerate
-individual ids. **Fix**: `unregisterSubtree(root)` walks the whole registry once, deleting any entry
-whose `owner` `IsSameNode()`s `root` or is a descendant of it. Must run before `RemoveChild`, same
-requirement `unregister()` already has (`GetParent()` needs the still-attached tree).
+`unregister(node)` (one call per known id) sufficed for a PLAIN element there — but not for a nested
+CUSTOM component's own focusable content (a completely different, compile-time-unknown `.thr` file's
+own template, invisible to the enclosing component's own scan; see
+`findings/focus-router-free-and-nested-gaps.md`'s "opaque nested custom component" gap, closed later
+by reusing this same capability from `{#if:destroy}`'s own destroy sub too). A router-swapped
+subtree has the identical problem at a coarser grain: an arbitrary, dynamically-`CreateObject`'d
+component tree with compile-time-unknown contents — no way to enumerate individual ids at all, not
+even the top-level one. **Fix**: `unregisterSubtree(root, recoveryOwner)` walks the whole registry
+once, deleting any entry whose `owner` `IsSameNode()`s `root` or is a descendant of it. Must run
+before `RemoveChild`, same requirement `unregister()` already has (`GetParent()` needs the
+still-attached tree). `recoveryOwner` (this outlet's own call passes `invalid`) exists for
+`{#if:destroy}`'s own later use — see the linked finding for why the caller needs it, not this one.
 
 **Two teardown timings coexist**, selected per-outlet by whether a `navigate-out:`/`back-out:`
 animation is configured for the current direction (see [router-transitions.md](router-transitions.md)):

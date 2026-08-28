@@ -803,7 +803,13 @@ function buildTaskManagerActionReplacement(
       });
     }
     const priority = args.length === 2 ? args[1] : '"normal"';
-    return `${globalFieldRef('taskManager', accessRoot)}.callFunc("${runtimeMethod}", ${args[0]}, ${priority})`;
+    // `owner` is the CALLING .thr component's own top node — the runtime manager stores it per
+    // task so a since-destroyed component's own generated ft_unmount() can auto-cancel everything
+    // IT started (`cancelOwnedBy`, see FlashTheaterTaskManager.brs) without this compiler having to
+    // track arbitrary call-argument dataflow. A .flsh class instance has no node of its own to be an
+    // owner (see accessRoot's own doc comment) — `invalid` there never matches any real owner.
+    const owner = accessRoot === 'm.global' ? 'm.top' : 'invalid';
+    return `${globalFieldRef('taskManager', accessRoot)}.callFunc("${runtimeMethod}", ${args[0]}, ${priority}, ${owner})`;
   }
 
   if (args.length !== 1) {

@@ -2,7 +2,9 @@
 
 **Type:** Gap
 **Area:** timers
-**Status:** Open
+**Status:** Fixed — see [task-manager-no-auto-cancel-on-teardown.md](task-manager-no-auto-cancel-on-teardown.md)
+for the actual fix (an ordinary `.thr` component's own `ft_unmount()` now calls into the task
+manager's own `cancelOwnedBy(m.top)`, gated on `compile.ts`'s `usesTaskManagerRunAnywhere`).
 
 ## Problem
 

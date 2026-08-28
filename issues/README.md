@@ -17,7 +17,6 @@ Every item is one of two `Type`s:
 | Area | Type | Issue |
 |---|---|---|
 | focus-system | Bug | [focus-default-focus-not-auto-claimed.md](focus-default-focus-not-auto-claimed.md) — router-free scenes never auto-claim a static `default-focus` |
-| focus-system | Bug | [focus-destroy-nested-component-orphaned-registration.md](focus-destroy-nested-component-orphaned-registration.md) — `{#if:destroy}` never unregisters a nested custom component's own focusable content |
 | animation | Bug | [animation-toggle-mode-focus-leak.md](animation-toggle-mode-focus-leak.md) — a toggle-mode block's focusable content leaks registration; `scaled: true` doesn't fix it generally |
 | build-layout | Bug | [build-missing-main-brs-not-validated.md](build-missing-main-brs-not-validated.md) — a missing `source/Main.brs` compiles and zips silently |
 | streams | Bug | [streams-no-unsubscribe-api.md](streams-no-unsubscribe-api.md) — no way to remove a subscriber from a stream |
@@ -37,7 +36,6 @@ Every item is one of two `Type`s:
 | theme | Gap | [theme-no-runtime-selection.md](theme-no-runtime-selection.md) — no manifest-file or runtime-decided initial theme |
 | classes | Gap | [classes-no-reactive-lifecycle.md](classes-no-reactive-lifecycle.md) — `store`/`state`/`focus(...)` entirely unreachable from a `.flsh` class body |
 | classes | Gap | [classes-no-class-body-animation.md](classes-no-class-body-animation.md) — no `.flsh` class-body `animation` declaration form |
-| task-manager | Gap | [task-manager-no-auto-cancel-on-teardown.md](task-manager-no-auto-cancel-on-teardown.md) — no automatic cancel when a tracking component is destroyed |
 | task-manager | Gap | [task-manager-no-stuck-task-timeout.md](task-manager-no-stuck-task-timeout.md) — no timeout for a task whose `state` never leaves `"init"` |
 | task-manager | Gap | [task-manager-no-preemption.md](task-manager-no-preemption.md) — high-priority work still waits behind running low-priority tasks |
 | task-manager | Gap | [task-manager-no-reprioritization.md](task-manager-no-reprioritization.md) — re-running an already-queued task never moves it between priority tiers |
@@ -49,7 +47,6 @@ Every item is one of two `Type`s:
 | animation | Gap | [animation-scale-invisible-to-focus-hit-testing.md](animation-scale-invisible-to-focus-hit-testing.md) — a `scale` animation doesn't resize a node's LRUD hit-testing footprint |
 | animation | Gap | [animation-fly-slide-reject-dynamic-translation.md](animation-fly-slide-reject-dynamic-translation.md) — `fly`/`slide` presets reject a target with a dynamic resting `translation` |
 | timers | Gap | [timers-not-usable-in-derived-template-or-class-body.md](timers-not-usable-in-derived-template-or-class-body.md) — timer statements can't appear in `derived`/template/`{#if}`/`{#each}` expressions or a class body |
-| timers | Gap | [timers-task-manager-no-unmount-hook.md](timers-task-manager-no-unmount-hook.md) — `taskManager` hasn't opted into the `ft_unmount` teardown hook timers introduced |
 | environments | Gap | [environments-string-only-values.md](environments-string-only-values.md) — `env.<name>` is always a plain string; no numbers/booleans/nested groups |
 | environments | Gap | [environments-no-per-env-build-config-override.md](environments-no-per-env-build-config-override.md) — `designResolution`/`srcDir`/`outDir` can't be overridden per environment |
 | statements | Gap | [statements-no-finally.md](statements-no-finally.md) — `try`/`catch` has no `finally` clause |
@@ -61,6 +58,9 @@ Every item is one of two `Type`s:
 | Area | Type | Issue |
 |---|---|---|
 | focus-system | Bug | [focus-navigate-cross-owner-hidden-match.md](focus-navigate-cross-owner-hidden-match.md) — `navigate()`'s cross-owner fallback matching hidden toggle-mode content; fixed via `isGenuinelyVisible()` in `FlashTheaterFocusManager.brs` |
+| focus-system | Bug | [focus-destroy-nested-component-orphaned-registration.md](focus-destroy-nested-component-orphaned-registration.md) — `{#if:destroy}` never unregisters a nested custom component's own focusable content; fixed via `unregisterSubtree(root, recoveryOwner)` in `FlashTheaterFocusManager.brs`, called from the generated destroy sub |
+| task-manager | Gap | [task-manager-no-auto-cancel-on-teardown.md](task-manager-no-auto-cancel-on-teardown.md) — no automatic cancel when a tracking component is destroyed; fixed via per-task owner tracking + `cancelOwnedBy(m.top)` in `FlashTheaterTaskManager.brs`, called from `ft_unmount()` |
+| timers | Gap | [timers-task-manager-no-unmount-hook.md](timers-task-manager-no-unmount-hook.md) — `taskManager` hasn't opted into the `ft_unmount` teardown hook timers introduced; fixed alongside the entry above |
 
 ## Writing rules
 

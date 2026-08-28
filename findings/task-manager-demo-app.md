@@ -40,7 +40,16 @@ demonstrated from a router-mounted app instead of a router-free one.
   same 5-task burst, but raising the concurrency limit first, directly contrasting which tasks get
   an IMMEDIATE slot (governed only by submission order + available slots) against which ones only
   ever affect QUEUE drain order (priority) — a distinction the original single-concurrency demo
-  couldn't show on its own.
+  couldn't show on its own. **A second customized addition** (auto-cancel-on-teardown, see
+  `findings/task-manager-core.md`'s "No automatic cleanup..." section):
+  `LongTaskWidget.thr`, a nested, non-router `{#if:destroy}`-toggled child (focus it, press OK to
+  start its own 10s `SlowTask` via a bare `taskManager.run(task)` that deliberately never keeps or
+  cancels the returned id), removable with Backspace on this screen's own root (mirroring
+  `apps/timers-demo`'s `FocusedTeardownDemo.thr`). This screen's own polled "Running: N" readout
+  (already driving the rest of this chapter) dropping back to 0 immediately after Backspace — well
+  before the task's own 10s duration would otherwise let it finish naturally — is the observable
+  proof that the widget's generated `ft_unmount()` auto-cancelled it. **Live-confirmed** on a real
+  device — see the live-device section below for the full readout.
 - **`/alerting`** — `AlertingChapterDemo.thr`. Default: "Flood queue" (8 tasks, warning=3/
   critical=6) — proves the hysteresis-gated `onAlertChanged` fires exactly twice for one flood
   (`none→warning`, `warning→critical`), never once per queue mutation. **Customized addition**
@@ -104,6 +113,34 @@ was deciding correctly the whole time).
   (Low-1, Normal-1, High-1) regardless of priority, and the remaining 2 draining by priority — the
   exact contrast this chapter exists to show. "Cancel most recent" confirmed removing a still-queued
   task (log shows `cancelled: <id>`, queued count drops).
+
+  **`LongTaskWidget.thr`'s auto-cancel addition — live-confirmed** (Roku Ultra, serial
+  `X02800C5FKLV`, via `kopytko-roku` CLI: SSDP `discover`, `installer install`, `ecp keypress`/
+  `app-ui`). Fresh cold start (`Home` + `launch --app dev`) lands on `/run-cancel` with
+  `runningReadout` at "Running: 0". `Down` x3 moves focus onto `longTaskWidget`'s own internal
+  focusable root (confirmed via `app-ui`'s `focused="true"` trail); `Select` (OK) starts its 10s
+  `SlowTask` — `runningReadout` immediately reads "Running: 1" and the widget's own label switches
+  to "Long task running...". `Backspace` removes the widget (`{#if:destroy}` flips); **1.5 seconds
+  later**, `app-ui` shows `LongTaskWidget` entirely gone from the tree AND `runningReadout` already
+  back to "Running: 0" — nowhere near the task's own 10-second duration, confirming
+  `cancelOwnedBy(m.top)` genuinely stopped the still-running Task node, not just that the widget's
+  own node was removed. `app-state` stayed `active` throughout (no crash, no suspended debugger).
+  **Incidental discovery, not a regression, fixed in the same session**: after Backspace, focus was
+  left entirely vacant (no node in the whole app held focus, `Up` didn't reclaim it either) — this
+  reproduced `issues/focus-destroy-nested-component-orphaned-registration.md`'s own already-tracked
+  gap (a nested custom component's own focusable content is invisible to `{#if:destroy}`'s
+  structural unregister scan) live, unrelated to the task-manager fix itself (a different compiler
+  subsystem — `focus`, not `taskManager`). That reproduction prompted fixing the issue in this same
+  session; re-sideloading with the fix and repeating the exact same OK/Backspace sequence against
+  THIS SAME `LongTaskWidget` confirmed focus now correctly lands on `RunCancelDemo`'s own
+  `burstButton` afterward — see that issue file's own "Live-confirmed AFTER the fix" section and
+  `findings/focus-router-free-and-nested-gaps.md`'s updated writeup for the full fix (it needed a
+  second, non-obvious piece beyond the initial unregister fix — a `recoveryOwner` rewrite inside
+  `unregisterSubtree` itself). With focus vacant (pre-fix), `REWIND`/`FAST-FORWARD` chapter-switching
+  also produced no effect (no focused node for Roku to bubble the key event up from) — confirmed NOT
+  a task-manager-related regression either, by cold-restarting and switching chapters (`Fwd` x1 →
+  chapter 2, x2 more → chapter 4) successfully BEFORE ever touching the widget; re-confirmed working
+  again after the focus fix too.
 - **`/alerting`**: both the default flood (8 tasks, warning=3/critical=6) and the tight flood (4
   tasks, warning=1/critical=2) confirmed exactly 2 log entries on the way up
   (`none -> warning -> critical`) and, for the tight flood, exactly 2 more on the way down as the

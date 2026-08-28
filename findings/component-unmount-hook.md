@@ -93,17 +93,27 @@ custom component nested deeper inside it), since `findNode` searches a node's de
 matches the calling node itself. Same "needs an `id` to be reachable at all" restriction as
 `{#if:destroy}`'s own cascade.
 
-`taskManager.run(...)` still has this exact gap for both `{#if:destroy}` and `{#each}` (GRAMMAR.md's
-Task manager "Known limitations") — unaffected by this fix, since `taskManager` hasn't opted into
-`ft_unmount` at all yet (see "How a feature opts in" below).
+`taskManager.run(...)` (for an ordinary `.thr` component) now opts into this same hook too — see
+`findings/task-manager-core.md`'s "No automatic cleanup..." section for the fix. It doesn't cascade
+through `{#if:destroy}`/`{#each}`'s own nested-id walk the way a Timer node does, though: rather than
+a per-component registry `ft_unmount` iterates locally (the Timer shape), the task manager itself
+tracks each task's owning component node and exposes one `cancelOwnedBy(owner)` call — so the fix
+needed no new per-component storage at all, just one new gated line in `emitUnmountFunction` calling
+into the existing global singleton. A `.flsh` class-body `run(...)` call still has this exact gap
+(GRAMMAR.md's Task manager "Known limitations") — classes have no node of their own for `ft_unmount`
+to mean anything, the same boundary `onAlertChanged`/`onResult`/`onRequestSent`/`onResponseReceived`
+already draw.
 
 ## How a feature opts in
 
 Plain boolean gating (`usesTimer`), the same shape every other trampoline in `brs-emitter.ts` already
-uses — not a registration/plugin system. `emitUnmountFunction(cascadeIds, usesTimer)` branches at
-TypeScript-emitter level (compile-time, not a runtime `if`), so a non-Timer component gets zero extra
-lines. `taskManager` could add its own `usesTaskManagerAutoCancel`-style boolean and its own branch
-later, same shape — deliberately not built now, since there's exactly one real caller today.
+uses — not a registration/plugin system. `emitUnmountFunction(cascadeIds, usesTimer,
+usesTaskManagerRun)` branches at TypeScript-emitter level (compile-time, not a runtime `if`), so a
+component that doesn't use the relevant feature gets zero extra lines. `usesTaskManagerRun`
+(`compile.ts`'s `usesTaskManagerRunAnywhere`) is the second real (not hypothetical) example of this
+shape — narrower than the general `usesTaskManagerAnywhere` output-metadata flag, since only a
+component that itself calls `run(...)` could ever have anything registered under its own `m.top` for
+`cancelOwnedBy` to find.
 
 ## Live-device verification — Roku Ultra, firmware 15.3.4
 

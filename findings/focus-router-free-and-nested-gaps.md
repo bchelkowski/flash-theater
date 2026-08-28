@@ -60,45 +60,98 @@ a nested custom component with its own default-focus content needs the SAME expl
 hand-authored routed screen's own internal `{#if:destroy}`-equivalent logic). `{#if:destroy}`'s
 own generated teardown compounds this from the other side — see the next section.
 
-## `{#if:destroy}`'s generated teardown can't see into a nested custom component's own focusable content
+## `{#if:destroy}`'s generated teardown can't see into a nested custom component's own focusable content — the UNREGISTER half is now automatic; RECLAIM still needs a manual call
 
 **Originally live-verified via `apps/animation-demo`'s own since-superseded flat-screen switching
 (see the note at the top of this file) — currently demonstrated by `apps/focus-demo`'s
 `DestroyNestedGapDemo.thr`**, a standalone chapter built specifically to keep this gap and its
 fix live and demoed after the app-wide chapter/router conversion, instead of only living in
 historical prose. `emitConditionalDestroySub`'s own unregister-before-removeChild logic (see
-[focus-runtime-registry.md](focus-runtime-registry.md)) only walks the DESTROYED BLOCK'S OWN
+[focus-runtime-registry.md](focus-runtime-registry.md)) only ever walked the DESTROYED BLOCK'S OWN
 template for focusable descendants — correctly, by construction, since a plain `<Rectangle
 focusable="true">` living directly inside the block IS visible to that analysis. But a block whose
 content is instead a nested custom component (`<BounceButtonDemo id="demo0" />`) is OPAQUE from the
 enclosing component's own template analysis — BounceButtonDemo's own `card` is defined in a
 completely separate `.thr` file, invisible to MainScene's compiler pass. The generated destroy sub
-correctly emits no unregister call at all for such a block (there's nothing IT can see to unregister)
-— this is not a bug in that codegen, it's operating on correct information.
+used to correctly emit no unregister call at all for such a block (there was nothing IT could see to
+unregister) — not a bug in that codegen, it was operating on correct information; the fix (below)
+sidesteps needing that information at all.
 
-The consequence, confirmed live via `apps/animation-demo`: destroying such a block while ITS own
-nested focusable content currently holds focus leaves a DANGLING registry entry (the node is gone,
-`removeChild`'d, but never `unregister()`'d) and — combined with the previous section's own gap — a
-fresh vacuum for whatever mounts next, since nothing calls `claimFocusIfVacant` for the new content
-either. Symptom: a demo-switch worked exactly ONCE (the boot-time `claimFocusIfVacant` fix still
-applied to the very first mount) then went permanently dead — every subsequent switch destroyed the
-current focus holder without recovery and never claimed the next one.
+The consequence, confirmed live via `apps/animation-demo` (historical) and reproduced again live
+while verifying the fix below (`issues/task-manager-no-auto-cancel-on-teardown.md`'s own
+live-verification session, incidentally, against `apps/task-manager-demo`'s `LongTaskWidget`):
+destroying such a block while ITS own nested focusable content currently holds focus left a DANGLING
+registry entry (the node gone, `removeChild`'d, but never `unregister()`'d) and — combined with the
+previous section's own gap — a fresh vacuum for whatever mounts next, since nothing calls
+`claimFocusIfVacant` for the new content either.
 
-**Fix, applied in the switching handler itself (not in generated teardown)**: call
-`m.global.ft_focus.callFunc("unregisterSubtree", <outgoing child instance>)` **before** the state
-write that triggers the destroy/create cascade — `unregisterSubtree`/`unregister()` both require the
-node still attached (`GetParent()`-based traversal), so this MUST run before, never after, the
-cascade's own `removeChild`; by the time a cascade-triggered destroy sub has already run, it's too
-late to clean up correctly (the node is orphaned, `isDescendantOrSelf` can no longer reach it via
-`GetParent()`, and the registry entry survives as an unreachable ghost). Then call
-`claimFocusIfVacant(<incoming child instance>)` after the state write (the create sub has by then
-already run and registered the new content). See `apps/focus-demo/src/components/
-DestroyNestedGapDemo/DestroyNestedGapDemo.thr`'s `toggleNested` for the current worked
-implementation (`m.nestedGroup`/`m.toggle`, since `register()`'s owner argument must be the exact
-node — the same constraint as the previous section); the pattern is otherwise unchanged from the
-original `apps/animation-demo` implementation this section used to cite before that app's own
-chapter/router conversion made the workaround unnecessary there (`router.navigate()` now handles
-it automatically for every `.thr`-compiled route).
+**Fixed, in the generated destroy sub itself, for the UNREGISTER half** — `emitConditionalDestroySub`
+(`codegen/conditional-block-emitter.ts`) now also emits an unconditional
+`m.global.ft_focus.callFunc("unregisterSubtree", <blockRef>, m.top)` before `removeChild` (and
+`emitFocusPrepareLines` does the same at cascade time for a transitioning block) — see
+`codegen/shared-emit.ts`'s `focusUnregisterSubtreeCall` for why this closes the gap without needing
+any new compile-time visibility: `unregisterSubtree` walks the focus manager's own FLAT REGISTRY,
+checking each entry's OWNER against `blockRef` via live `GetParent()` ancestry, not the compile-time
+template tree — a nested custom component's own focusable content, registered under THAT
+component's own `m.top` from inside its own generated `init()`, genuinely IS a descendant of
+`blockRef` in the real SceneGraph tree, even though it's invisible to the enclosing component's own
+template scan. Unconditional for the same "no cross-component template-tag registry, so this can't
+be known at compile time" reason `ft_unmount`'s own cascade is unconditional (see
+`findings/component-unmount-hook.md`). `recoverFocusFor(m.top)` at the end of the destroy sub is now
+ALSO unconditional (previously gated on the compile-time scan finding at least one PLAIN focusable
+id) for the identical reason — it needs to fire even when the only focusable content in the block was
+an opaque nested component the scan couldn't see. **Scope note**: this does NOT close the DIFFERENT,
+still-open "a `focusable` element inside an `{#each}` nested inside a `{#if:destroy}`, in the SAME
+component" limitation GRAMMAR.md's Focus-system "Known limitations" documents — that element's own
+`owner` is this component's `m.top` (an ANCESTOR of `blockRef`, not a descendant), so
+`isDescendantOrSelf` never matches it; a genuinely different scenario from a nested CUSTOM
+COMPONENT's own content.
+
+**The RECOVER half needed a second, non-obvious fix, found only by live-testing the first attempt**
+— unregistering the entry is not enough on its own. `unregisterSubtree`'s own `noteFocusLoss` call
+records `m.focusLostFromOwner` as the EXACT registrant owner it just removed — for a nested custom
+component's own focusable content, that's the NESTED component's own `m.top`, not the enclosing
+component's. `recoverFocusFor(owner)`'s own match is `IsSameNode(m.focusLostFromOwner, owner)` — a
+trivial reference compare, never a tree walk — so calling `recoverFocusFor(m.top)` (the ENCLOSING
+component's own top) afterward silently no-ops: `m.focusLostFromOwner` (the nested owner) never
+equals `m.top` (the enclosing one). **Live-confirmed as a real, distinct failure mode**: the first
+fix attempt correctly removed the stale registry entry (confirmed via `queryAppUi` — the destroyed
+node was gone, no crash) but left focus genuinely vacant afterward, the EXACT same visible symptom
+as the original bug, for a different underlying reason. The natural-looking alternative — generalize
+`recoverFocusFor`'s own match from `IsSameNode` to `isDescendantOrSelf(m.focusLostFromOwner, owner)`
+— fails too, and for a subtle reason worth remembering: `recoverFocusFor` is deliberately called
+AFTER `removeChild` (see its own doc comment — recovering too early risks targeting something a
+LATER step in the same cascade is also about to remove), but by then `removeChild` has already cut
+the exact tree link (`blockRef`'s own link to ITS former parent) that a walk from the nested owner
+up to `m.top` would need to cross — the walk fails partway, right at that cut edge, every time.
+**Actual fix**: `unregisterSubtree` now takes a second `recoveryOwner` parameter and, when it detects
+the currently-focused entry among the ones it's removing, rewrites `m.focusLostFromOwner` to
+`recoveryOwner` itself (guarded by `isDescendantOrSelf(root, recoveryOwner)`, always true for this
+call site by construction) — done WHILE the subtree is still fully attached (before `removeChild`),
+so the ancestry walk this rewrite needs is guaranteed to succeed, and `recoverFocusFor`'s own later
+match stays a trivial, walk-free `IsSameNode()` compare exactly as before. The one existing caller
+(`FlashTheaterRouterOutlet.brs`'s own whole-screen teardown) passes `invalid` explicitly — it
+resolves its own post-mount focus separately and never calls `recoverFocusFor` afterward, so this
+rewrite doesn't apply there. **Live-confirmed working, same device/app/chapter as the reproduction**:
+after the `recoveryOwner` fix, destroying the same nested-component-holding-focus widget correctly
+landed focus on `RunCancelDemo`'s own `burstButton` (`firstRegistrantOfOwner(m.top)`), with
+`runningReadout` also reflecting the change — see
+`issues/focus-destroy-nested-component-orphaned-registration.md`'s own "Live-confirmed AFTER the
+fix" section for the full readout, and
+`packages/compiler/test/runtime-assets.test.ts`'s "unregisterSubtree rewrites focusLostFromOwner to
+recoveryOwner" `describe` block plus
+`packages/compiler/test/codegen/conditional-block-emitter.test.ts`'s "unregisterSubtree closes the
+opaque-nested-component gap" `describe` block for the compile-time contracts this pins down.
+
+**The RECLAIM half is still a manual call** — applying automatically into `{#if:destroy}`'s own
+create path was deliberately rejected (see the previous section: it would reintroduce the
+`recoverFocusFor` ordering bug). Call `m.global.ft_focus.callFunc("claimFocusIfVacant", <incoming
+child instance>)` after the state write that mounts the new content (the create sub has by then
+already run and registered it). See `apps/focus-demo/src/components/
+DestroyNestedGapDemo/DestroyNestedGapDemo.thr`'s `toggleNested` for the current worked example —
+its own manual `unregisterSubtree(m.nestedGroup)` call, previously required before the state write,
+is gone now that the generated destroy sub does it automatically; only the `claimFocusIfVacant`
+call remains.
 
 ## `navigate()`'s cross-owner fallback can match hidden toggle-mode content
 

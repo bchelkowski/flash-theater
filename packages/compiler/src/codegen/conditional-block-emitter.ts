@@ -44,7 +44,7 @@ import {
   animationFinishCallbackFieldAccess,
   UNMOUNT_FUNCTION_NAME,
 } from './naming.js';
-import { focusRegisterCall, focusUnregisterCall, emitDynamicFocusableAssignment, staticFocusableRegisterLine, emitFieldAssignments } from './shared-emit.js';
+import { focusRegisterCall, focusUnregisterCall, focusUnregisterSubtreeCall, emitDynamicFocusableAssignment, staticFocusableRegisterLine, emitFieldAssignments } from './shared-emit.js';
 import { globalFieldRef } from './global-fields.js';
 import { printArrayAttr } from './animation-emitter.js';
 import type { ParsedAnimationStep } from '../analysis/animation-config.js';
@@ -287,20 +287,34 @@ function emitFieldToInterpRefreshLines(refs: readonly { readonly id: string; rea
 
 /**
  * Unregisters every focusable element in `block`'s subtree from the focus manager, then calls
- * `recoverFocusFor` once (if any were actually unregistered) — the exact lines
- * `emitConditionalDestroySub` normally bundles into its own single sub, extracted here so a
- * TRANSITIONING destroy-mode block's cascade can run them immediately (node still attached, exit
- * animation about to start) instead of deferred to match the delayed `removeChild` — see
- * `emitConditionalBlockCascadeCheck`'s own doc comment. Returned lines are pre-indented to `depth`.
+ * `recoverFocusFor` once — the exact lines `emitConditionalDestroySub` normally bundles into its
+ * own single sub, extracted here so a TRANSITIONING destroy-mode block's cascade can run them
+ * immediately (node still attached, exit animation about to start) instead of deferred to match the
+ * delayed `removeChild` — see `emitConditionalBlockCascadeCheck`'s own doc comment. Returned lines
+ * are pre-indented to `depth`.
+ *
+ * The unconditional `focusUnregisterSubtreeCall(blockRef)` (before `recoverFocusFor`, same ordering
+ * requirement) closes the "opaque nested custom component" gap
+ * (`issues/focus-destroy-nested-component-orphaned-registration.md`) — the per-id `unregisterLines`
+ * below only ever unregister a PLAIN element the compiler's own template scan found directly (every
+ * such element's own `owner` is `m.top`, THIS component); a nested custom component's own focusable
+ * content is registered under ITS OWN `m.top`, invisible to this scan, but IS reachable by
+ * `unregisterSubtree`'s own live-registry-ownership walk (see that call's own doc comment). Since
+ * this can't be known at compile time (no cross-component template-tag registry — see
+ * `findings/component-unmount-hook.md`'s own "why every component gets one" section for the
+ * identical reasoning applied to `ft_unmount`), it's unconditional, same as `recoverFocusFor` below
+ * (now also unconditional, not gated on `nestedFocusableIds.length > 0` — a nested component's own
+ * focused content could need recovery even when this scan found zero PLAIN focusable ids).
  */
 function emitFocusPrepareLines(block: ConditionalBlock, depth: number): string[] {
   const indent = '  '.repeat(depth);
+  const blockRef = mFieldAccess(block.id);
   const nestedFocusableIds = collectNestedFocusableIds(block.children);
   const unregisterLines = nestedFocusableIds.flatMap((elementId) => {
     const ref = mFieldAccess(elementId);
     return [`${indent}if ${ref} <> invalid then`, `${indent}  ${focusUnregisterCall(ref)}`, `${indent}end if`];
   });
-  return [...unregisterLines, ...(nestedFocusableIds.length > 0 ? [`${indent}${globalFieldRef('focus')}.callFunc("recoverFocusFor", m.top)`] : [])];
+  return [...unregisterLines, `${indent}${focusUnregisterSubtreeCall(blockRef, 'm.top')}`, `${indent}${globalFieldRef('focus')}.callFunc("recoverFocusFor", m.top)`];
 }
 
 /**
@@ -344,6 +358,17 @@ export function emitConditionalDestroySub(block: ConditionalBlock, componentName
     const ref = mFieldAccess(elementId);
     return [`    if ${ref} <> invalid then`, `      ${focusUnregisterCall(ref)}`, `    end if`];
   });
+  // Closes the "opaque nested custom component" gap
+  // (issues/focus-destroy-nested-component-orphaned-registration.md) — unregisterLines above only
+  // ever unregisters a PLAIN element THIS component's own template scan found (owner = m.top, this
+  // component); a nested custom component's own focusable content registers under ITS OWN m.top,
+  // invisible to that scan, but IS reachable by unregisterSubtree's own live-registry-ownership walk
+  // (see focusUnregisterSubtreeCall's own doc comment). Unconditional for the same "no
+  // cross-component template-tag registry, so this can't be known at compile time" reason
+  // UNMOUNT_FUNCTION_NAME's own cascade is unconditional (see component-unmount-hook.md). Skipped
+  // for a transitioning block — emitFocusPrepareLines already ran the equivalent call at cascade
+  // (exit-animation-start) time; re-running it here would be a harmless but pointless no-op.
+  const unregisterSubtreeLine = skipFocusHandling ? [] : [`    ${focusUnregisterSubtreeCall(blockRef, 'm.top')}`];
   // Cascade the component-unmount hook (see naming.ts's UNMOUNT_FUNCTION_NAME doc comment) to every
   // id in this subtree before removeChild — a native primitive silently no-ops (an undeclared
   // interface function), a nested `.thr`-compiled custom component's own generated ft_unmount() runs
@@ -360,6 +385,7 @@ export function emitConditionalDestroySub(block: ConditionalBlock, componentName
     `  if ${blockRef} <> invalid then`,
     ...unobserveLines,
     ...unregisterLines,
+    ...unregisterSubtreeLine,
     ...unmountLines,
     `    ${containerRefExpr(block.containerId)}.removeChild(${blockRef})`,
     ...block.nestedIds.map((id) => `    ${mFieldAccess(id)} = invalid`),
@@ -371,8 +397,11 @@ export function emitConditionalDestroySub(block: ConditionalBlock, componentName
     // Calling it here (rather than trying to reassign focus at unregister() time) is what survives
     // this destroy sub being followed by yet more tree mutations elsewhere in the same cascade —
     // see runtime-assets/FocusManager's own doc comment on `recoverFocusFor` and
-    // findings/focus-runtime-bugs.md.
-    ...(nestedFocusableIds.length > 0 ? [`    ${globalFieldRef('focus')}.callFunc("recoverFocusFor", m.top)`] : []),
+    // findings/focus-runtime-bugs.md. Unconditional (not gated on `nestedFocusableIds.length > 0`)
+    // since `unregisterSubtreeLine` above can unregister a nested custom component's own focused
+    // content even when this scan found zero PLAIN focusable ids — skipped only for a transitioning
+    // block, whose own `emitFocusPrepareLines` cascade already called it at exit-animation-start.
+    ...(skipFocusHandling ? [] : [`    ${globalFieldRef('focus')}.callFunc("recoverFocusFor", m.top)`]),
     '  end if',
     'end sub',
   ];

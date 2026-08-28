@@ -171,6 +171,7 @@ export function emitBrs(
   usesTimer = false,
   animationOnFinishNames: ReadonlySet<string> = new Set(),
   outletTransitions: ReadonlyMap<string, ResolvedOutletTransition> = new Map(),
+  usesTaskManagerRun = false,
 ): string {
   const sections: string[] = [
     emitInitFunction(
@@ -293,7 +294,7 @@ export function emitBrs(
 
   // Unconditional on every component — see naming.ts's UNMOUNT_FUNCTION_NAME doc comment for why
   // leaf-gating this would be unsound rather than merely leaner.
-  sections.push(emitUnmountFunction(collectUnmountCascadeIds(template, conditionalBlocks, eachBlocks), usesTimer));
+  sections.push(emitUnmountFunction(collectUnmountCascadeIds(template, conditionalBlocks, eachBlocks), usesTimer, usesTaskManagerRun));
 
   return sections.join('\n\n') + '\n';
 }
@@ -440,8 +441,16 @@ function collectUnmountCascadeIds(template: ThrTemplateAst | null, conditionalBl
  * component is destroyed" gap: without it, an unmounted component's Timer nodes would otherwise only
  * stop once nothing references them anymore (ordinary BrightScript refcounting), a weaker, unverified
  * guarantee for a still-running SceneGraph node (see findings/component-unmount-hook.md).
+ *
+ * `usesTaskManagerRun` closes the analogous gap for `taskManager.run(...)` (see
+ * issues/task-manager-no-auto-cancel-on-teardown.md): the global task manager itself tracks each
+ * task's owning component node (`m.top` at the `run(...)` call site — see
+ * `analysis/identifier-rewrite.ts`'s `buildTaskManagerActionReplacement`), so this component only
+ * needs to ask it to cancel everything registered under `m.top` — no local registry of its own.
+ * Gated per-component (only a component that itself calls `run(...)` ever has anything registered
+ * under its own `m.top`), same shape as `usesTimer`.
  */
-function emitUnmountFunction(cascadeIds: readonly string[], usesTimer: boolean): string {
+function emitUnmountFunction(cascadeIds: readonly string[], usesTimer: boolean, usesTaskManagerRun: boolean): string {
   const lines = [`sub ${UNMOUNT_FUNCTION_NAME}()`];
   if (usesTimer) {
     const callbacks = timerCallbacksFieldAccess();
@@ -450,6 +459,9 @@ function emitUnmountFunction(cascadeIds: readonly string[], usesTimer: boolean):
     lines.push('    if ft_entry.node <> invalid then ft_entry.node.control = "stop"');
     lines.push('  end for');
     lines.push(`  ${callbacks} = {}`);
+  }
+  if (usesTaskManagerRun) {
+    lines.push(`  ${globalFieldRef('taskManager')}.callFunc("cancelOwnedBy", m.top)`);
   }
   for (const id of cascadeIds) {
     const ref = mFieldAccess(id);

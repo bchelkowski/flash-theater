@@ -1684,9 +1684,16 @@ giving:
   reassigning focus any earlier gets silently clobbered by `{#each}`'s own later, unconditional
   item repositioning.
 
-  Recovery is **scoped to the component that actually lost focus**, not global: `recoverFocusFor`
-  does nothing at all unless the node that just went away was the one holding focus *and* belonged
-  to this component. Every other call is a cheap no-op. This precision matters more than it looks
+  Recovery is **scoped to the component whose own teardown actually lost focus**, not global:
+  `recoverFocusFor` does nothing at all unless the node that just went away was the one holding
+  focus *and* was somewhere inside the subtree this component's own `{#if:destroy}`/`{#each}`
+  teardown just removed — including a NESTED CUSTOM COMPONENT's own focusable content, registered
+  under that component's own `m.top`, not this one (`unregisterSubtree` walks the registry by live
+  ownership at teardown time and reassigns the recorded loss to this component before the node is
+  detached, so recovery still fires correctly even though the destroyed content's own registration
+  never mentioned this component by name — see
+  `issues/focus-destroy-nested-component-orphaned-registration.md`). Every other call is a cheap
+  no-op. This precision matters more than it looks
   — an earlier, deliberately blunt version ("if *nothing* in the app holds focus, grab the first
   registrant") was correct in isolation but wrong as soon as components nested: during a fresh
   screen's construction there is legitimately no focus anywhere yet, so a *nested child*
@@ -2574,6 +2581,17 @@ taskId = taskManager.run(task)              ' priority: "normal"
 urgentId = taskManager.run(urgentTask, "high")
 ```
 
+**Auto-cancelled when the calling `.thr` component is torn down.** Every `run(...)` call made from
+an ordinary component (never from a `.flsh` class body — see below) registers the task under that
+component's own node; when the component is removed (a router navigation away, `{#if:destroy}`, or
+an `{#each}` removal), its generated teardown hook automatically cancels every task it ever started
+that hasn't already finished — the same guarantee timer statements already have for
+`setTimeout`/`setInterval`. Keeping the returned id and calling `cancel(<taskId>)` yourself is only
+needed to stop a task *before* its owning component is torn down. A `taskManager.run(...)` call from
+inside a `.flsh` class body has no such auto-cancel — a class instance has no node of its own for the
+teardown hook to key off of — so a class-started task still needs a manually-tracked id and an
+explicit `cancel(...)` call if early or teardown-triggered stopping matters.
+
 ### `taskManager.cancel(<taskId>)` — stops a queued or running task
 
 Takes the **id** `run()` returned, not the node itself. If the task is still queued (never
@@ -2815,14 +2833,14 @@ automatically copies `FlashTheaterTaskManager`'s `.xml`/`.brs` into
   functioning Task (author error, or one whose own thread never starts) permanently occupies a
   concurrency slot — the manager does not verify `node` is a genuine Task, and has no fallback
   timer.
-- **No automatic cleanup when a tracked node's owning component is destroyed.**
-  `taskManager.run(x)` is an opaque function call, invisible to `{#if:destroy}`/`{#each}` teardown
-  codegen (unlike `focusable`/`bind:`, which are structural template attributes the compiler
-  already walks) — an app that wants to stop a task early when its owning component tears down
-  must keep the returned id and call `taskManager.cancel(id)` itself. Timer statements (below) solve
-  this exact problem for `setTimeout`/`setInterval` via a general component-unmount hook
-  (`ft_unmount`) introduced for that purpose — `taskManager` doesn't opt into it yet, but the same
-  mechanism could close this gap later too; see `findings/component-unmount-hook.md`.
+- **No automatic cleanup when a `.flsh` class-body `taskManager.run(...)` call's task outlives the
+  class instance.** A class instance has no SceneGraph node of its own and no destroy hook to key an
+  auto-cancel off of — an app that wants to stop a class-started task early (or on its owning
+  component's own teardown) still has to keep the returned id and call `taskManager.cancel(id)`
+  itself. This is narrower than it used to be: an ordinary `.thr` component's own `run(...)` calls
+  ARE now auto-cancelled when that component is torn down (a router navigation away,
+  `{#if:destroy}`, or an `{#each}` removal) — see `taskManager.run(...)`'s own section above and
+  `findings/task-manager-core.md`'s "No automatic cleanup..." section for how.
 - **An author-set `node.id` that collides with another already-tracked task's id is silently
   re-minted** — the id `run(...)` returns can therefore differ from whatever the author explicitly
   set on the node, if (and only if) that exact string was already in use by a different task.

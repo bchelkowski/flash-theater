@@ -76,6 +76,10 @@ const interceptors = `public function setup() {
     <code class="text-amber-300">"high"</code>/<code class="text-amber-300">"normal"</code>/<code class="text-amber-300">"low"</code>
     tiers) and returns a task id for <code class="text-amber-300">cancel(id)</code>. Defaults to a concurrency budget
     of 50 (below Roku's hard 100 limit, leaving headroom for tasks started outside this compiler entirely).
+    A task started from an ordinary component is auto-cancelled the moment that component is torn down
+    (a navigation away, <code class="text-amber-300">{'{#if:destroy}'}</code>, or an
+    <code class="text-amber-300">{'{#each}'}</code> removal) — keeping the id and calling
+    <code class="text-amber-300">cancel(id)</code> yourself is only needed to stop a task earlier than that.
   </p>
   <CodePanel code={runCancel} lang="xml" filename="" class="mb-8" />
 
@@ -121,7 +125,7 @@ const interceptors = `public function setup() {
   </p>
 
   <NotSupported items={[
-    'No automatic cleanup when a tracked node\'s owning component is destroyed — keep the returned id and call <code class="text-amber-300">cancel(id)</code> yourself if early-stop matters.',
+    'A task started from a <a href="classes/" class="prose-link">.flsh class</a> body has no auto-cancel — a class instance has no node of its own for the owning component\'s teardown hook to key off of, so keep the returned id and call <code class="text-amber-300">cancel(id)</code> yourself.',
     'Task nodes created outside <code class="text-amber-300">.thr</code>/<code class="text-amber-300">.flsh</code> (hand-written BrightScript) are invisible to the manager unless explicitly routed through <code class="text-amber-300">run(...)</code>.',
     'No preemption — a burst of <code class="text-amber-300">"high"</code>-priority work still waits for already-running <code class="text-amber-300">"low"</code>-priority tasks to finish naturally.',
     'Re-prioritizing an already-queued task — calling <code class="text-amber-300">run(...)</code> again with a different priority has no effect once queued.',

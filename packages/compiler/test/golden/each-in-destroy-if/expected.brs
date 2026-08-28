@@ -29,11 +29,13 @@ end sub
 
 sub EachInDestroyIfFixture__destroy_if_1()
   if m["$$ft_if_1"] <> invalid then
+    m.global.ft_focus.callFunc("unregisterSubtree", m["$$ft_if_1"], m.top)
     m.root.removeChild(m["$$ft_if_1"])
     m["$$ft_each_1"] = invalid
     m["$$ft_each_1_keys"] = invalid
     m["$$ft_each_1_nodes"] = invalid
     m["$$ft_if_1"] = invalid
+    m.global.ft_focus.callFunc("recoverFocusFor", m.top)
   end if
 end sub
 

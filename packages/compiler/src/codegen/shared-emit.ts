@@ -38,6 +38,33 @@ export function focusUnregisterCall(nodeRef: string): string {
 }
 
 /**
+ * Unregisters every registrant anywhere in `nodeRef`'s own live subtree, regardless of whether the
+ * compiler's own template analysis can see it — `unregisterSubtree` (runtime-assets/FocusManager)
+ * walks the focus manager's own flat registry checking each entry's OWNER against `nodeRef` via
+ * `IsSameNode()`/`GetParent()` ancestry, not the compile-time template tree. `focusUnregisterCall`
+ * above only ever unregisters an id the compiler's own scan found directly in THIS component's
+ * template (every such element's own `owner` is `m.top`, this whole component — see
+ * `focusRegisterCall`'s own doc comment); it can never see a focusable element registered by a
+ * NESTED CUSTOM COMPONENT's own generated code (that component's own `m.top`, opaque to this
+ * component's template analysis). This call closes exactly that gap — see
+ * `issues/focus-destroy-nested-component-orphaned-registration.md` and
+ * `findings/focus-router-free-and-nested-gaps.md`'s "`{#if:destroy}`'s generated teardown can't see
+ * into a nested custom component's own focusable content" section. Same "must run before
+ * `removeChild`" ordering requirement as `focusUnregisterCall` — `isDescendantOrSelf`'s own
+ * `GetParent()` walk needs the subtree still attached.
+ *
+ * `recoveryOwnerRef` (always `m.top` for this call's own two codegen sites — a `{#if:destroy}`
+ * block's destroy sub / cascade-check) is what lets the LATER, deliberately-deferred
+ * `recoverFocusFor(m.top)` call still succeed even when the lost focus belonged to a nested custom
+ * component's own content — see `unregisterSubtree`'s own doc comment in
+ * `runtime-assets/FocusManager/FlashTheaterFocusManager.brs` for why this rewrite has to happen
+ * HERE (subtree still attached) rather than as part of `recoverFocusFor`'s own later match.
+ */
+export function focusUnregisterSubtreeCall(nodeRef: string, recoveryOwnerRef: string): string {
+  return `${globalFieldRef('focus')}.callFunc("unregisterSubtree", ${nodeRef}, ${recoveryOwnerRef})`;
+}
+
+/**
  * The reactive temp-var + field-assign + conditional register/unregister
  * shape for a dynamic `focusable="{expr}"` assignment — the shape that makes
  * a reactive parent→child focus-handoff (drill-down) pattern work at
